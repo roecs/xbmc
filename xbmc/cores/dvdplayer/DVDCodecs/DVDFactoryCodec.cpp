@@ -45,6 +45,10 @@
 #ifdef USE_LIBFAAD_DECODER
   #include "Audio/DVDAudioCodecLibFaad.h"
 #endif
+#ifdef _WIN32
+  #include "Audio/DVDAudioCodecDirectshow.h"
+  #include "Video/DVDVideoCodecDirectshow.h"
+#endif
 #include "Audio/DVDAudioCodecPcm.h"
 #include "Audio/DVDAudioCodecLPcm.h"
 #if defined(USE_LIBA52_DECODER) || defined(USE_LIBDTS_DECODER)
@@ -58,7 +62,9 @@
 #include "DVDStreamInfo.h"
 #include "settings/GUISettings.h"
 #include "utils/SystemInfo.h"
-
+//Temporary for testing directshow
+#define USE_DSHOW_AUDIO 0
+#define USE_DSHOW_VIDEO 1
 CDVDVideoCodec* CDVDFactoryCodec::OpenCodec(CDVDVideoCodec* pCodec, CDVDStreamInfo &hints, CDVDCodecOptions &options )
 {
   try
@@ -228,6 +234,10 @@ CDVDVideoCodec* CDVDFactoryCodec::CreateVideoCodec( CDVDStreamInfo &hint )
     options.push_back(CDVDCodecOption("lowres","1"));
   }
 #endif
+#if (USE_DSHOW_VIDEO)//defined(_WIN32)
+  if( (pCodec = OpenCodec(new CDVDVideoCodecDirectshow(), hint, options)) ) 
+    return pCodec;
+#endif
 
   if( (pCodec = OpenCodec(new CDVDVideoCodecFFmpeg(), hint, options)) ) return pCodec;
 
@@ -238,6 +248,11 @@ CDVDAudioCodec* CDVDFactoryCodec::CreateAudioCodec( CDVDStreamInfo &hint, bool p
 {
   CDVDAudioCodec* pCodec = NULL;
   CDVDCodecOptions options;
+
+#if (USE_DSHOW_AUDIO)//defined(_WIN32)
+  if( (pCodec = OpenCodec(new CDVDAudioCodecDirectshow(), hint, options)) ) 
+    return pCodec;
+#endif
 
   if (passthrough)
   {

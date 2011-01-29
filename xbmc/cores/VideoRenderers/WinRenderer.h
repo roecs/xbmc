@@ -28,6 +28,7 @@
 #include "BaseRenderer.h"
 #include "guilib/D3DResource.h"
 #include "settings/VideoSettings.h"
+
 //#define MP_DIRECTRENDERING
 
 #ifdef MP_DIRECTRENDERING
@@ -73,12 +74,14 @@
 class CBaseTexture;
 class CYUV2RGBShader;
 class CConvolutionShader;
+class CPixelShaderCompiler;
 
 class DllAvUtil;
 class DllAvCodec;
 class DllSwScale;
 
 namespace DXVA { class CProcessor; }
+class IPaintCallback;
 
 struct DRAWRECT
 {
@@ -110,6 +113,7 @@ enum RenderMethod
   RENDER_PS      = 0x01,
   RENDER_SW      = 0x02,
   RENDER_DXVA    = 0x03,
+  RENDER_D3D     = 0x04,
 };
 
 #define PLANE_Y 0
@@ -167,6 +171,18 @@ struct DXVABuffer : SVideoBuffer
   int64_t           id;
 };
 
+struct D3DBuffer : SVideoBuffer
+{
+  D3DBuffer()
+  {
+    alloc = NULL;
+  }
+  ~D3DBuffer();
+  virtual void Release();
+
+  IPaintCallback* alloc;
+};
+
 class CWinRenderer : public CBaseRenderer
 {
 public:
@@ -183,6 +199,7 @@ public:
   virtual void         ReleaseImage(int source, bool preserve = false);
   virtual unsigned int DrawSlice(unsigned char *src[], int stride[], int w, int h, int x, int y);
   virtual void         AddProcessor(DXVA::CProcessor* processor, int64_t id);
+  virtual void         AddProcessor(IPaintCallback* pAlloc);
   virtual void         FlipPage(int source);
   virtual unsigned int PreInit();
   virtual void         UnInit();
@@ -221,6 +238,7 @@ protected:
   bool CreateIntermediateRenderTarget();
 
   void RenderProcessor(DWORD flags);
+  void RenderDirectshow(DWORD flags);
   int  m_iYV12RenderBuffer;
   int  m_NumYV12Buffers;
 
@@ -244,6 +262,9 @@ protected:
 
   CYUV2RGBShader*      m_colorShader;
   CConvolutionShader*  m_scalerShader;
+
+  CPixelShaderCompiler*  m_pixelshadercompiler;
+  IDirect3DPixelShader9* m_resizerpixershader[4];
 
   ESCALINGMETHOD       m_scalingMethod;
   ESCALINGMETHOD       m_scalingMethodGui;

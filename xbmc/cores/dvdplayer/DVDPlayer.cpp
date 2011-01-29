@@ -40,11 +40,11 @@
 
 #include "utils/URIUtils.h"
 #include "GUIInfoManager.h"
-#include "guilib/GUIWindowManager.h"
+#include "GUIWindowManager.h"
 #include "Application.h"
 #include "DVDPerformanceCounter.h"
-#include "filesystem/File.h"
-#include "pictures/Picture.h"
+#include "FileSystem/File.h"
+#include "Pictures/Picture.h"
 #include "DllSwScale.h"
 #ifdef HAS_VIDEO_PLAYBACK
 #include "cores/VideoRenderers/RenderManager.h"
@@ -54,16 +54,18 @@
 #else
 #define MEASURE_FUNCTION
 #endif
-#include "settings/AdvancedSettings.h"
+#include "Settings/AdvancedSettings.h"
 #include "FileItem.h"
-#include "settings/GUISettings.h"
+#include "Input/MouseStat.h"
+#include "Settings/GUISettings.h"
 #include "GUIUserMessages.h"
-#include "settings/Settings.h"
+#include "Settings/Settings.h"
+#include "LocalizeStrings.h"
 #include "utils/log.h"
 #include "utils/TimeUtils.h"
 #include "utils/StreamDetails.h"
-#include "storage/MediaManager.h"
-#include "dialogs/GUIDialogBusy.h"
+#include "Storage/MediaManager.h"
+#include "GUIDialogBusy.h"
 
 using namespace std;
 
@@ -348,7 +350,7 @@ bool CDVDPlayer::OpenFile(const CFileItem& file, const CPlayerOptions &options)
       CGUIDialogBusy* dialog = (CGUIDialogBusy*)g_windowManager.GetWindow(WINDOW_DIALOG_BUSY);
       dialog->Show();
       while(!m_ready.WaitMSec(1))
-        g_windowManager.Process(false);
+        g_windowManager.Process(true);
       dialog->Close();
     }
 
@@ -479,7 +481,7 @@ retry:
     {
       CLog::Log(LOGERROR, "test subs Amet [%s]", filenames[i].c_str());
       // if vobsub subtitle:		
-      if (URIUtils::GetExtension(filenames[i]) == ".idx")
+      if ( URIUtils::GetExtension(filenames[i]) == ".idx" ) 
       {
         CStdString strSubFile;
         if ( CUtil::FindVobSubPair( filenames, filenames[i], strSubFile ) )

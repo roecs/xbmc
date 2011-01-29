@@ -24,20 +24,22 @@
 #include "WinRenderer.h"
 #include "Application.h"
 #include "Util.h"
-#include "settings/Settings.h"
-#include "settings/GUISettings.h"
-#include "guilib/Texture.h"
-#include "windowing/WindowingFactory.h"
-#include "settings/AdvancedSettings.h"
-#include "threads/SingleLock.h"
+#include "Settings/Settings.h"
+#include "Settings/GUISettings.h"
+#include "Texture.h"
+#include "WindowingFactory.h"
+#include "Settings/AdvancedSettings.h"
+#include "Threads/SingleLock.h"
 #include "utils/log.h"
 #include "FileSystem/File.h"
 #include "MathUtils.h"
 #include "cores/dvdplayer/DVDCodecs/Video/DXVA.h"
+#include "lib/dsnative/DSAllocator.h"
 #include "VideoShaders/WinVideoFilter.h"
+#include "VideoShaders/PixelShaderCompiler.h"
 #include "DllSwScale.h"
 #include "DllAvCodec.h"
-#include "guilib/LocalizeStrings.h"
+#include "LocalizeStrings.h"
 
 typedef struct {
   RenderMethod  method;
@@ -67,6 +69,8 @@ CWinRenderer::CWinRenderer()
 
   m_colorShader = NULL;
   m_scalerShader = NULL;
+
+  m_pixelshadercompiler = new CPixelShaderCompiler();
 
   m_renderMethod = RENDER_PS;
   m_scalingMethod = VS_SCALINGMETHOD_LINEAR;
@@ -117,6 +121,35 @@ void CWinRenderer::SelectRenderMethod()
   if (CONF_FLAGS_FORMAT_MASK(m_flags) == CONF_FLAGS_FORMAT_DXVA)
   {
     m_renderMethod = RENDER_DXVA;
+  }
+  else if (CONF_FLAGS_FORMAT_MASK(m_flags) == CONF_FLAGS_FORMAT_D3D)
+  {
+    m_renderMethod = RENDER_D3D;
+    for(int i = 0; i < 4; i++)
+      m_resizerpixershader[i] = NULL;
+    LPCSTR pProfile = m_deviceCaps.PixelShaderVersion >= D3DPS_VERSION(3, 0) ? "ps_3_0" : "ps_2_0";
+    CStdString str;
+    XFILE::CFileStream file;
+    CStdString filename = "special://xbmc/system/shaders/resizer.psh";
+    float bicubicA = -1.00f;
+    if (file.Open(filename))
+    {
+      getline(file, str, '\0');
+      CStdStringA A;
+      A.Format("(%f)", bicubicA);
+      str.Replace("_The_Value_Of_A_Is_Set_Here_", A);
+      LPCSTR pEntries[] = {"main_bilinear", "main_bicubic1pass", "main_bicubic2pass_pass1", "main_bicubic2pass_pass2"};
+      for(int i = 0; i < 4; i++)
+      {
+        CStdString ErrorMessage;
+        CStdString DissAssembly;
+        if(m_pixelshadercompiler->CompileShader(str, pEntries[i], pProfile, 0, &m_resizerpixershader[i], &DissAssembly, &ErrorMessage)!= S_OK)
+        {
+          ASSERT (0);
+        
+    }
+      }
+    }
   }
   else
   {
@@ -232,6 +265,17 @@ void CWinRenderer::AddProcessor(DXVA::CProcessor* processor, int64_t id)
   SAFE_RELEASE(buf->proc);
   buf->proc = processor->Acquire();
   buf->id   = id;
+}
+
+void CWinRenderer::AddProcessor(IPaintCallback* pAlloc)
+{
+  int source = NextYV12Texture();
+  if(source < 0)
+    return;
+  D3DBuffer *buf = (D3DBuffer*)m_VideoBuffers[source];
+  /*SAFE_RELEASE(buf->surf);*/
+  buf->alloc = pAlloc;
+
 }
 
 int CWinRenderer::GetImage(YV12Image *image, int source, bool readonly)
@@ -654,6 +698,12 @@ void CWinRenderer::Render(DWORD flags)
     return;
   }
 
+  if(CONF_FLAGS_FORMAT_MASK(m_flags) == CONF_FLAGS_FORMAT_D3D)
+  {
+    CWinRenderer::RenderDirectshow(flags);
+    return;
+  }
+
   UpdateVideoFilter();
 
   // Optimize later? we could get by with bilinear under some circumstances
@@ -931,6 +981,36 @@ void CWinRenderer::RenderProcessor(DWORD flags)
   target->Release();
 }
 
+void CWinRenderer::RenderDirectshow(DWORD flags)
+{
+  CSingleLock lock(g_graphicsContext);
+  LPDIRECT3DDEVICE9 pD3DDevice = g_Windowing.Get3DDevice();
+  RECT rect;
+  HRESULT hr;
+  
+  
+  rect.top    = std::max(m_destRect.y1, (float)0);
+  rect.bottom = m_destRect.y2;
+  rect.left   = std::max(m_destRect.x1, (float)0);
+  rect.right  = m_destRect.x2;
+  D3DBuffer *image = (D3DBuffer*)m_VideoBuffers[m_iYV12RenderBuffer];
+ 
+  if (image->alloc == NULL)
+    return;
+  IDirect3DSurface9* target;
+  if(FAILED(hr = pD3DDevice->GetRenderTarget(0, &target)))
+  {
+    CLog::Log(LOGERROR, "CWinRenderer::RenderSurface - failed to get render target. %s", CRenderSystemDX::GetErrorDescription(hr).c_str());
+    return;
+  }
+  
+  hr = pD3DDevice->SetPixelShader(m_resizerpixershader[1]);
+
+  image->alloc->Render(rect,target);
+  target->Release();
+  g_Windowing.Get3DDevice()->SetPixelShader(NULL);
+}
+
 void CWinRenderer::CreateThumbnail(CBaseTexture *texture, unsigned int width, unsigned int height)
 {
   CSingleLock lock(g_graphicsContext);
@@ -983,6 +1063,10 @@ bool CWinRenderer::CreateYV12Texture(int index)
   if (m_renderMethod == RENDER_DXVA)
   {
     m_VideoBuffers[index] = new DXVABuffer();
+  }
+  else if (m_renderMethod == RENDER_D3D)
+  {
+    m_VideoBuffers[index] = new D3DBuffer();
   }
   else
   {
@@ -1158,4 +1242,15 @@ void DXVABuffer::StartDecode()
 {
   Release();
 }
+
+D3DBuffer::~D3DBuffer()
+{
+  //Release();
+}
+
+void D3DBuffer::Release()
+{
+  //SAFE_RELEASE(alloc);
+}
+
 #endif

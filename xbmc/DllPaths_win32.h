@@ -63,6 +63,7 @@
 #define DLL_PATH_LIBDVDNAV     "special://xbmcbin/system/players/dvdplayer/libdvdnav.dll"
 #define DLL_PATH_LIBCRYSTALHD  "special://xbmcbin/system/players/dvdplayer/bcmDIL.dll"
 #define DLL_PATH_LIBRTMP       "special://xbmcbin/system/players/dvdplayer/librtmp.dll"
+#define DLL_PATH_DSHOWNATIVE   "special://xbmcbin/system/players/dvdplayer/dsnative.dll"
 
 /* ffmpeg */
 #define DLL_PATH_LIBAVCODEC    "special://xbmcbin/system/players/dvdplayer/avcodec-52.dll"

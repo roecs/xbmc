@@ -35,9 +35,7 @@
 namespace DXVA { class CProcessor; }
 namespace VAAPI { struct CHolder; }
 class CVDPAU;
-class COpenMax;
-class COpenMaxVideo;
-struct OpenMaxVideoBuffer;
+class IPaintCallback;
 
 // should be entirely filled by all codecs
 struct DVDVideoPicture
@@ -61,10 +59,8 @@ struct DVDVideoPicture
     struct {
       VAAPI::CHolder* vaapi;
     };
-
     struct {
-      COpenMax *openMax;
-      OpenMaxVideoBuffer *openMaxBuffer;
+      IPaintCallback* pAlloc;
     };
   };
 
@@ -94,7 +90,7 @@ struct DVDVideoPicture
     FMT_YUY2,
     FMT_DXVA,
     FMT_VAAPI,
-    FMT_OMXEGL
+    FMT_DSHOW,
   } format;
 };
 
@@ -150,7 +146,7 @@ public:
    * returns one or a combination of VC_ messages
    * pData and iSize can be NULL, this means we should flush the rest of the data.
    */
-  virtual int Decode(BYTE* pData, int iSize, double dts, double pts) = 0;
+  virtual int Decode(BYTE* pData, int iSize, double dts, double pts, int flags) = 0;
 
  /*
    * Reset the decoder.

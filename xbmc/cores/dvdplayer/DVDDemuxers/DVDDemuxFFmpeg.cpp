@@ -36,12 +36,12 @@
 #include "DVDDemuxUtils.h"
 #include "DVDClock.h" // for DVD_TIME_BASE
 #include "utils/Win32Exception.h"
-#include "settings/AdvancedSettings.h"
-#include "settings/GUISettings.h"
-#include "filesystem/File.h"
-#include "filesystem/Directory.h"
+#include "Settings/AdvancedSettings.h"
+#include "Settings/GUISettings.h"
+#include "FileSystem/File.h"
+#include "FileSystem/Directory.h"
 #include "utils/log.h"
-#include "threads/Thread.h"
+#include "Threads/Thread.h"
 #include "utils/TimeUtils.h"
 
 void CDemuxStreamAudioFFmpeg::GetStreamInfo(std::string& strInfo)
@@ -734,6 +734,9 @@ DemuxPacket* CDVDDemuxFFmpeg::Read()
         if (pkt.data)
           memcpy(pPacket->pData, pkt.data, pPacket->iSize);
 
+        //Set the keyframe flag
+        pPacket->flags = !!(pkt.flags&PKT_FLAG_KEY);
+
         pPacket->pts = ConvertTimestamp(pkt.pts, stream->time_base.den, stream->time_base.num);
         pPacket->dts = ConvertTimestamp(pkt.dts, stream->time_base.den, stream->time_base.num);
         pPacket->duration =  DVD_SEC_TO_TIME((double)pkt.duration * stream->time_base.num / stream->time_base.den);
@@ -995,7 +998,8 @@ void CDVDDemuxFFmpeg::AddStream(int iId)
           st->fAspect = av_q2d(pStream->sample_aspect_ratio) * pStream->codec->width / pStream->codec->height;
         st->iLevel = pStream->codec->level;
         st->iProfile = pStream->codec->profile;
-
+        st->iBitsPerCodedSample = pStream->codec->bits_per_coded_sample;
+          
         if ( m_pInput->IsStreamType(DVDSTREAM_TYPE_DVD) )
         {
           if (pStream->codec->codec_id == CODEC_ID_PROBE)
@@ -1082,7 +1086,6 @@ void CDVDDemuxFFmpeg::AddStream(int iId)
 
     m_streams[iId]->codec = pStream->codec->codec_id;
     m_streams[iId]->codec_fourcc = pStream->codec->codec_tag;
-    m_streams[iId]->profile = pStream->codec->profile;
     m_streams[iId]->iId = iId;
     m_streams[iId]->source = STREAM_SOURCE_DEMUX;
     m_streams[iId]->pPrivate = pStream;
@@ -1256,20 +1259,6 @@ void CDVDDemuxFFmpeg::GetStreamCodecName(int iStreamId, CStdString &strName)
         return;
       }
     }
-
-#ifdef FF_PROFILE_DTS_HD_MA
-    /* use profile to determine the DTS type */
-    if (stream->codec == CODEC_ID_DTS)
-    {
-      if (stream->profile == FF_PROFILE_DTS_HD_MA)
-        strName = "dtshd_ma";
-      else if (stream->profile == FF_PROFILE_DTS_HD_HRA)
-        strName = "dtshd_hra";
-      else
-        strName = "dca";
-      return;
-    }
-#endif
 
     AVCodec *codec = m_dllAvCodec.avcodec_find_decoder(stream->codec);
     if (codec)

@@ -159,6 +159,7 @@ public:
   int iLevel; // encoder level of the stream reported by the decoder. used to qualify hw decoders.
   int iProfile; // encoder profile of the stream reported by the decoder. used to qualify hw decoders.
   bool bPTSInvalid; // pts cannot be trusted (avi's).
+  int iBitsPerCodedSample;
   
 };
 
@@ -218,6 +219,7 @@ typedef struct DemuxPacket
   double pts; // pts in DVD_TIME_BASE
   double dts; // dts in DVD_TIME_BASE
   double duration; // duration in DVD_TIME_BASE if available
+  int flags; //mainly for keyframe
 } DemuxPacket;
 
 

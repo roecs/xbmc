@@ -21,15 +21,15 @@
 
 #include "system.h"
 #include "RenderManager.h"
-#include "threads/CriticalSection.h"
-#include "video/VideoReferenceClock.h"
-#include "utils/MathUtils.h"
-#include "threads/SingleLock.h"
+#include "Threads/CriticalSection.h"
+#include "Video/VideoReferenceClock.h"
+#include "MathUtils.h"
+#include "Threads/SingleLock.h"
 #include "utils/log.h"
 
 #include "Application.h"
-#include "settings/Settings.h"
-#include "settings/GUISettings.h"
+#include "Settings/Settings.h"
+#include "Settings/GUISettings.h"
 
 #ifdef _LINUX
 #include "PlatformInclude.h"
