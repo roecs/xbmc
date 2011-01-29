@@ -1,0 +1,270 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Baseclasses">
+      <UniqueIdentifier>{e6c6ec70-4d49-4096-9eff-ac9dd5a35249}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Baseclasses\Header Files">
+      <UniqueIdentifier>{16e6fb79-3fb7-41b4-a91c-0bdb0271c780}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Baseclasses\Source Files">
+      <UniqueIdentifier>{98b0de9a-3a80-4d09-a4d9-a8b2e4c9352d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="AudioCodec">
+      <UniqueIdentifier>{823b6487-fad4-4555-9564-6c5f0e933021}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Video">
+      <UniqueIdentifier>{c34c486f-8acc-40c2-ab3f-32e380342ece}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="BaseClasses\amextra.cpp">
+      <Filter>Baseclasses\Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="BaseClasses\wxutil.cpp">
+      <Filter>Baseclasses\Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="BaseClasses\amfilter.cpp">
+      <Filter>Baseclasses\Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="BaseClasses\amvideo.cpp">
+      <Filter>Baseclasses\Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="BaseClasses\combase.cpp">
+      <Filter>Baseclasses\Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="BaseClasses\cprop.cpp">
+      <Filter>Baseclasses\Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="BaseClasses\ctlutil.cpp">
+      <Filter>Baseclasses\Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="BaseClasses\ddmm.cpp">
+      <Filter>Baseclasses\Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="BaseClasses\dllentry.cpp">
+      <Filter>Baseclasses\Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="BaseClasses\mtype.cpp">
+      <Filter>Baseclasses\Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="BaseClasses\outputq.cpp">
+      <Filter>Baseclasses\Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="BaseClasses\pstream.cpp">
+      <Filter>Baseclasses\Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="BaseClasses\pullpin.cpp">
+      <Filter>Baseclasses\Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="BaseClasses\refclock.cpp">
+      <Filter>Baseclasses\Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="BaseClasses\renbase.cpp">
+      <Filter>Baseclasses\Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="BaseClasses\schedule.cpp">
+      <Filter>Baseclasses\Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="BaseClasses\seekpt.cpp">
+      <Filter>Baseclasses\Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="BaseClasses\source.cpp">
+      <Filter>Baseclasses\Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="BaseClasses\strmctl.cpp">
+      <Filter>Baseclasses\Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="BaseClasses\sysclock.cpp">
+      <Filter>Baseclasses\Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="BaseClasses\transfrm.cpp">
+      <Filter>Baseclasses\Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="BaseClasses\transip.cpp">
+      <Filter>Baseclasses\Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="BaseClasses\videoctl.cpp">
+      <Filter>Baseclasses\Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="BaseClasses\vtrans.cpp">
+      <Filter>Baseclasses\Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="BaseClasses\winctrl.cpp">
+      <Filter>Baseclasses\Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="BaseClasses\winutil.cpp">
+      <Filter>Baseclasses\Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="BaseClasses\wxdebug.cpp">
+      <Filter>Baseclasses\Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="BaseClasses\wxlist.cpp">
+      <Filter>Baseclasses\Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="BaseClasses\arithutil.cpp">
+      <Filter>Baseclasses\Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="DSVideoCodec.cpp">
+      <Filter>Video</Filter>
+    </ClCompile>
+    <ClCompile Include="DSAudiocodec.cpp">
+      <Filter>AudioCodec</Filter>
+    </ClCompile>
+    <ClCompile Include="DSAllocator.cpp">
+      <Filter>Video</Filter>
+    </ClCompile>
+    <ClCompile Include="CoordGeom.cpp" />
+    <ClCompile Include="stdafx.cpp" />
+    <ClCompile Include="DSNative.cpp" />
+    <ClCompile Include="dsnerror.cpp" />
+    <ClCompile Include="dsnpins.cpp" />
+    <ClCompile Include="dump.cpp" />
+    <ClCompile Include="DSAudioRenderer.cpp">
+      <Filter>AudioCodec</Filter>
+    </ClCompile>
+    <ClCompile Include="ExtradataParser.cpp">
+      <Filter>Video</Filter>
+    </ClCompile>
+    <ClCompile Include="ByteParser.cpp">
+      <Filter>Video</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="BaseClasses\amextra.h">
+      <Filter>Baseclasses\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="BaseClasses\amfilter.h">
+      <Filter>Baseclasses\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="BaseClasses\cache.h">
+      <Filter>Baseclasses\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="BaseClasses\combase.h">
+      <Filter>Baseclasses\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="BaseClasses\cprop.h">
+      <Filter>Baseclasses\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="BaseClasses\ctlutil.h">
+      <Filter>Baseclasses\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="BaseClasses\ddmm.h">
+      <Filter>Baseclasses\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="BaseClasses\dllsetup.h">
+      <Filter>Baseclasses\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="BaseClasses\dsschedule.h">
+      <Filter>Baseclasses\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="BaseClasses\msgthrd.h">
+      <Filter>Baseclasses\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="BaseClasses\fourcc.h">
+      <Filter>Baseclasses\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="BaseClasses\measure.h">
+      <Filter>Baseclasses\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="BaseClasses\mtype.h">
+      <Filter>Baseclasses\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="BaseClasses\outputq.h">
+      <Filter>Baseclasses\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="BaseClasses\pstream.h">
+      <Filter>Baseclasses\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="BaseClasses\pullpin.h">
+      <Filter>Baseclasses\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="BaseClasses\refclock.h">
+      <Filter>Baseclasses\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="BaseClasses\reftime.h">
+      <Filter>Baseclasses\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="BaseClasses\renbase.h">
+      <Filter>Baseclasses\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="BaseClasses\schedule.h">
+      <Filter>Baseclasses\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="BaseClasses\seekpt.h">
+      <Filter>Baseclasses\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="BaseClasses\source.h">
+      <Filter>Baseclasses\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="BaseClasses\streams.h">
+      <Filter>Baseclasses\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="BaseClasses\strmctl.h">
+      <Filter>Baseclasses\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="BaseClasses\sysclock.h">
+      <Filter>Baseclasses\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="BaseClasses\transfrm.h">
+      <Filter>Baseclasses\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="BaseClasses\transip.h">
+      <Filter>Baseclasses\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="BaseClasses\videoctl.h">
+      <Filter>Baseclasses\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="BaseClasses\vtrans.h">
+      <Filter>Baseclasses\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="BaseClasses\winctrl.h">
+      <Filter>Baseclasses\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="BaseClasses\winutil.h">
+      <Filter>Baseclasses\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="BaseClasses\wxdebug.h">
+      <Filter>Baseclasses\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="BaseClasses\wxlist.h">
+      <Filter>Baseclasses\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="BaseClasses\wxutil.h">
+      <Filter>Baseclasses\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="DSVideoCodec.h">
+      <Filter>Video</Filter>
+    </ClInclude>
+    <ClInclude Include="DSAudiocodec.h">
+      <Filter>AudioCodec</Filter>
+    </ClInclude>
+    <ClInclude Include="IPaintCallback.h">
+      <Filter>Video</Filter>
+    </ClInclude>
+    <ClInclude Include="DSAllocator.h">
+      <Filter>Video</Filter>
+    </ClInclude>
+    <ClInclude Include="stdafx.h" />
+    <ClInclude Include="char_t.h" />
+    <ClInclude Include="CoordGeom.h" />
+    <ClInclude Include="DSCodecTag.h" />
+    <ClInclude Include="DSNative.h" />
+    <ClInclude Include="dsnerror.h" />
+    <ClInclude Include="dsnpins.h" />
+    <ClInclude Include="dump.h" />
+    <ClInclude Include="dumpuids.h" />
+    <ClInclude Include="resource.h" />
+    <ClInclude Include="SmartList.h" />
+    <ClInclude Include="SmartPtr.h" />
+    <ClInclude Include="DSAudioRenderer.h">
+      <Filter>AudioCodec</Filter>
+    </ClInclude>
+    <ClInclude Include="ExtradataParser.h">
+      <Filter>Video</Filter>
+    </ClInclude>
+    <ClInclude Include="ByteParser.h">
+      <Filter>Video</Filter>
+    </ClInclude>
+  </ItemGroup>
+</Project>

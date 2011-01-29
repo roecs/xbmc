@@ -20,11 +20,11 @@
  */
 
 #include "system.h"
-#include "settings/AdvancedSettings.h"
-#include "settings/GUISettings.h"
-#include "settings/Settings.h"
-#include "video/VideoReferenceClock.h"
-#include "utils/MathUtils.h"
+#include "Settings/AdvancedSettings.h"
+#include "Settings/GUISettings.h"
+#include "Settings/Settings.h"
+#include "Video/VideoReferenceClock.h"
+#include "MathUtils.h"
 #include "DVDPlayer.h"
 #include "DVDPlayerVideo.h"
 #include "DVDCodecs/DVDFactoryCodec.h"
@@ -46,17 +46,6 @@
 #include "utils/log.h"
 
 using namespace std;
-
-#include <time.h>
-#include <stdint.h>
-
-inline int64_t getTimeInMillis()
-{
-  timespec time;
-  clock_gettime(CLOCK_REALTIME, &time);
-  return time.tv_sec * 1000L + time.tv_nsec / 1000000L;
-}
-
 
 class CPulldownCorrection
 {
@@ -322,8 +311,6 @@ void CDVDPlayerVideo::Process()
 
   while (!m_bStop)
   {
-    int64_t start = getTimeInMillis();
-
     int iQueueTimeOut = (int)(m_stalled ? frametime / 4 : frametime * 10) / 1000;
     int iPriority = (m_speed == DVD_PLAYSPEED_PAUSE && m_started) ? 1 : 0;
 
@@ -506,7 +493,7 @@ void CDVDPlayerVideo::Process()
       // decoder still needs to provide an empty image structure, with correct flags
       m_pVideoCodec->SetDropState(bRequestDrop);
 
-      int iDecoderState = m_pVideoCodec->Decode(pPacket->pData, pPacket->iSize, pPacket->dts, pPacket->pts);
+      int iDecoderState = m_pVideoCodec->Decode(pPacket->pData, pPacket->iSize, pPacket->dts, pPacket->pts, pPacket->flags);
 
       // buffer packets so we can recover should decoder flush for some reason
       if(m_pVideoCodec->GetConvergeCount() > 0)
@@ -674,7 +661,7 @@ void CDVDPlayerVideo::Process()
               //flushing the video codec things break for some reason
               //i think the decoder (libmpeg2 atleast) still has a pointer
               //to the data, and when the packet is freed that will fail.
-              iDecoderState = m_pVideoCodec->Decode(NULL, 0, DVD_NOPTS_VALUE, DVD_NOPTS_VALUE);
+              iDecoderState = m_pVideoCodec->Decode(NULL, 0, DVD_NOPTS_VALUE, DVD_NOPTS_VALUE, 0);
               break;
             }
 
@@ -714,12 +701,9 @@ void CDVDPlayerVideo::Process()
           break;
 
         // the decoder didn't need more data, flush the remaning buffer
-        iDecoderState = m_pVideoCodec->Decode(NULL, 0, DVD_NOPTS_VALUE, DVD_NOPTS_VALUE);
+        iDecoderState = m_pVideoCodec->Decode(NULL, 0, DVD_NOPTS_VALUE, DVD_NOPTS_VALUE, 0);
       }
     }
-
-    int64_t end = getTimeInMillis();
-    //printf("Process: %d\n", int(end - start));
 
     // all data is used by the decoder, we can safely free it now
     pMsg->Release();
@@ -875,10 +859,8 @@ void CDVDPlayerVideo::ProcessOverlays(DVDVideoPicture* pSource, YV12Image* pDest
     }
     else
     {
-#if 0
       AutoCrop(pSource);
       CDVDCodecUtils::CopyPicture(pDest, pSource);
-#endif
     }
   }
 
@@ -939,14 +921,13 @@ void CDVDPlayerVideo::ProcessOverlays(DVDVideoPicture* pSource, YV12Image* pDest
 #ifdef HAS_DX
   else if(pSource->format == DVDVideoPicture::FMT_DXVA)
     g_renderManager.AddProcessor(pSource->proc, pSource->proc_id);
+  else if(pSource->format == DVDVideoPicture::FMT_DSHOW)
+    g_renderManager.AddProcessor(pSource->pAlloc);
+
 #endif
 #ifdef HAVE_LIBVDPAU
   else if(pSource->format == DVDVideoPicture::FMT_VDPAU)
     g_renderManager.AddProcessor(pSource->vdpau);
-#endif
-#ifdef HAVE_LIBOPENMAX
-  else if(pSource->format == DVDVideoPicture::FMT_OMXEGL)
-    g_renderManager.AddProcessor(pSource->openMax, pSource);
 #endif
 #ifdef HAVE_LIBVA
   else if(pSource->format == DVDVideoPicture::FMT_VAAPI)
@@ -1026,12 +1007,13 @@ int CDVDPlayerVideo::OutputPicture(DVDVideoPicture* pPicture, double pts)
         flags |= CONF_FLAGS_FORMAT_DXVA;
         formatstr = "DXVA";
         break;
+      case DVDVideoPicture::FMT_DSHOW:
+        flags |= CONF_FLAGS_FORMAT_D3D;
+        formatstr = "D3D";
+        break;
       case DVDVideoPicture::FMT_VAAPI:
         flags |= CONF_FLAGS_FORMAT_VAAPI;
         formatstr = "VAAPI";
-        break;
-      case DVDVideoPicture::FMT_OMXEGL:
-        flags |= CONF_FLAGS_FORMAT_OMXEGL;
         break;
     }
 

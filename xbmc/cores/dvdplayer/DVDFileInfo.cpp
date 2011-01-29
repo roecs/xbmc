@@ -180,7 +180,7 @@ bool CDVDFileInfo::ExtractThumb(const CStdString &strPath, const CStdString &str
             continue;
           }
 
-          iDecoderState = pVideoCodec->Decode(pPacket->pData, pPacket->iSize, pPacket->dts, pPacket->pts);
+          iDecoderState = pVideoCodec->Decode(pPacket->pData, pPacket->iSize, pPacket->dts, pPacket->pts, 0);
           CDVDDemuxUtils::FreeDemuxPacket(pPacket);
 
           if (iDecoderState & VC_ERROR)

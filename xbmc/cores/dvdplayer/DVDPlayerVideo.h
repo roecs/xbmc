@@ -21,7 +21,7 @@
  *
  */
 
-#include "threads/Thread.h"
+#include "Threads/Thread.h"
 #include "DVDMessageQueue.h"
 #include "DVDDemuxers/DVDDemuxUtils.h"
 #include "DVDCodecs/Video/DVDVideoCodec.h"

@@ -31,11 +31,12 @@
   #include "LinuxRenderer.h"
 #endif
 
-#include "threads/SharedSection.h"
-#include "threads/Thread.h"
+#include "Threads/SharedSection.h"
+#include "Threads/Thread.h"
 #include "settings/VideoSettings.h"
 #include "OverlayRenderer.h"
 
+class IPaintCallback;
 namespace DXVA { class CProcessor; }
 namespace VAAPI { class CSurfaceHolder; }
 class CVDPAU;
@@ -97,6 +98,12 @@ public:
     if (m_pRenderer)
       m_pRenderer->AddProcessor(processor, id);
   }
+  void AddProcessor(IPaintCallback* pAlloc)
+  {
+    CSharedLock lock(m_sharedSection);
+    if (m_pRenderer)
+      m_pRenderer->AddProcessor(pAlloc);
+  }
 #endif
 
 #ifdef HAVE_LIBVDPAU
@@ -105,15 +112,6 @@ public:
     CSharedLock lock(m_sharedSection);
     if (m_pRenderer)
       m_pRenderer->AddProcessor(vdpau);
-  }
-#endif
-
-#ifdef HAVE_LIBOPENMAX
-  void AddProcessor(COpenMax *openmax, DVDVideoPicture *picture)
-  {
-    CSharedLock lock(m_sharedSection);
-    if (m_pRenderer)
-      m_pRenderer->AddProcessor(openmax, picture);
   }
 #endif
 

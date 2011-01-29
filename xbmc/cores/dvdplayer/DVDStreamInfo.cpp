@@ -59,6 +59,7 @@ void CDVDStreamInfo::Clear()
   level    = 0;
   profile  = 0;
   ptsinvalid = false;
+  bitspercodedsample = 0;
 
   channels   = 0;
   samplerate = 0;
@@ -94,6 +95,7 @@ bool CDVDStreamInfo::Equal(const CDVDStreamInfo& right, bool withextradata)
   ||  level    != right.level
   ||  profile  != right.profile
   ||  ptsinvalid != right.ptsinvalid
+  ||  bitspercodedsample != right.bitspercodedsample
   ||  vfr      != right.vfr) return false;
 
   // AUDIO
@@ -148,6 +150,7 @@ void CDVDStreamInfo::Assign(const CDVDStreamInfo& right, bool withextradata)
   level    = right.level;
   profile  = right.profile;
   ptsinvalid = right.ptsinvalid;
+  bitspercodedsample = right.bitspercodedsample;
 
   // AUDIO
   channels      = right.channels;
@@ -196,6 +199,7 @@ void CDVDStreamInfo::Assign(const CDemuxStream& right, bool withextradata)
     level     = stream->iLevel;
     profile   = stream->iProfile;
     ptsinvalid = stream->bPTSInvalid;
+    bitspercodedsample = stream->iBitsPerCodedSample;
   }
   else if(  right.type == STREAM_SUBTITLE )
   {
