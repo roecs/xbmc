@@ -59,7 +59,7 @@ public:
   DECLARE_IUNKNOWN
 	STDMETHODIMP NonDelegatingQueryInterface(REFIID riid, void **ppv);
   long HaveCurrentSample();
-  long GetCurrentSample(BYTE **dst);
+  long GetCurrentSample(BYTE **dst, int *newMediaType);
   HRESULT Receive(IMediaSample *pSample);
 private:
     CNullRendererInputPin *m_pin;
@@ -69,4 +69,5 @@ private:
     CCritSec m_csFilter;
     CCritSec m_RendererLock;            // Controls access to internals
     CDSPacket *m_pDecodedData;       // Decoded data
+    bool m_bNewMediaType;
 };

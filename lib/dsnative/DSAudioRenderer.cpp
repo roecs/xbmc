@@ -60,6 +60,8 @@ CNullRenderer::CNullRenderer()
   m_pDecodedData = new CDSPacket();
   m_pDecodedData->size = 0;
   m_pDecodedData->buffering_size = 0;
+  m_pDecodedData->media_type.InitMediaType();
+  m_bNewMediaType = false;
 }
 
 CNullRenderer::~CNullRenderer()
@@ -88,12 +90,17 @@ long CNullRenderer::HaveCurrentSample()
 // person who called this method will hold the remaining reference count
 // that will stop the sample being added back onto the allocator free list
 
-long CNullRenderer::GetCurrentSample(BYTE **dst)
+long CNullRenderer::GetCurrentSample(BYTE **dst, int *newMediaType)
 {
     CAutoLock cRendererLock(&m_RendererLock);
     *dst = m_pDecodedData->sample;
     
     m_pDecodedData->buffering_size = 0;
+    if (m_bNewMediaType)
+    {
+      *newMediaType = 1;
+      m_bNewMediaType = false;
+    }
     return m_pDecodedData->size;
 }
 
@@ -117,12 +124,26 @@ HRESULT CNullRenderer::Receive(IMediaSample *pSample)
   memcpy(m_pDecodedData->sample, pData, lDataLength);
 
   m_pDecodedData->buffering_size = m_pDecodedData->size = lDataLength;
+  AM_MEDIA_TYPE* mt= NULL;
+  if (SUCCEEDED(pSample->GetMediaType(&mt)))
+  {
+    if (mt)
+    {
+      m_pDecodedData->media_type = *mt;
+      m_bNewMediaType = true;
+    }
+  }
 
   return S_OK;
 }
 CMediaType CNullRenderer::GetOutputMediaType()
 {
-  return m_pin->GetOutputMediaType();
+  if (!m_pDecodedData->media_type.cbFormat)
+  {
+    m_pDecodedData->media_type = m_pin->GetOutputMediaType();
+  }
+  return m_pDecodedData->media_type;
+
   
 }
 STDMETHODIMP CNullRenderer::NonDelegatingQueryInterface(REFIID riid, void **ppv)

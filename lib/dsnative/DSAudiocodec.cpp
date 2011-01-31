@@ -25,7 +25,7 @@
 
 DSAudioCodec::DSAudioCodec(const char *cfname, const GUID guid, CMediaType *wvfmt, const char *sfname) 
   :  m_guid(guid), m_wvfmt(wvfmt), m_hDll(NULL), m_outfmt(NULL), 
-     m_frametime(0), m_discontinuity(1), m_pFrameDuration(0),
+     m_frametime(0), m_discontinuity(1), m_pFrameDurationDivision(0),
      m_pFilter(NULL), m_pInputPin(NULL), m_pOutputPin(NULL),
      m_pOurInput(NULL), m_pNullRendererInputPin(NULL),
      m_pMemInputPin(NULL), m_pMemAllocator(NULL), m_pSFilter(NULL),
@@ -465,7 +465,7 @@ BOOL DSAudioCodec::StartGraph()
   return TRUE;
 }
 
-dsnerror_t DSAudioCodec::Decode(const BYTE *src, int size, BYTE *pDecodedData, int *usedByte)
+dsnerror_t DSAudioCodec::Decode(const BYTE *src, int size, int *usedByte)
 {
 
   IMediaSample* sample = NULL;
@@ -491,27 +491,25 @@ dsnerror_t DSAudioCodec::Decode(const BYTE *src, int size, BYTE *pDecodedData, i
     m_newmediatype = 0;
   }
   
-  if (!m_pFrameDuration)
+  
+  if (!m_pFrameDurationDivision)
   {
     
     WAVEFORMATEX* wfmt;
-    AM_MEDIA_TYPE pmt;
-    m_pNullRendererInputPin->ConnectionMediaType(&pmt);
-    wfmt = (WAVEFORMATEX*)pmt.pbFormat;
-    //frameduration = (1E7/(wfmt->nAvgBytesPerSec/size));
-    //m_pFrameDuration = (wfmt->nSamplesPerSec/wfmt->nChannels);
-    int n = (wfmt->nChannels * wfmt->wBitsPerSample * wfmt->nSamplesPerSec)>>3;
-      if (n > 0)
-      {
-        // safety check, if channels == 0, n will result in 0, and that will result in a nice devide exception
-        m_pFrameDuration = ((double)size * 1000000) / n;
-        m_pFrameDuration = m_pFrameDuration*10;
-      }
-      FreeMediaType(pmt);
+    //m_pNullRendererInputPin->ConnectionMediaType(&pmt);
+    wfmt = (WAVEFORMATEX*)GetOutputMediaType().pbFormat;
+    m_pFrameDurationDivision = (wfmt->nChannels * wfmt->wBitsPerSample * wfmt->nSamplesPerSec)>>3;
+    
     //free(wfmt);
   }
+  int pFrameDuration = 1;
+  if (m_pFrameDurationDivision > 0)
+  {
+    pFrameDuration = ((double)size * 1000000) / m_pFrameDurationDivision;
+    pFrameDuration = m_pFrameDurationDivision*10;
+  }
   REFERENCE_TIME start = time;
-  REFERENCE_TIME stop = time + m_pFrameDuration;
+  REFERENCE_TIME stop = time + pFrameDuration;
   DSN_CHECK(sample->SetTime(&start, &stop), DSN_FAIL_DECODESAMPLE);
   DSN_CHECK(sample->SetMediaTime(0, 0), DSN_FAIL_DECODESAMPLE);
 

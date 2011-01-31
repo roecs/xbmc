@@ -35,7 +35,6 @@
 CDVDAudioCodecDirectshow::CDVDAudioCodecDirectshow() : CDVDAudioCodec()
 {
   codec = NULL;
-  m_pCurrentData = NULL;
   m_iBuffered = NULL;
   m_pWaveOut = NULL;
   m_pWaveOutExt = NULL;
@@ -156,16 +155,18 @@ bool CDVDAudioCodecDirectshow::Open(CDVDStreamInfo &hints, CDVDCodecOptions &opt
   
   wfmtTypeOut = new CMediaType();
   codec = DSOpenAudioCodec(""/*ffdshow.c_str()*/ ,CLSID_FFDShow_Audio_Decoder , &mediaType, curfile.c_str(),wfmtTypeOut , &err);
-  if (wfmtTypeOut->formattype == FORMAT_WaveFormatEx)
+  if (wfmtTypeOut->FormatLength() < 22)
   {
     m_pWaveOut = reinterpret_cast<WAVEFORMATEX*>(wfmtTypeOut->pbFormat);
     m_channels = m_pWaveOut->nChannels;
+    m_pWaveOutExt = NULL;
   }
-  else if (wfmtTypeOut->cbFormat >= 22)
+  else
   {
     m_pWaveOutExt = reinterpret_cast<WAVEFORMATEXTENSIBLE*>(wfmtTypeOut->pbFormat);
     m_channels = m_pWaveOutExt->Format.nChannels;
     m_layout = m_pWaveOutExt->dwChannelMask;
+    m_pWaveOut = NULL;
   }
 
   int index = 0;
@@ -183,10 +184,6 @@ bool CDVDAudioCodecDirectshow::Open(CDVDStreamInfo &hints, CDVDCodecOptions &opt
     return false;
   }
   CLog::Log(LOGNOTICE,"Loading directshow filter Completed");
-
-  
-  m_pCurrentData = (BYTE*)malloc(mediaType.GetSampleSize());
-  memset(m_pCurrentData, 0, mediaType.GetSampleSize());
 
   return true;
 }
@@ -207,14 +204,13 @@ int CDVDAudioCodecDirectshow::Decode(BYTE* pData, int iSize)
   int err;
 
   
-  err = DSAudioDecode(codec, pData, iSize, m_pCurrentData, &iBytesUsed);
+  err = DSAudioDecode(codec, pData, iSize, &iBytesUsed);
 
   m_iBuffered += iBytesUsed;
   
   if (err != 0)
     return 0;
-  if (!m_pCurrentData)
-    return 0;
+
 
   
   return iBytesUsed;
@@ -234,14 +230,46 @@ int CDVDAudioCodecDirectshow::GetBufferSize()
 
 int CDVDAudioCodecDirectshow::GetData(BYTE** dst)
 {
+  int newMediaType = 0;
+  int sizesample = 0;
   if (codec)
-    return DSAudioGetSample(codec, dst);
-  return 0;
+  {
+    
+     sizesample = DSAudioGetSample(codec, dst, &newMediaType);
+     if (newMediaType > 0)
+     {
+       CMediaType wfmtTypeOut2;
+       int restype = (int)DSAudioGetMediaType(codec, &wfmtTypeOut2);
+       
+       *wfmtTypeOut = wfmtTypeOut2;
+       if (wfmtTypeOut->FormatLength() < 22) //WAVEFORMATEX
+       {
+         m_pWaveOut = reinterpret_cast<WAVEFORMATEX*>(wfmtTypeOut->pbFormat);
+         m_channels = m_pWaveOut->nChannels;
+         m_pWaveOutExt = NULL;
+       }
+       else
+       {
+         m_pWaveOutExt = reinterpret_cast<WAVEFORMATEXTENSIBLE*>(wfmtTypeOut->pbFormat);
+         m_channels = m_pWaveOutExt->Format.nChannels;
+         m_layout = m_pWaveOutExt->dwChannelMask;
+         m_pWaveOut = NULL;
+      }
+       
+     
+     }
+  }
+    
+  return sizesample;
 }
 
 int CDVDAudioCodecDirectshow::GetChannels()
 {
-  return m_channels;
+  if (m_pWaveOut)
+    return m_pWaveOut->nChannels;
+  else if (m_pWaveOutExt)
+    return m_pWaveOutExt->Format.nChannels;
+  return 0;
 }
 enum PCMChannels *CDVDAudioCodecDirectshow::GetChannelMap()
 {
@@ -253,11 +281,19 @@ enum PCMChannels *CDVDAudioCodecDirectshow::GetChannelMap()
 
 int CDVDAudioCodecDirectshow::GetSampleRate()
 {
-  return m_pWaveOut->nSamplesPerSec;
+  if (m_pWaveOut)
+    return m_pWaveOut->nSamplesPerSec;
+  else if (m_pWaveOutExt)
+    return m_pWaveOutExt->Format.nSamplesPerSec;
+  return 0;
 }
 
 int CDVDAudioCodecDirectshow::GetBitsPerSample()
 {
-  return m_pWaveOut->wBitsPerSample;
+  if (m_pWaveOut)
+    return m_pWaveOut->wBitsPerSample;
+  else if (m_pWaveOutExt)
+    return m_pWaveOutExt->Format.wBitsPerSample;
+  return 0;
 }
 
