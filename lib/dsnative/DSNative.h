@@ -51,6 +51,7 @@ public:
   BYTE *sample;
   long size;/*Real size of byte*/
   long buffering_size;/*Used for returning buffer*/
+  CMediaType media_type;
 };
 
 class IDSInfoCallback
@@ -94,9 +95,10 @@ extern "C" IPaintCallback* WINAPI DSVideoGetEvrCallback(DSVideoCodec *vcodec);
 extern "C" dsnerror_t WINAPI DSVideoResync(DSVideoCodec *vcodec, double pts);
 /*Audio*/
 extern "C" DSAudioCodec * WINAPI DSOpenAudioCodec(const char *dll, const GUID guid, CMediaType* wvfmt, const char *filename, CMediaType* pDestType, dsnerror_t *err);
+extern "C" dsnerror_t WINAPI DSAudioGetMediaType(DSAudioCodec *acodec, CMediaType* pType);
 extern "C" void WINAPI DSCloseAudioCodec(DSAudioCodec *vcodec);
-extern "C" dsnerror_t WINAPI DSAudioDecode(DSAudioCodec *acodec, const BYTE *src, int size, BYTE *pDecodedData, int *usedByte);
-extern "C" long WINAPI DSAudioGetSample(DSAudioCodec *acodec,BYTE **dst);
+extern "C" dsnerror_t WINAPI DSAudioDecode(DSAudioCodec *acodec, const BYTE *src, int size, int *usedByte);
+extern "C" long WINAPI DSAudioGetSample(DSAudioCodec *acodec,BYTE **dst, int *newMediaType);
 extern "C" long WINAPI DSAudioSampleSize(DSAudioCodec *acodec);
 extern "C" dsnerror_t WINAPI DSAudioResync(DSAudioCodec *vcodec, double pts);
 extern "C" BOOL WINAPI DSShowPropertyPage(DSVideoCodec *codec);

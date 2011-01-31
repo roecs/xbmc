@@ -131,6 +131,7 @@
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <CompileAs>CompileAsC</CompileAs>
+      <MinimalRebuild>true</MinimalRebuild>
     </ClCompile>
     <ResourceCompile>
       <PreprocessorDefinitions>_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
@@ -208,7 +209,6 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="a52.h" />
     <ClInclude Include="..\liba52\a52_internal.h" />
     <ClInclude Include="..\liba52\bitstream.h" />
     <ClInclude Include="..\liba52\tables.h" />

@@ -28,9 +28,6 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="a52.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="..\liba52\a52_internal.h">
       <Filter>Header Files</Filter>
     </ClInclude>

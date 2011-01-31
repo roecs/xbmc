@@ -119,20 +119,32 @@ extern "C" DSAudioCodec * WINAPI DSOpenAudioCodec(const char *dll, const GUID gu
       *err = res;
     return NULL;
 }
+extern "C" dsnerror_t WINAPI DSAudioGetMediaType(DSAudioCodec *acodec, CMediaType* pType)
+{
+  if (acodec)
+  {
+    *pType = acodec->GetOutputMediaType();
+    return dsnerror_t::DSN_OK;
+  }
+  else
+  {
+    return dsnerror_t::DNS_FAIL_FILTER;
+  }
 
+}
 extern "C" void WINAPI DSCloseAudioCodec(DSAudioCodec *acodec)
 {
     delete acodec;
 }
 
-extern "C" dsnerror_t WINAPI DSAudioDecode(DSAudioCodec *acodec, const BYTE *src, int size, BYTE *pDecodedData, int *usedByte)
+extern "C" dsnerror_t WINAPI DSAudioDecode(DSAudioCodec *acodec, const BYTE *src, int size, int *usedByte)
 {
-  return acodec->Decode(src, size, pDecodedData, usedByte);
+  return acodec->Decode(src, size, usedByte);
 }
 
-extern "C" long WINAPI DSAudioGetSample(DSAudioCodec *acodec, BYTE **dst)
+extern "C" long WINAPI DSAudioGetSample(DSAudioCodec *acodec, BYTE **dst, int *newMediaType)
 {
-  return acodec->GetMediaSample(dst);
+  return acodec->GetMediaSample(dst, newMediaType);
 }
 
 extern "C" long WINAPI DSAudioSampleSize(DSAudioCodec *acodec)

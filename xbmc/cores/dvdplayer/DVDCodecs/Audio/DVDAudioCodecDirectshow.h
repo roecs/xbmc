@@ -57,10 +57,7 @@ public:
   virtual int GetBufferSize();
   virtual const char* GetName() { return "DirectShow"; }
 protected:
-
-  
   DSAudioCodec *codec;
-  BYTE* m_pCurrentData;//Should be removed
   int m_pCurrentDataSize;
 
   std::vector<BYTE> m_decodedData;

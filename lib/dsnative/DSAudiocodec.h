@@ -40,14 +40,14 @@ public:
   void RemoveFromRot(DWORD pdwRegister);
   BOOL StartGraph();
   CMediaType GetOutputMediaType();
-  dsnerror_t Decode(const BYTE *src, int size, BYTE *pDecodedData, int *usedByte);
+  dsnerror_t Decode(const BYTE *src, int size, int *usedByte);
   dsnerror_t Resync(REFERENCE_TIME pts);
   BOOL ShowPropertyPage();
   long HaveCurrentSample(){ if (m_pNullRenderer)return m_pNullRenderer->HaveCurrentSample();else return 0;}
-  long GetMediaSample(BYTE **dst)
+  long GetMediaSample(BYTE **dst, int *newMediaType)
   {
   if (m_pNullRenderer->HaveCurrentSample() > 0)
-    return m_pNullRenderer->GetCurrentSample(dst);
+    return m_pNullRenderer->GetCurrentSample(dst, newMediaType);
   else
     return 0;
   }
@@ -59,7 +59,7 @@ private:
   int m_discontinuity;
   int m_newmediatype;
   int m_mpegts;
-  int m_pFrameDuration;
+  int m_pFrameDurationDivision;
   HRESULT m_res;
   REFERENCE_TIME m_frametime;
   CMediaType *m_wvfmt;
