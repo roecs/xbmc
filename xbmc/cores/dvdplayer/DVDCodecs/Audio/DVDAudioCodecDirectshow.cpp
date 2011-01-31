@@ -27,6 +27,7 @@
 #include "dsnative/DSCodecTag.h"
 #include "dsnative/dumpuids.h"
 #include "mfapi.h"
+#include "settings/Settings.h"
 //#include <streams.h>
 
 #include "DllAvFormat.h"
@@ -159,13 +160,18 @@ bool CDVDAudioCodecDirectshow::Open(CDVDStreamInfo &hints, CDVDCodecOptions &opt
   {
     m_pWaveOut = reinterpret_cast<WAVEFORMATEX*>(wfmtTypeOut->pbFormat);
     m_channels = m_pWaveOut->nChannels;
+    g_settings.m_currentAudioSettings.m_Format = m_pWaveOut->wFormatTag;
+    g_settings.m_currentAudioSettings.m_SubFormat = WAVE_FORMAT_PCM;
     m_pWaveOutExt = NULL;
+
   }
   else
   {
     m_pWaveOutExt = reinterpret_cast<WAVEFORMATEXTENSIBLE*>(wfmtTypeOut->pbFormat);
     m_channels = m_pWaveOutExt->Format.nChannels;
     m_layout = m_pWaveOutExt->dwChannelMask;
+    g_settings.m_currentAudioSettings.m_WaveFormat = m_pWaveOutExt;
+    //g_settings.m_currentAudioSettings.m_SubFormat = m_pWaveOutExt->SubFormat;
     m_pWaveOut = NULL;
   }
 
@@ -296,4 +302,3 @@ int CDVDAudioCodecDirectshow::GetBitsPerSample()
     return m_pWaveOutExt->Format.wBitsPerSample;
   return 0;
 }
-

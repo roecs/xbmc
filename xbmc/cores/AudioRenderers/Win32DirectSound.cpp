@@ -83,7 +83,7 @@ CWin32DirectSound::CWin32DirectSound() :
 bool CWin32DirectSound::Initialize(IAudioCallback* pCallback, const CStdString& device, int iChannels, enum PCMChannels* channelMap, unsigned int uiSamplesPerSec, unsigned int uiBitsPerSample, bool bResample, bool bIsMusic, bool bAudioPassthrough)
 {
   m_uiDataChannels = iChannels;
-
+  
   if(!bAudioPassthrough)
   {
     //If no channel map is specified, use the default.
@@ -117,7 +117,6 @@ bool CWin32DirectSound::Initialize(IAudioCallback* pCallback, const CStdString& 
   m_nCurrentVolume = g_settings.m_nVolumeLevel;
 
   WAVEFORMATEXTENSIBLE wfxex = {0};
-
   //fill waveformatex
   ZeroMemory(&wfxex, sizeof(WAVEFORMATEXTENSIBLE));
   wfxex.Format.cbSize          =  sizeof(WAVEFORMATEXTENSIBLE)-sizeof(WAVEFORMATEX);
@@ -148,6 +147,19 @@ bool CWin32DirectSound::Initialize(IAudioCallback* pCallback, const CStdString& 
   wfxex.Format.nBlockAlign       = wfxex.Format.nChannels * (wfxex.Format.wBitsPerSample >> 3);
   wfxex.Format.nAvgBytesPerSec   = wfxex.Format.nSamplesPerSec * wfxex.Format.nBlockAlign;
 
+  if (g_settings.m_currentAudioSettings.m_WaveFormat)
+  {
+    m_uiSpeakerMask = wfxex.dwChannelMask          = g_settings.m_currentAudioSettings.m_WaveFormat->dwChannelMask;
+    wfxex.SubFormat              = g_settings.m_currentAudioSettings.m_WaveFormat->SubFormat;
+    wfxex.Samples                = g_settings.m_currentAudioSettings.m_WaveFormat->Samples;
+    //wfxex.Format.wFormatTag      = g_settings.m_currentAudioSettings.m_WaveFormat->Format.wFormatTag;
+    //wfxex.Format.wBitsPerSample  = g_settings.m_currentAudioSettings.m_WaveFormat->Format.wBitsPerSample;
+    //wfxex.Format.nChannels       = g_settings.m_currentAudioSettings.m_WaveFormat->Format.nChannels;
+    wfxex.Format = g_settings.m_currentAudioSettings.m_WaveFormat->Format;
+    m_uiChannels = wfxex.Format.nChannels;
+    m_uiSamplesPerSec = wfxex.Format.nSamplesPerSec;
+    m_uiBitsPerSample = wfxex.Format.wBitsPerSample;
+  }
   m_AvgBytesPerSec = wfxex.Format.nAvgBytesPerSec;
 
   m_uiBytesPerFrame     = wfxex.Format.nBlockAlign;
