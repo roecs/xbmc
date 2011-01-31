@@ -616,6 +616,7 @@
     <ClCompile Include="..\..\xbmc\rendering\RenderSystem.cpp" />
     <ClCompile Include="..\..\xbmc\SectionLoader.cpp" />
     <ClCompile Include="..\..\xbmc\settings\AdvancedSettings.cpp" />
+    <ClCompile Include="..\..\xbmc\settings\AudioSettings.cpp" />
     <ClCompile Include="..\..\xbmc\settings\GUIDialogContentSettings.cpp" />
     <ClCompile Include="..\..\xbmc\settings\GUIDialogLockSettings.cpp" />
     <ClCompile Include="..\..\xbmc\settings\GUIDialogProfileSettings.cpp" />
@@ -1453,6 +1454,7 @@
     <ClInclude Include="..\..\xbmc\rendering\RenderSystem.h" />
     <ClInclude Include="..\..\xbmc\SectionLoader.h" />
     <ClInclude Include="..\..\xbmc\settings\AdvancedSettings.h" />
+    <ClInclude Include="..\..\xbmc\settings\AudioSettings.h" />
     <ClInclude Include="..\..\xbmc\settings\GUIDialogContentSettings.h" />
     <ClInclude Include="..\..\xbmc\settings\GUIDialogLockSettings.h" />
     <ClInclude Include="..\..\xbmc\settings\GUIDialogProfileSettings.h" />

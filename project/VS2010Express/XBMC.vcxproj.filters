@@ -2474,6 +2474,9 @@
     <ClCompile Include="..\..\xbmc\cores\VideoRenderers\VideoShaders\PixelShaderCompiler.cpp">
       <Filter>cores\VideoRenderers\Shaders</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\xbmc\settings\AudioSettings.cpp">
+      <Filter>settings</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\xbmc\win32\pch.h">
@@ -4907,6 +4910,9 @@
     </ClInclude>
     <ClInclude Include="..\..\xbmc\cores\VideoRenderers\VideoShaders\ExternalPixelShader.h">
       <Filter>cores\VideoRenderers\Shaders</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\xbmc\settings\AudioSettings.h">
+      <Filter>settings</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

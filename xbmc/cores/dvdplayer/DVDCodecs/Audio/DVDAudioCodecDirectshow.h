@@ -74,6 +74,26 @@ protected:
   WAVEFORMATEX *m_pWaveOut;//WAVEFORMATEX for the renderer
   WAVEFORMATEXTENSIBLE *m_pWaveOutExt; //WAVEFORMATEXTENSIBLE for the renderer
   CMediaType *wfmtTypeOut;//wave header for the outputpin
-  
- 
 };
+
+class CDSAudioSettings
+{
+public:
+  CDSAudioSettings()
+  {
+    m_pWaveFormat = NULL;
+  };
+  ~CDSAudioSettings();
+  void SetWaveFormat(WAVEFORMATEXTENSIBLE *wave) 
+  { 
+    m_pWaveFormat = wave;
+  }
+  WAVEFORMATEXTENSIBLE *GetWaveFormat()
+  {
+    return m_pWaveFormat;
+  }
+protected:
+  WAVEFORMATEXTENSIBLE *m_pWaveFormat;
+};
+
+extern CDSAudioSettings g_dsAudioSettings;

@@ -38,6 +38,7 @@
 #define DEFAULT_THUMB_SIZE  512
 #endif // MID
 
+#include "settings/AudioSettings.h"
 #include "settings/VideoSettings.h"
 #include "Profile.h"
 #include "ViewState.h"
@@ -186,6 +187,8 @@ public:
 
   // for scanning
   bool m_bMyMusicIsScanning;
+
+  CAudioSettings m_currentAudioSettings;
 
   CVideoSettings m_defaultVideoSettings;
   CVideoSettings m_currentVideoSettings;
