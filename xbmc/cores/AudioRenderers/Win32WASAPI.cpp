@@ -171,6 +171,19 @@ bool CWin32WASAPI::Initialize(IAudioCallback* pCallback, const CStdString& devic
   wfxex.Format.nBlockAlign       = wfxex.Format.nChannels * (wfxex.Format.wBitsPerSample >> 3);
   wfxex.Format.nAvgBytesPerSec   = wfxex.Format.nSamplesPerSec * wfxex.Format.nBlockAlign;
 
+  if (g_settings.m_currentAudioSettings.m_WaveFormat)
+  {
+    m_uiSpeakerMask = wfxex.dwChannelMask          = g_settings.m_currentAudioSettings.m_WaveFormat->dwChannelMask;
+    wfxex.SubFormat              = g_settings.m_currentAudioSettings.m_WaveFormat->SubFormat;
+    wfxex.Samples                = g_settings.m_currentAudioSettings.m_WaveFormat->Samples;
+    //wfxex.Format.wFormatTag      = g_settings.m_currentAudioSettings.m_WaveFormat->Format.wFormatTag;
+    //wfxex.Format.wBitsPerSample  = g_settings.m_currentAudioSettings.m_WaveFormat->Format.wBitsPerSample;
+    //wfxex.Format.nChannels       = g_settings.m_currentAudioSettings.m_WaveFormat->Format.nChannels;
+    wfxex.Format = g_settings.m_currentAudioSettings.m_WaveFormat->Format;
+    m_uiChannels = wfxex.Format.nChannels;
+    m_uiBitsPerSample = wfxex.Format.wBitsPerSample;
+  }
+
   m_uiAvgBytesPerSec = wfxex.Format.nAvgBytesPerSec;
 
   m_uiBytesPerFrame = wfxex.Format.nBlockAlign;
