@@ -86,6 +86,12 @@ CWin32WASAPI::CWin32WASAPI() :
 {
 }
 
+void CWin32WASAPI::CreateFromAudioSettings(WAVEFORMATEXTENSIBLE* format)
+{
+  format = g_settings.m_currentAudioSettings.m_WaveFormat;
+
+}
+
 bool CWin32WASAPI::Initialize(IAudioCallback* pCallback, const CStdString& device, int iChannels, enum PCMChannels *channelMap, unsigned int uiSamplesPerSec, unsigned int uiBitsPerSample, bool bResample, bool bIsMusic, bool bAudioPassthrough)
 {
   CLog::Log(LOGDEBUG, __FUNCTION__": endpoint device %s", device.c_str());
@@ -144,7 +150,7 @@ bool CWin32WASAPI::Initialize(IAudioCallback* pCallback, const CStdString& devic
   m_nCurrentVolume = g_settings.m_nVolumeLevel;
   m_pcmAmplifier.SetVolume(m_nCurrentVolume);
   
-  WAVEFORMATEXTENSIBLE wfxex = {0};
+  WAVEFORMATEXTENSIBLE wfxex = { 0 };
 
   //fill waveformatex
   ZeroMemory(&wfxex, sizeof(WAVEFORMATEXTENSIBLE));
@@ -173,13 +179,14 @@ bool CWin32WASAPI::Initialize(IAudioCallback* pCallback, const CStdString& devic
 
   if (g_settings.m_currentAudioSettings.m_WaveFormat)
   {
+    CreateFromAudioSettings(&wfxex);
     m_uiSpeakerMask = wfxex.dwChannelMask          = g_settings.m_currentAudioSettings.m_WaveFormat->dwChannelMask;
-    wfxex.SubFormat              = g_settings.m_currentAudioSettings.m_WaveFormat->SubFormat;
-    wfxex.Samples                = g_settings.m_currentAudioSettings.m_WaveFormat->Samples;
+    //wfxex.SubFormat              = g_settings.m_currentAudioSettings.m_WaveFormat->SubFormat;
+    //wfxex.Samples                = g_settings.m_currentAudioSettings.m_WaveFormat->Samples;
     //wfxex.Format.wFormatTag      = g_settings.m_currentAudioSettings.m_WaveFormat->Format.wFormatTag;
     //wfxex.Format.wBitsPerSample  = g_settings.m_currentAudioSettings.m_WaveFormat->Format.wBitsPerSample;
     //wfxex.Format.nChannels       = g_settings.m_currentAudioSettings.m_WaveFormat->Format.nChannels;
-    wfxex.Format = g_settings.m_currentAudioSettings.m_WaveFormat->Format;
+    //wfxex.Format = g_settings.m_currentAudioSettings.m_WaveFormat->Format;
     m_uiChannels = wfxex.Format.nChannels;
     m_uiBitsPerSample = wfxex.Format.wBitsPerSample;
   }
@@ -262,14 +269,17 @@ bool CWin32WASAPI::Initialize(IAudioCallback* pCallback, const CStdString& devic
   hr = m_pAudioClient->GetDevicePeriod(&hnsPeriodicity, NULL);
   EXIT_ON_FAILURE(hr, __FUNCTION__": Could not retrieve the WASAPI endpoint device period.");
 
+  CLog::Log(LOGINFO,"%s Default device period is:%i putting it to 50ms (500000)", __FUNCTION__, hnsPeriodicity);
   //The default periods of some devices are VERY low (less than 3ms).
   //For audio stability make sure we have at least an 8ms buffer.
-  if(hnsPeriodicity < 80000) hnsPeriodicity = 80000;
-
+  if(hnsPeriodicity < 80000) 
+    hnsPeriodicity = 80000;
+  
+  hnsPeriodicity = 500000; //50 ms is the best according to James @Slysoft
   hnsRequestedDuration = hnsPeriodicity * 16;
 
   // now create the stream buffer
-  hr = m_pAudioClient->Initialize(AUDCLNT_SHAREMODE_EXCLUSIVE, 0, hnsRequestedDuration, hnsPeriodicity, &wfxex.Format, NULL);
+  hr = m_pAudioClient->Initialize(AUDCLNT_SHAREMODE_EXCLUSIVE, 0, hnsPeriodicity, hnsPeriodicity, &wfxex.Format, NULL);
   EXIT_ON_FAILURE(hr, __FUNCTION__": Could not initialize the WASAPI endpoint device. %i", hr)
 
   hr = m_pAudioClient->GetBufferSize(&m_uiBufferLen);

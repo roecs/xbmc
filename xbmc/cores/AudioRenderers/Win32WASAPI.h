@@ -48,6 +48,7 @@ public:
   virtual float GetCacheTime();
   virtual float GetCacheTotal();
   virtual bool Initialize(IAudioCallback* pCallback, const CStdString& device, int iChannels, enum PCMChannels *channelMap, unsigned int uiSamplesPerSec, unsigned int uiBitsPerSample, bool bResample, bool bIsMusic=false, bool bAudioPassthrough=false);
+  void CreateFromAudioSettings(WAVEFORMATEXTENSIBLE* format);
 
   virtual unsigned int AddPackets(const void* data, unsigned int len);
   virtual unsigned int GetSpace();

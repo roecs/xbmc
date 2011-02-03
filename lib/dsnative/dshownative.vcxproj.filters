@@ -257,14 +257,14 @@
     <ClInclude Include="resource.h" />
     <ClInclude Include="SmartList.h" />
     <ClInclude Include="SmartPtr.h" />
-    <ClInclude Include="DSAudioRenderer.h">
-      <Filter>AudioCodec</Filter>
-    </ClInclude>
     <ClInclude Include="ExtradataParser.h">
       <Filter>Video</Filter>
     </ClInclude>
     <ClInclude Include="ByteParser.h">
       <Filter>Video</Filter>
+    </ClInclude>
+    <ClInclude Include="DSAudioRenderer.h">
+      <Filter>AudioCodec</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>
