@@ -48,7 +48,7 @@ public:
   virtual float GetCacheTime();
   virtual float GetCacheTotal();
   virtual bool Initialize(IAudioCallback* pCallback, const CStdString& device, int iChannels, enum PCMChannels *channelMap, unsigned int uiSamplesPerSec, unsigned int uiBitsPerSample, bool bResample, bool bIsMusic=false, bool bAudioPassthrough=false);
-  void CreateFromAudioSettings(WAVEFORMATEXTENSIBLE* format);
+  
 
   virtual unsigned int AddPackets(const void* data, unsigned int len);
   virtual unsigned int GetSpace();
@@ -67,6 +67,8 @@ public:
   static void EnumerateAudioSinks(AudioSinkList& vAudioSinks, bool passthrough);
 
 private:
+  void CreateFromAudioSettings(WAVEFORMATEXTENSIBLE* format);
+  bool TestDeviceWithAudioFormat(IMMDevice* pDevice, WAVEFORMATEXTENSIBLE* wfxex);
   void AddDataToBuffer(unsigned char* pData, unsigned int len, unsigned char* pOut);
   void UpdateCacheStatus();
   void CheckPlayStatus();

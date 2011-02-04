@@ -23,7 +23,7 @@
 #pragma comment (lib,"Quartz.lib")
 DSVideoCodec::DSVideoCodec(const char *cfname, IDSInfoCallback *pCallback, const GUID guid, BITMAPINFOHEADER *bih, unsigned int outfmt, REFERENCE_TIME frametime, const char *sfname, int mpegts) 
   :  m_pCallback(pCallback), m_guid(guid), m_bih(bih), m_hDll(NULL), m_outfmt(outfmt), 
-     m_frametime(frametime), m_vinfo(NULL), m_discontinuity(1), 
+     m_frametime(frametime), m_vinfo(NULL), m_discontinuity(1), m_pEvr(NULL),
      m_pFilter(NULL), m_pInputPin(NULL), m_pOutputPin(NULL), m_pEvrInputPin(NULL),
      m_pOurInput(NULL), m_pOurOutput(NULL), m_mpegts(mpegts),
      m_pMemInputPin(NULL), m_pMemAllocator(NULL), m_pSFilter(NULL), 
@@ -56,6 +56,8 @@ DSVideoCodec::DSVideoCodec(const char *cfname, IDSInfoCallback *pCallback, const
 DSVideoCodec::~DSVideoCodec()
 {
   ReleaseGraph();
+  if (m_pEvr)
+    m_pEvr->ProcessMessage(MFVP_MESSAGE_ENDOFSTREAM, 0);
   if (m_cfname) 
     delete m_cfname;
   if (m_sfname) 
