@@ -222,29 +222,41 @@ bool CWin32WASAPI::Initialize(IAudioCallback* pCallback, const CStdString& devic
 
     hr = pEnumDevices->Item(i, &m_pDevice);
     EXIT_ON_FAILURE(hr, __FUNCTION__": Retrieval of WASAPI endpoint failed.")
-
-    hr = m_pDevice->OpenPropertyStore(STGM_READ, &pProperty);
-    EXIT_ON_FAILURE(hr, __FUNCTION__": Retrieval of WASAPI endpoint properties failed.")
-
-    hr = pProperty->GetValue(PKEY_Device_FriendlyName, &varName);
-    if(FAILED(hr))
+    //When we are using bitstream codec we look for a device that can do it instead of just testing the one set by the user
+    if ((wfxex.SubFormat == KSDATAFORMAT_SUBTYPE_IEC61937_DOLBY_MLP) ||
+        (wfxex.SubFormat == KSDATAFORMAT_SUBTYPE_IEC61937_DOLBY_DIGITAL_PLUS) ||
+        (wfxex.SubFormat == KSDATAFORMAT_SUBTYPE_IEC61937_DTS_HD))
     {
-      CLog::Log(LOGERROR, __FUNCTION__": Retrieval of WASAPI endpoint device name failed.");
-      SAFE_RELEASE(pProperty);
-      goto failed;
+      if (TestDeviceWithAudioFormat(m_pDevice,&wfxex))
+        i = uiCount;
+      else
+        SAFE_RELEASE(m_pDevice);
     }
-
-    CStdStringW strRawDevName(varName.pwszVal);
-    CStdString strDevName;
-    g_charsetConverter.wToUTF8(strRawDevName, strDevName);
-
-    if(device == strDevName)
-      i = uiCount;
     else
-      SAFE_RELEASE(m_pDevice);
+    {
+      hr = m_pDevice->OpenPropertyStore(STGM_READ, &pProperty);
+      EXIT_ON_FAILURE(hr, __FUNCTION__": Retrieval of WASAPI endpoint properties failed.")
 
-    PropVariantClear(&varName);
-    SAFE_RELEASE(pProperty);
+      hr = pProperty->GetValue(PKEY_Device_FriendlyName, &varName);
+      if(FAILED(hr))
+      {
+        CLog::Log(LOGERROR, __FUNCTION__": Retrieval of WASAPI endpoint device name failed.");
+        SAFE_RELEASE(pProperty);
+        goto failed;
+      }
+
+      CStdStringW strRawDevName(varName.pwszVal);
+      CStdString strDevName;
+      g_charsetConverter.wToUTF8(strRawDevName, strDevName);
+
+      if(device == strDevName)
+        i = uiCount;
+      else
+        SAFE_RELEASE(m_pDevice);
+
+      PropVariantClear(&varName);
+      SAFE_RELEASE(pProperty);
+    }
   }
 
   SAFE_RELEASE(pEnumDevices);
@@ -315,6 +327,17 @@ failed:
   g_audioContext.SetActiveDevice(CAudioContext::DEFAULT_DEVICE);
 
   return false;
+}
+
+bool CWin32WASAPI::TestDeviceWithAudioFormat(IMMDevice* pDevice, WAVEFORMATEXTENSIBLE* wfxex)
+{
+  if (FAILED(pDevice->Activate(IID_IAudioClient, CLSCTX_ALL, NULL, (void**)&m_pAudioClient)))
+    return false;
+  
+
+  if (FAILED(m_pAudioClient->IsFormatSupported(AUDCLNT_SHAREMODE_EXCLUSIVE, &wfxex->Format, NULL)))
+    return false;
+  return true;
 }
 
 //***********************************************************************************************

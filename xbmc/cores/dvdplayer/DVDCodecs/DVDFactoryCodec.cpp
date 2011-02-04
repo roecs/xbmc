@@ -64,7 +64,7 @@
 #include "utils/SystemInfo.h"
 //Temporary for testing directshow
 #define USE_DSHOW_AUDIO 1
-#define USE_DSHOW_VIDEO 0
+#define USE_DSHOW_VIDEO 1
 CDVDVideoCodec* CDVDFactoryCodec::OpenCodec(CDVDVideoCodec* pCodec, CDVDStreamInfo &hints, CDVDCodecOptions &options )
 {
   try

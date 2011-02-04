@@ -104,13 +104,15 @@ bool CDVDVideoCodecDirectshow::Open(CDVDStreamInfo &hints, CDVDCodecOptions &opt
   //g_charsetConverter.subtitleCharsetToW(g_advancedSettings.m_videoDefaultDirectshowCodec,codecGuidW);
   GUID codecguid = GUID_NULL;
   //CLSIDFromString((LPCOLESTR)codecGuidW.c_str(),&codecguid);
-  
-  codec = DSOpenVideoCodec("", this, CLSID_FFDShow_DXVA_Video_Decoder , bih, mmioFOURCC('N', 'V', '1', '2'), frametime ,curfile.c_str(), 0/*is mpegts*/,bihout ,&err);
+  codec = DSOpenVideoCodec("", this, CLSID_MPC_Video_Decoder , bih, mmioFOURCC('N', 'V', '1', '2'), frametime ,curfile.c_str(), 0/*is mpegts*/,bihout ,&err);
   if (!codec)
-    codec = DSOpenVideoCodec("" , this, codecguid , bih, mmioFOURCC('Y', 'V', '1', '2'), frametime ,curfile.c_str(), 0/*is mpegts*/,bihout ,&err);
+    codec = DSOpenVideoCodec("", this, CLSID_FFDShow_DXVA_Video_Decoder , bih, mmioFOURCC('N', 'V', '1', '2'), frametime ,curfile.c_str(), 0/*is mpegts*/,bihout ,&err);
   if (!codec)
     codec = DSOpenVideoCodec("", this, CLSID_FFDShow_Video_Decoder , bih, mmioFOURCC('Y', 'V', '1', '2'), frametime ,curfile.c_str(), 0/*is mpegts*/,bihout ,&err);
-  //codec = DSOpenVideoCodec("", this, CLSID_MPC_Video_Decoder , bih, mmioFOURCC('N', 'V', '1', '2'), fps ,curfile.c_str(), 0/*is mpegts*/,bihout ,&err);
+  if (!codec)
+    codec = DSOpenVideoCodec("" , this, CLSID_MPC_Video_Decoder , bih, mmioFOURCC('Y', 'V', '1', '2'), frametime ,curfile.c_str(), 0/*is mpegts*/,bihout ,&err);
+  
+  
   //CLSID_FFDShow_Video_Decoder
   //CLSID_FFDShow_DXVA_Video_Decoder
   //CLSID_MPC_Video_Decoder
