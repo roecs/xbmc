@@ -1193,7 +1193,7 @@ void DsAllocator::Render(const RECT& dst, IDirect3DSurface9* target)
   MFTIME   systime = 0;
   LONGLONG currenttime = 0;
   DWORD waittime = 10;
-  if (!m_pCallback)
+  if (!m_pCallback || endofstream)
     return;
   LPDIRECT3DDEVICE9 pDevice = m_pCallback->GetD3DDev();
   IMFSample *sample = NULL;
