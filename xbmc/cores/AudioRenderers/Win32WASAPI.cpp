@@ -88,8 +88,21 @@ CWin32WASAPI::CWin32WASAPI() :
 
 void CWin32WASAPI::CreateFromAudioSettings(WAVEFORMATEXTENSIBLE* format)
 {
-  format = g_settings.m_currentAudioSettings.m_WaveFormat;
+  format->Format = *g_settings.m_currentAudioSettings.m_WaveFormat;
+  WAVEFORMATEXTENSIBLE_IEC61937 wfex_IEC61937;
+  memset(&wfex_IEC61937,0,sizeof(wfex_IEC61937));
+  if (format->Format.cbSize == sizeof(wfex_IEC61937) - sizeof(format->Format))
+  {
+    CLog::Log(LOGINFO, "%s detected WAVEFORMATEXTENSIBLE_IEC61937", __FUNCTION__);
+    
+    
 
+    
+
+    
+
+  }
+    //wfex_IEC61937.FormatExt.Format.cbSize=sizeof(wfex_IEC61937)-sizeof(wfex_IEC61937.FormatExt.Format);
 }
 
 bool CWin32WASAPI::Initialize(IAudioCallback* pCallback, const CStdString& device, int iChannels, enum PCMChannels *channelMap, unsigned int uiSamplesPerSec, unsigned int uiBitsPerSample, bool bResample, bool bIsMusic, bool bAudioPassthrough)
@@ -179,8 +192,11 @@ bool CWin32WASAPI::Initialize(IAudioCallback* pCallback, const CStdString& devic
 
   if (g_settings.m_currentAudioSettings.m_WaveFormat)
   {
-    CreateFromAudioSettings(&wfxex);
-    m_uiSpeakerMask = wfxex.dwChannelMask          = g_settings.m_currentAudioSettings.m_WaveFormat->dwChannelMask;
+    wfxex.Format = *g_settings.m_currentAudioSettings.m_WaveFormat;
+    //CreateFromAudioSettings(&wfxex);
+    
+
+    //m_uiSpeakerMask = wfxex.dwChannelMask = g_settings.m_currentAudioSettings.m_WaveFormat->dwChannelMask;
     //wfxex.SubFormat              = g_settings.m_currentAudioSettings.m_WaveFormat->SubFormat;
     //wfxex.Samples                = g_settings.m_currentAudioSettings.m_WaveFormat->Samples;
     //wfxex.Format.wFormatTag      = g_settings.m_currentAudioSettings.m_WaveFormat->Format.wFormatTag;

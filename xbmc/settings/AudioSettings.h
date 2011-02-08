@@ -60,9 +60,7 @@ public:
 
   bool operator!=(const CAudioSettings &right) const;
 
-  WORD m_Format;   // current audio format
-  WORD m_SubFormat;
-  WAVEFORMATEXTENSIBLE *m_WaveFormat;
+  WAVEFORMATEX *m_WaveFormat;
 private:
 };
 

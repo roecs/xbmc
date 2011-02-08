@@ -31,14 +31,10 @@
 
 CAudioSettings::CAudioSettings()
 {
-  m_Format = 0;
-  m_SubFormat = 0;
   m_WaveFormat = NULL;
 }
 
 bool CAudioSettings::operator!=(const CAudioSettings &right) const
 {
-  if (m_Format != right.m_Format) return true;
-  if (m_SubFormat != right.m_SubFormat) return true;
   return false;
 }

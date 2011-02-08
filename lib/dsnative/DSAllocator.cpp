@@ -33,13 +33,20 @@
 #include "StdString.h"
 #include "SmartPtr.h"
 
+//evr
 typedef HRESULT (__stdcall *FCT_MFCreateVideoSampleFromSurface)(IUnknown* pUnkSurface, IMFSample** ppSample);
 typedef HRESULT (__stdcall *FCT_MFCreateDXSurfaceBuffer)(REFIID riid, IUnknown *punkSurface, BOOL fBottomUpWhenLinear, IMFMediaBuffer **ppBuffer);
+  // AVRT.dll
+typedef HANDLE  (__stdcall *PTR_AvSetMmThreadCharacteristicsW)(LPCWSTR TaskName, LPDWORD TaskIndex);
+typedef BOOL  (__stdcall *PTR_AvSetMmThreadPriority)(HANDLE AvrtHandle, AVRT_PRIORITY Priority);
+typedef BOOL  (__stdcall *PTR_AvRevertMmThreadCharacteristics)(HANDLE AvrtHandle);
 //HRESULT MFCreateDXSurfaceBuffer(REFIID riid, IUnknown *punkSurface, BOOL fBottomUpWhenLinear, IMFMediaBuffer **ppBuffer);
 
 FCT_MFCreateVideoSampleFromSurface ptrMFCreateVideoSampleFromSurface;
 FCT_MFCreateDXSurfaceBuffer ptrMFCreateDXSurfaceBuffer;
-
+PTR_AvSetMmThreadCharacteristicsW       pfAvSetMmThreadCharacteristicsW;
+PTR_AvSetMmThreadPriority               pfAvSetMmThreadPriority;
+PTR_AvRevertMmThreadCharacteristics     pfAvRevertMmThreadCharacteristics;
 // Guid to tag IMFSample with DirectX surface index
 static const GUID GUID_SURFACE_INDEX = { 0x30c8e9f6, 0x415, 0x4b81, { 0xa3, 0x15, 0x1, 0xa, 0xc6, 0xa9, 0xda, 0x19 } };
 
@@ -52,7 +59,7 @@ void DebugPrint(const wchar_t *format, ... )
   va_start(va, format);
   strData.FormatV(format, va);
   va_end(va);
-
+  
   OutputDebugString(strData.c_str());
   if( strData.Right(1) != L"\n" )
     OutputDebugString(L"\n");
@@ -203,6 +210,13 @@ DsAllocator::DsAllocator(IDSInfoCallback *pCallback)
   UINT resetToken = 0;
   HRESULT hr = DXVA2CreateDirect3DDeviceManager9(&resetToken, &m_pD3DDevManager);
   hr = m_pD3DDevManager->ResetDevice(m_pCallback->GetD3DDev(), resetToken);
+  
+  // Load Vista specifics DLLs
+  hlib = LoadLibrary (L"AVRT.dll");
+  pfAvSetMmThreadCharacteristicsW    = hlib ? (PTR_AvSetMmThreadCharacteristicsW)  GetProcAddress (hlib, "AvSetMmThreadCharacteristicsW") : NULL;
+  pfAvSetMmThreadPriority        = hlib ? (PTR_AvSetMmThreadPriority)      GetProcAddress (hlib, "AvSetMmThreadPriority") : NULL;
+  pfAvRevertMmThreadCharacteristics  = hlib ? (PTR_AvRevertMmThreadCharacteristics)  GetProcAddress (hlib, "AvRevertMmThreadCharacteristics") : NULL;
+
   surfallocnotify=NULL;
   refcount=1;
   inevrmode=false;

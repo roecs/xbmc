@@ -57,6 +57,7 @@ public:
   virtual int GetBufferSize();
   virtual const char* GetName() { return "DirectShow"; }
 protected:
+  void SetOutputWaveFormat(WAVEFORMATEX* pWave);
   DSAudioCodec *codec;
   int m_pCurrentDataSize;
 
@@ -72,7 +73,6 @@ protected:
 
   int m_iBuffered;
   WAVEFORMATEX *m_pWaveOut;//WAVEFORMATEX for the renderer
-  WAVEFORMATEXTENSIBLE *m_pWaveOutExt; //WAVEFORMATEXTENSIBLE for the renderer
   CMediaType *wfmtTypeOut;//wave header for the outputpin
 };
 
