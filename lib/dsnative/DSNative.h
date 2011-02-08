@@ -36,7 +36,7 @@
 #define SAFE_REMOVE_FILTER(graph,filter) if (filter)graph->RemoveFilter(filter);
 #endif
 #include "streams.h"
-#include "Include/dvdmedia.h"
+#include <dvdmedia.h>
 #include "dsnerror.h"
 #include "d3d9.h"
 #include "IPaintCallback.h"

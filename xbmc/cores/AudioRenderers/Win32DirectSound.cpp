@@ -149,13 +149,12 @@ bool CWin32DirectSound::Initialize(IAudioCallback* pCallback, const CStdString& 
 
   if (g_settings.m_currentAudioSettings.m_WaveFormat)
   {
-    m_uiSpeakerMask = wfxex.dwChannelMask          = g_settings.m_currentAudioSettings.m_WaveFormat->dwChannelMask;
-    wfxex.SubFormat              = g_settings.m_currentAudioSettings.m_WaveFormat->SubFormat;
-    wfxex.Samples                = g_settings.m_currentAudioSettings.m_WaveFormat->Samples;
+    //m_uiSpeakerMask = wfxex.dwChannelMask          = g_settings.m_currentAudioSettings.m_WaveFormat->dwChannelMask;
+   
     //wfxex.Format.wFormatTag      = g_settings.m_currentAudioSettings.m_WaveFormat->Format.wFormatTag;
     //wfxex.Format.wBitsPerSample  = g_settings.m_currentAudioSettings.m_WaveFormat->Format.wBitsPerSample;
     //wfxex.Format.nChannels       = g_settings.m_currentAudioSettings.m_WaveFormat->Format.nChannels;
-    wfxex.Format = g_settings.m_currentAudioSettings.m_WaveFormat->Format;
+    wfxex.Format = *g_settings.m_currentAudioSettings.m_WaveFormat;
     m_uiChannels = wfxex.Format.nChannels;
     m_uiSamplesPerSec = wfxex.Format.nSamplesPerSec;
     m_uiBitsPerSample = wfxex.Format.wBitsPerSample;
