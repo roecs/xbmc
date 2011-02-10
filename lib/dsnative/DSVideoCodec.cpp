@@ -699,7 +699,14 @@ dsnerror_t DSVideoCodec::CreateGraph(bool buildgraph)
   else
     DSN_CHECK(m_pOutputPin->ReceiveConnection(m_pOurOutput, &m_pDestType), DSN_OUTPUT_CONNFAILED);*/
 #endif
-  
+  if (m_pEvr)
+  {
+    CMediaType mt;
+    if (SUCCEEDED(m_pEvrInputPin->ConnectionMediaType(&mt)))
+    {
+    
+    }
+  }
   m_pOurOutput->SetFrameSize(m_vi.bmiHeader.biBitCount * m_vi.bmiHeader.biWidth * (m_vi.bmiHeader.biHeight + 2) / 8);
   return DSN_OK;
 }

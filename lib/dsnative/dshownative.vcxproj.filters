@@ -129,6 +129,7 @@
     <ClCompile Include="ByteParser.cpp">
       <Filter>Video</Filter>
     </ClCompile>
+    <ClCompile Include="DSGeometry.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="BaseClasses\amextra.h">
@@ -266,5 +267,6 @@
     <ClInclude Include="DSAudioRenderer.h">
       <Filter>AudioCodec</Filter>
     </ClInclude>
+    <ClInclude Include="DSGeometry.h" />
   </ItemGroup>
 </Project>

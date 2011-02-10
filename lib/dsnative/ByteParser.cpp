@@ -21,7 +21,7 @@
 
 #include "stdafx.h"
 #include "ByteParser.h"
-
+#include <xutility>
 CByteParser::CByteParser(const BYTE *pData, uint32_t length)
   : m_pData(pData), m_pCurrent(pData), m_pEnd(pData+length), m_dwLen(length), m_bitBuffer(0), m_bitLen(0)
 {
@@ -93,6 +93,6 @@ int64_t CByteParser::SExpGolombRead()
 
 void CByteParser::Seek(DWORD pos)
 {
-  m_pCurrent = m_pData + min(m_dwLen, pos);
+  m_pCurrent = m_pData + std::min(m_dwLen, (uint32_t) pos);
   BitFlush();
 }

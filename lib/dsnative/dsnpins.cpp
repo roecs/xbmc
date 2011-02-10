@@ -113,7 +113,7 @@ HRESULT CRenderPin::Receive(IMediaSample *pSample)
     pSample->GetPointer(&ptr);
     m_gPtrSize = pSample->GetSize();
     /* why the hell divxh264 returns huge sample len */
-    memcpy(m_gPtr, ptr, min(len, m_fSize));
+    memcpy(m_gPtr, ptr, std::min(len, m_fSize));
   }
   pSample->GetTime(&start, &m_reftime);
   return S_OK;
