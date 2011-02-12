@@ -66,45 +66,45 @@ class DsAllocator
 {
 public:
   CEvent          m_drawingIsDone;
-	DsAllocator(IDSInfoCallback *pCallback);
-	virtual ~DsAllocator();
+  DsAllocator(IDSInfoCallback *pCallback);
+  virtual ~DsAllocator();
 
-	virtual HRESULT STDMETHODCALLTYPE StartPresenting(DWORD_PTR userid);
-	virtual HRESULT STDMETHODCALLTYPE StopPresenting(DWORD_PTR userid);
-	virtual HRESULT STDMETHODCALLTYPE PresentImage(DWORD_PTR userid,VMR9PresentationInfo* presinf);
+  virtual HRESULT STDMETHODCALLTYPE StartPresenting(DWORD_PTR userid);
+  virtual HRESULT STDMETHODCALLTYPE StopPresenting(DWORD_PTR userid);
+  virtual HRESULT STDMETHODCALLTYPE PresentImage(DWORD_PTR userid,VMR9PresentationInfo* presinf);
 
-	virtual HRESULT STDMETHODCALLTYPE InitializeDevice(DWORD_PTR userid,
-		VMR9AllocationInfo* allocinf,DWORD* numbuf);
-	virtual HRESULT STDMETHODCALLTYPE TerminateDevice(DWORD_PTR userid); 
-	virtual HRESULT STDMETHODCALLTYPE GetSurface(DWORD_PTR userid,DWORD surfindex,DWORD surfflags, IDirect3DSurface9** surf);
-	virtual HRESULT STDMETHODCALLTYPE AdviseNotify(IVMRSurfaceAllocatorNotify9* allnoty);
-	
+  virtual HRESULT STDMETHODCALLTYPE InitializeDevice(DWORD_PTR userid,
+    VMR9AllocationInfo* allocinf,DWORD* numbuf);
+  virtual HRESULT STDMETHODCALLTYPE TerminateDevice(DWORD_PTR userid); 
+  virtual HRESULT STDMETHODCALLTYPE GetSurface(DWORD_PTR userid,DWORD surfindex,DWORD surfflags, IDirect3DSurface9** surf);
+  virtual HRESULT STDMETHODCALLTYPE AdviseNotify(IVMRSurfaceAllocatorNotify9* allnoty);
+  
 
-	virtual HRESULT STDMETHODCALLTYPE QueryInterface(REFIID refiid,void ** obj);
-	virtual ULONG STDMETHODCALLTYPE AddRef();
-	virtual ULONG STDMETHODCALLTYPE Release();
+  virtual HRESULT STDMETHODCALLTYPE QueryInterface(REFIID refiid,void ** obj);
+  virtual ULONG STDMETHODCALLTYPE AddRef();
+  virtual ULONG STDMETHODCALLTYPE Release();
 
   IPaintCallback* AcquireCallback();
   
 
   void LostDevice(IDirect3DDevice9 *d3ddev, IDirect3D9* d3d);
 
-	/* EVR members */
-	virtual HRESULT STDMETHODCALLTYPE GetDeviceID(IID *pDid);
+  /* EVR members */
+  virtual HRESULT STDMETHODCALLTYPE GetDeviceID(IID *pDid);
 
-	virtual HRESULT STDMETHODCALLTYPE InitServicePointers(IMFTopologyServiceLookup *plooky);
-	virtual HRESULT STDMETHODCALLTYPE ReleaseServicePointers();
+  virtual HRESULT STDMETHODCALLTYPE InitServicePointers(IMFTopologyServiceLookup *plooky);
+  virtual HRESULT STDMETHODCALLTYPE ReleaseServicePointers();
 
-	virtual HRESULT STDMETHODCALLTYPE ProcessMessage(MFVP_MESSAGE_TYPE mess,ULONG_PTR mess_para);
+  virtual HRESULT STDMETHODCALLTYPE ProcessMessage(MFVP_MESSAGE_TYPE mess,ULONG_PTR mess_para);
 
-	virtual HRESULT STDMETHODCALLTYPE OnClockStart(MFTIME systime,LONGLONG startoffset);
-	virtual HRESULT STDMETHODCALLTYPE OnClockStop(MFTIME systime);
-	virtual HRESULT STDMETHODCALLTYPE OnClockPause(MFTIME systime);
-	virtual HRESULT STDMETHODCALLTYPE OnClockRestart(MFTIME systime);
-	virtual HRESULT STDMETHODCALLTYPE OnClockSetRate(MFTIME systime,float rate);
-	virtual HRESULT STDMETHODCALLTYPE GetCurrentMediaType(IMFVideoMediaType **mtype);
+  virtual HRESULT STDMETHODCALLTYPE OnClockStart(MFTIME systime,LONGLONG startoffset);
+  virtual HRESULT STDMETHODCALLTYPE OnClockStop(MFTIME systime);
+  virtual HRESULT STDMETHODCALLTYPE OnClockPause(MFTIME systime);
+  virtual HRESULT STDMETHODCALLTYPE OnClockRestart(MFTIME systime);
+  virtual HRESULT STDMETHODCALLTYPE OnClockSetRate(MFTIME systime,float rate);
+  virtual HRESULT STDMETHODCALLTYPE GetCurrentMediaType(IMFVideoMediaType **mtype);
 
-	virtual HRESULT STDMETHODCALLTYPE GetService(const GUID &guid,const IID &iid,LPVOID *obj);
+  virtual HRESULT STDMETHODCALLTYPE GetService(const GUID &guid,const IID &iid,LPVOID *obj);
   /*IBaseFilter*/
   bool   GetState( DWORD dwMilliSecsTimeout, FILTER_STATE *State, HRESULT &_ReturnValue);
 
@@ -133,10 +133,8 @@ public:
 
   void CompleteFrameStep(bool bCancel);
   void CheckWaitingSampleFromMixer(){if (m_bWaitingSample) m_bWaitingSample = false; }
-  void GetNextSurface(IMFMediaBuffer **pBuf,DWORD *waittime);
   bool AcceptMoreData();
   bool SurfaceReady();
-	void DiscardSurfaceandgetWait(DWORD *waittime);
   void Lock() { m_mutex->Wait(); }
   void Unlock() { m_mutex->Release();}
   //IPaintCallback
@@ -145,14 +143,14 @@ public:
   void SetDSMediaType(CMediaType mt);
 protected:
   IMFSample *m_gPtr;
-	void RenegotiateEVRMediaType();
-	void AllocateEVRSurfaces();
-	void FlushEVRSamples();
-	void GetEVRSamples();
+  void RenegotiateEVRMediaType();
+  void AllocateEVRSurfaces();
+  void FlushEVRSamples();
+  void GetEVRSamples();
 
-	void ResetSyncOffsets();
-	void CalcSyncOffsets(int sync);
-	void CalcJitter(int jitter);
+  void ResetSyncOffsets();
+  void CalcSyncOffsets(int sync);
+  void CalcJitter(int jitter);
 
   double                                GetFrameTime() {if (m_DetectedLock) return m_DetectedFrameTime; return m_rtTimePerFrame / 10000000.0; }
   int64_t                               GetClockTime(int64_t PerformanceCounter);
@@ -174,7 +172,7 @@ protected:
   int64_t                               m_PaintTime;
   int64_t                               m_PaintTimeMin;
   int64_t                               m_PaintTimeMax;
-  size_t                                m_nUsedBuffer;
+  long                                  m_nUsedBuffer;
   CCritSec                              m_RefreshRateLock;
   bool                                  m_DetectedLock;
   double                                m_DetectedFrameTime;
@@ -198,45 +196,45 @@ protected:
 
   Com::SmartSize                        m_ScreenSize;
   Com::SmartRect                        m_pScreenSize;
-	vector<IDirect3DSurface9*> m_pSurfaces;
+  vector<IDirect3DSurface9*> m_pSurfaces;
   vector<IDirect3DTexture9*> m_pTextures;
   IDirect3DSurface9* m_pSurfaceRenderTarget;
   IDirect3DTexture9* m_pTextureRenderTarget;
-	queue<IMFSample*> emptyevrsamples;
-	queue<IMFSample*> fullevrsamples;
+  queue<IMFSample*> emptyevrsamples;
+  queue<IMFSample*> fullevrsamples;
   VideoSampleList          m_FreeSamples;
   VideoSampleList          m_ScheduledSamples;
   LONGLONG          m_iLastSampleDuration;
   LONGLONG          m_iLastSampleTime;
   int               m_bInterlaced;
   float             m_fps;
-	//CCritSec objCritSec;
-	IVMRSurfaceAllocatorNotify9* surfallocnotify;
-	void CleanupSurfaces();
-	LONG refcount;
-	DWORD vheight;
-	DWORD vwidth;
-	bool inevrmode;
-	bool endofstream;
+  //CCritSec objCritSec;
+  IVMRSurfaceAllocatorNotify9* surfallocnotify;
+  void CleanupSurfaces();
+  LONG refcount;
+  DWORD vheight;
+  DWORD vwidth;
+  bool inevrmode;
+  bool endofstream;
 
-	Com::SmartPtr<IMFTransform> m_pMixer;
-	Com::SmartPtr<IMediaEventSink> m_pSink;
-	Com::SmartPtr<IMFClock> m_pClock;
-	Com::SmartPtr<IMFMediaType> m_pMediaType;
+  Com::SmartPtr<IMFTransform> m_pMixer;
+  Com::SmartPtr<IMediaEventSink> m_pSink;
+  Com::SmartPtr<IMFClock> m_pClock;
+  Com::SmartPtr<IMFMediaType> m_pMediaType;
 
   //IDirect3DDevice9* m_pD3DDevice;
   IDSInfoCallback* m_pCallback;
   IDirect3DDeviceManager9* m_pD3DDevManager;
-	static const int n_stats=126;
-	int sync_offset[n_stats];
-	int jitter_offset[n_stats];
-	unsigned int sync_pos;
-	unsigned int jitter_pos;
-	int framesdrawn;
-	int framesdropped;
-	int avg_sync_offset;
-	int dev_sync_offset;
-	int jitter;
+  static const int n_stats=126;
+  int sync_offset[n_stats];
+  int jitter_offset[n_stats];
+  unsigned int sync_pos;
+  unsigned int jitter_pos;
+  int framesdrawn;
+  int framesdropped;
+  int avg_sync_offset;
+  int dev_sync_offset;
+  int jitter;
   int avgfps;
   LONGLONG lastdelframe;
   CMutex* m_mutex;
@@ -287,8 +285,8 @@ private:
   bool                     m_bSignaledStarvation; 
   int64_t                  m_StarvationClock;
 
-  CCritSec	               m_SampleQueueLock;
-	CCritSec	               m_ImageProcessingLock;
+  CCritSec                 m_SampleQueueLock;
+  CCritSec                 m_ImageProcessingLock;
   CCritSec                 m_DisplaydSampleQueueLock;
   bool                     m_bPendingRenegotiate;
   bool                     m_bPendingMediaFinished;

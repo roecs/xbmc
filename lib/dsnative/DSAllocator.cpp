@@ -36,7 +36,7 @@
 #include "utils\TimeUtils.h"
 // === Helper functions
 #define CheckHR(exp) {if(FAILED(hr = exp)) return hr;}
-#define PaintInternal() {assert(0);}
+//#define PaintInternal() {assert(0);}
 //evr
 typedef HRESULT (__stdcall *FCT_MFCreateVideoSampleFromSurface)(IUnknown* pUnkSurface, IMFSample** ppSample);
 typedef HRESULT (__stdcall *FCT_MFCreateDXSurfaceBuffer)(REFIID riid, IUnknown *punkSurface, BOOL fBottomUpWhenLinear, IMFMediaBuffer **ppBuffer);
@@ -243,6 +243,7 @@ DsAllocator::DsAllocator(IDSInfoCallback *pCallback)
   m_bWaitingSample      = false;
   m_pCurrentDisplaydSample  = NULL;
   m_nStepCount        = 0;
+  m_nUsedBuffer = 0;
   //m_dwVideoAspectRatioMode  = MFVideoARMode_PreservePicture;
   //m_dwVideoRenderPrefs    = (MFVideoRenderPrefs)0;
   //m_BorderColor        = RGB (0,0,0);
@@ -618,15 +619,19 @@ HRESULT STDMETHODCALLTYPE DsAllocator::ProcessMessage(MFVP_MESSAGE_TYPE mess,ULO
   {
     case MFVP_MESSAGE_FLUSH:
     {
-      //OutputDebugString(L"EVR Message MFVP_MESSAGE_FLUSH received");
-      FlushEVRSamples(); 
-    }
+      SetEvent(m_hEvtFlush);
+      m_bEvtFlush = true;
+      m_drawingIsDone.Set();
+      OutputDebugString(L"EVR: MFVP_MESSAGE_FLUSH");
+      while (WaitForSingleObject(m_hEvtFlush, 1) == WAIT_OBJECT_0);
     break;
     case MFVP_MESSAGE_INVALIDATEMEDIATYPE: 
     {
       m_bPendingRenegotiate = true;
-      while (*((volatile bool *)&m_bPendingRenegotiate))
-        Sleep(1);
+      FlushSamples();
+      RenegotiateEVRMediaType();
+      //while (*((volatile bool *)&m_bPendingRenegotiate))
+      //  Sleep(1);
     }
     break;
     case MFVP_MESSAGE_PROCESSINPUTNOTIFY: 
@@ -1150,17 +1155,21 @@ void DsAllocator::AllocateEVRSurfaces()
   
   
 
-
+  HRESULT hr = S_OK;
   for (int i=0;i<m_pSurfaces.size();i++)
   {
     if (m_pSurfaces[i]!=NULL) 
     {
-      IMFSample *sample=NULL;
-      ptrMFCreateVideoSampleFromSurface(m_pSurfaces[i],&sample);
-      sample->SetUINT32 (GUID_SURFACE_INDEX, i);
+      Com::SmartPtr<IMFSample> pMFSample;
+      hr = ptrMFCreateVideoSampleFromSurface(m_pSurfaces[i],&pMFSample);
+      pMFSample->SetUINT32 (GUID_SURFACE_INDEX, i);
       
-      if (sample) 
-        emptyevrsamples.push(sample);
+      if (SUCCEEDED (hr))
+      {
+        pMFSample->SetUINT32 (GUID_SURFACE_INDEX, i);
+        m_FreeSamples.InsertBack(pMFSample);
+      }
+      assert(SUCCEEDED (hr));
     }
   }
   Unlock();
@@ -1178,171 +1187,7 @@ void DsAllocator::FlushEVRSamples()
   }
   Unlock();
 }
-#define FAC 1
 
-void DsAllocator::GetNextSurface(IMFMediaBuffer **pBuf,DWORD *waittime)
-{
-  
-  //*surf=NULL;
-  *waittime=10;
-  if (fullevrsamples.size()==0) 
-    GetEVRSamples();
-  Lock();
-  //OutputDebugString(L"Enter Get Next Surface");
-  
-  while (fullevrsamples.size()>0)
-  {
-    //MessageBox(0,"Got a sample","got a sample",0);
-    IMFSample *sample=fullevrsamples.front();
-    LONGLONG prestime=0;
-    MFTIME   systime=0;
-    LONGLONG currenttime=0;
-
-    HRESULT hr=sample->GetSampleTime(&prestime);
-    if (hr==S_OK) 
-    {
-      if (m_pClock) m_pClock->GetCorrelatedTime(0,&currenttime,&systime);
-    }
-    LONGLONG delta=prestime-currenttime; 
-
-     
-
-    if (delta<-10000*20 && false) 
-    { //SkipIT
-      LONGLONG latency=-delta;
-      //m_pSink->Notify(EC_SAMPLE_LATENCY,(LONG_PTR) &latency,0);
-      LARGE_INTEGER helper;
-      helper.QuadPart=-delta;
-      DebugPrint(L"skip 1 frame %d %d prestime %lld",helper.LowPart,helper.HighPart,prestime);
-      CalcSyncOffsets(delta/10000LL);
-      //	emptyevrsamples.size(),fullevrsamples.size());
-      fullevrsamples.pop();
-      emptyevrsamples.push(sample);
-      framesdropped++;
-      continue;
-    }
-
-    if (delta<10000*20 || !m_pClock )
-    {
-      *waittime=0;
-      IMFMediaBuffer* buffy=NULL;
-      //MessageBox(0,"its showtime","showtimw",0);
-      CalcSyncOffsets(delta/10000LL);
-      framesdrawn++;
-      //hr = sample->CopyToBuffer(pBuf); <--- better with?
-      
-      hr=sample->GetBufferByIndex(0,&buffy);
-
-      if (hr!=S_OK) 
-      { //SkipIT
-        fullevrsamples.pop();
-        emptyevrsamples.push(sample);
-        continue;
-      }
-      *pBuf = buffy;
-      (*pBuf)->AddRef();
-      //return the buf
-      break;
-      hr=sample->GetBufferByIndex(0,&buffy);
-      //LARGE_INTEGER helper;
-      //helper.QuadPart=-delta;
-      //OutputDebugString(L"Paint 1 frame %d %d, frames  %d prestime %lld",
-       //   helper.LowPart,helper.HighPart,fullevrsamples.size(),prestime);
-      if (hr!=S_OK) 
-      { //SkipIT
-        fullevrsamples.pop();
-        emptyevrsamples.push(sample);
-        continue;
-      }
-      
-      IMFGetService* service;
-      hr=buffy->QueryInterface(IID_IMFGetService,(void**)&service);
-      buffy->Release();
-      if (hr!=S_OK) 
-      { //SkipIT
-        fullevrsamples.pop();
-        emptyevrsamples.push(sample);
-        continue;
-      }
-      LPDIRECT3DSURFACE9 tempsurf;
-      hr=service->GetService(MR_BUFFER_SERVICE,IID_IDirect3DSurface9 ,(void**) &tempsurf);
-      service->Release();
-      if (hr!=S_OK) 
-      { //SkipIT
-        fullevrsamples.pop();
-        emptyevrsamples.push(sample);
-        continue;
-      }
-      //*surf=tempsurf;
-      break;
-    }
-    else 
-    {
-      *waittime=delta/10000-10;
-      //*surf=NULL;
-      break;
-    }     
-  }
-
-  Unlock();
-
-}
-
-void DsAllocator::DiscardSurfaceandgetWait(DWORD *waittime)
-{
-  //OutputDebugString(L"Discard surface and get Wait");
-  GetEVRSamples();
-  //OutputDebugString(L"Discard surface and get Wait2");
-  Lock();
-  if (fullevrsamples.size()==0)
-  {
-    *waittime=0;
-    Unlock();
-    return;
-  }
-  IMFSample *sample=fullevrsamples.front();
-  fullevrsamples.pop();
-  emptyevrsamples.push(sample);
-  *waittime=0;
-
-  while (fullevrsamples.size()>0) 
-  {
-
-    IMFSample *sample=fullevrsamples.front();
-    LONGLONG prestime=0;
-    MFTIME   systime=0;
-    LONGLONG currenttime=0;
-
-    HRESULT hr=sample->GetSampleTime(&prestime);
-    if (hr==S_OK) 
-    {
-      if (m_pClock) m_pClock->GetCorrelatedTime(0,&currenttime,&systime);
-    }
-    LONGLONG delta=prestime-currenttime;
-
-
-    if (delta<-10000*20 )
-{ //SkipIT
-       LONGLONG latency=-delta;
-       // m_pSink->Notify(EC_SAMPLE_LATENCY,(LONG_PTR) &latency,0);
-      //LARGE_INTEGER helper;
-      //helper.QuadPart=-delta;
-      //OutputDebugString(L"skip 1 frame %d %d time %lld",helper.LowPart,helper.HighPart,prestime);
-      CalcSyncOffsets(delta/10000LL);
-      //	emptyevrsamples.size(),fullevrsamples.size());
-      fullevrsamples.pop();
-      emptyevrsamples.push(sample);
-      framesdropped++;
-      continue;
-    }
-
-    *waittime = std::min((LONGLONG)delta/10000/2-10, (LONGLONG)1); 
-
-    break;
-  }
-  Unlock();
-
-}
 void DsAllocator::ResetSyncOffsets()
 {
   for (int i=0;i<n_stats;i++)
@@ -1447,70 +1292,22 @@ void DsAllocator::Render(const RECT& dst, IDirect3DSurface9* target)
   if (!m_pCallback || endofstream)
     return;
   LPDIRECT3DDEVICE9 pDevice = m_pCallback->GetD3DDev();
-  IMFSample *sample = NULL;
-  
-  
-  GetEVRSamples();
-
-  while (fullevrsamples.size()>0) 
+  Com::SmartPtr<IMFSample>    pMFSample;
+  int64_t  llPerf = 0;
+  int                         nSamplesLeft = 0;
+  if (SUCCEEDED (GetScheduledSample(&pMFSample, nSamplesLeft)))
   {
-    //MessageBox(0,"Got a sample","got a sample",0);
-    sample=fullevrsamples.front();
 
 
-    hr=sample->GetSampleTime(&prestime);
+    hr=pMFSample->GetSampleTime(&prestime);
     m_iLastSampleDuration = m_iLastSampleTime - prestime;
     m_iLastSampleTime = prestime;
-    LONGLONG sample_duration;
-    hr=sample->GetSampleDuration(&sample_duration);
-
-    if (hr==S_OK)
+    if (FAILED(pMFSample->GetUINT32(GUID_SURFACE_INDEX, (UINT32 *)&m_nCurSurface)))
     {
-      if (m_pClock) 
-        m_pClock->GetCorrelatedTime(0,&currenttime,&systime);
-    }
-
-    LONGLONG delta=prestime-currenttime; 
-
-    if (delta<-10000*20 && false) 
-    { //SkipIT
-      LONGLONG latency=-delta;
-      //m_pSink->Notify(EC_SAMPLE_LATENCY,(LONG_PTR) &latency,0);
-      LARGE_INTEGER helper;
-      helper.QuadPart=-delta;
-      
-      CalcSyncOffsets(delta/10000LL);
-      //if failed to get the index just put it in the free surface list
-      fullevrsamples.pop();
-      emptyevrsamples.push(sample);
-      framesdropped++;
+      MoveToFreeList(pMFSample, true);
       return;
     }
-
-    if (1)//delta<10000*20 || !m_pClock )
-    {
-      waittime=0;
-      IMFMediaBuffer* buffy=NULL;
-      
-      CalcSyncOffsets(delta/10000LL);
-      framesdrawn++;
- 
-      if (FAILED(sample->GetUINT32(GUID_SURFACE_INDEX, (UINT32 *)&m_nCurSurface)))
-      {
-        //if failed to get the index just put it in the free surface list
-        fullevrsamples.pop();
-        emptyevrsamples.push(sample);
-        return;
-      }
-      
-      break;
-    } 
-    else 
-    {
-      waittime=delta/10000-10;
-      break;
-    }     
-  }
+    
 
   if ((m_nCurSurface < 0 )&& (m_nCurSurface > m_pSurfaces.size()))
     return;
@@ -1563,34 +1360,34 @@ void DsAllocator::Render(const RECT& dst, IDirect3DSurface9* target)
     
     //vheight
     //vwidth
-    //hr = pDevice->StretchRect(m_pSurfaces[m_nCurSurface], NULL, target, &rdst, D3DTEXF_POINT);
+    
   if (FAILED(hr))
   {
     hr = pDevice->StretchRect(m_pSurfaces[m_nCurSurface], NULL, target, NULL, D3DTEXF_NONE);
     //OutputDebugStringA("DSAllocator Failed to Render Target with EVR");
   }
-  Lock();
-  if (fullevrsamples.size()==0)
+  //Lock();
+  /*if (fullevrsamples.size()==0)
   {
     waittime=0;
     Unlock();
     return;
-  }
-  IMFSample *sample=fullevrsamples.front();
-  fullevrsamples.pop();
-  emptyevrsamples.push(sample);
-  waittime=0;
-    //DiscardSurfaceandgetWait(&waittime);
+  }*/
+    MoveToFreeList(pMFSample, true);
+  //IMFSample *pMFSample=fullevrsamples.front();
+  //fullevrsamples.pop();
+  //emptyevrsamples.push(pMFSample);
+    waittime=0;
   }
   else
   {
     OutputDebugStringA("DSAllocator Failed to get surface from sample");
   }
   
-  Unlock();
+  //Unlock();
   
+  }
 }
-
 DWORD WINAPI DsAllocator::GetMixerThreadStatic(LPVOID lpParam)
 {
   DsAllocator*    pThis = (DsAllocator*) lpParam;
@@ -1628,37 +1425,11 @@ void DsAllocator::GetMixerThread()
         }
         if (m_rtTimePerFrame == 0 && bDoneSomething)
         {
-          //CAutoLock lock(this);
-          //CAutoLock lock2(&m_ImageProcessingLock);
-          //CAutoLock cRenderLock(&m_RenderLock);
-
-          // Use the code from VMR9 to get the movie fps, as this method is reliable.
-#if 0 //Don't need this part because its done when the connection is done
-          Com::SmartPtr<IPin>      pPin;
-          CMediaType        mt;
-          if (
-            SUCCEEDED (m_pOuterEVR->FindPin(L"EVR Input0", &pPin)) &&
-            SUCCEEDED (pPin->ConnectionMediaType(&mt)) )
-          {
-            ExtractAvgTimePerFrame (&mt, m_rtTimePerFrame);
-
-            m_bInterlaced = ExtractInterlaced(&mt);
-
-          }
-#endif
           // If framerate not set by Video Decoder choose 23.97...
           if (m_rtTimePerFrame == 0) 
             m_rtTimePerFrame = 417166;
 
           m_fps = (float)(10000000.0 / m_rtTimePerFrame);
-#if 0 //Done in dvdplayervideo
-          if (!g_renderManager.IsConfigured())
-          {
-            g_renderManager.Configure(m_NativeVideoSize.cx, m_NativeVideoSize.cy, m_AspectRatio.cx, m_AspectRatio.cy, m_fps,
-              CONF_FLAGS_FULLSCREEN);
-            CLog::Log(LOGDEBUG, "%s Render manager configured (FPS: %f)", __FUNCTION__, m_fps);
-          }
-#endif
         }
 
       }
@@ -1667,7 +1438,6 @@ void DsAllocator::GetMixerThread()
   }
 
   timeEndPeriod (dwResolution);
-//  if (pfAvRevertMmThreadCharacteristics) pfAvRevertMmThreadCharacteristics (hAvrt);
 }
 
 bool DsAllocator::GetImageFromMixer()
@@ -1757,8 +1527,8 @@ void DsAllocator::StartWorkerThreads()
     m_hEvtQuit    = CreateEvent (NULL, TRUE, FALSE, NULL);
     m_hEvtFlush    = CreateEvent (NULL, TRUE, FALSE, NULL);
 
-    m_hThread    = ::CreateThread(NULL, 0, PresentThread, (LPVOID)this, 0, &dwThreadId);
-    SetThreadPriority(m_hThread, THREAD_PRIORITY_TIME_CRITICAL);
+    //m_hThread    = ::CreateThread(NULL, 0, PresentThread, (LPVOID)this, 0, &dwThreadId);
+    //SetThreadPriority(m_hThread, THREAD_PRIORITY_TIME_CRITICAL);
     m_hGetMixerThread = ::CreateThread(NULL, 0, GetMixerThreadStatic, (LPVOID)this, 0, &dwThreadId);
     SetThreadPriority(m_hGetMixerThread, THREAD_PRIORITY_HIGHEST);
 
@@ -1812,21 +1582,20 @@ DWORD WINAPI DsAllocator::PresentThread(LPVOID lpParam)
 
 void DsAllocator::RenderThread()
 {
-  HANDLE        hAvrt;
-  DWORD         dwTaskIndex   = 0;
-  HANDLE        hEvts[]       = { m_hEvtQuit, m_hEvtFlush};
-  bool          bQuit         = false;
-  TIMECAPS      tc;
-  DWORD         dwResolution;
-  MFTIME        nsSampleTime;
-  int64_t       llClockTime;
-  DWORD         dwUser = 0;
-  DWORD         dwObject;
+  HANDLE    hAvrt;
+  DWORD     dwTaskIndex, dwUser   = 0;
+  HANDLE    hEvts[]       = { m_hEvtQuit, m_hEvtFlush};
+  bool      bQuit         = false;
+  TIMECAPS  tc;
+  DWORD     dwResolution, dwObject;
+  MFTIME    nsSampleTime;
+  int64_t   llClockTime;
 
-  
   // Tell Vista Multimedia Class Scheduler we are a playback thretad (increase priority)
-  if (pfAvSetMmThreadCharacteristicsW)  hAvrt = pfAvSetMmThreadCharacteristicsW (L"Playback", &dwTaskIndex);
-  if (pfAvSetMmThreadPriority)      pfAvSetMmThreadPriority (hAvrt, AVRT_PRIORITY_HIGH /*AVRT_PRIORITY_CRITICAL*/);
+  if (pfAvSetMmThreadCharacteristicsW)
+    hAvrt = pfAvSetMmThreadCharacteristicsW (L"Playback", &dwTaskIndex);
+  if (pfAvSetMmThreadPriority)
+    pfAvSetMmThreadPriority (hAvrt, AVRT_PRIORITY_HIGH /*AVRT_PRIORITY_CRITICAL*/);
 
     timeGetDevCaps(&tc, sizeof(TIMECAPS));
     dwResolution = std::min(std::max(tc.wPeriodMin, (UINT) 0), tc.wPeriodMax);
@@ -1903,7 +1672,7 @@ void DsAllocator::RenderThread()
             //if (!g_bExternalSubtitleTime)
               //__super::SetTime (g_tSegmentStart + nsSampleTime);
             
-            PaintInternal();
+            //PaintInternal();
 
             m_nDroppedUpdate = 0;
             CompleteFrameStep (false);
@@ -2064,7 +1833,7 @@ void DsAllocator::RenderThread()
                   __super::SetTime (g_tSegmentStart + nsSampleTime);
 #endif
 
-                PaintInternal();
+                //PaintInternal();
                 
                 NextSleepTime = 0;
                 m_pcFramesDrawn++;
@@ -2202,7 +1971,6 @@ HRESULT DsAllocator::GetFreeSample(IMFSample** ppSample)
   if (m_FreeSamples.GetCount() > 1)  // <= Cannot use first free buffer (can be currently displayed)
   {
     InterlockedIncrement (&m_nUsedBuffer);
-    //*ppSample = m_FreeSamples.RemoveHead().Detach();
     m_FreeSamples.RemoveFront(ppSample);
   }
   else
@@ -2220,7 +1988,6 @@ HRESULT DsAllocator::GetScheduledSample(IMFSample** ppSample, int &_Count)
   _Count = m_ScheduledSamples.GetCount();
   if (_Count > 0)
   {
-    //*ppSample = m_ScheduledSamples.RemoveHead().Detach();
     m_ScheduledSamples.RemoveFront(ppSample);
     --_Count;
   }

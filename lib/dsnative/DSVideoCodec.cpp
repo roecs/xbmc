@@ -704,7 +704,7 @@ dsnerror_t DSVideoCodec::CreateGraph(bool buildgraph)
     CMediaType mt;
     if (SUCCEEDED(m_pEvrInputPin->ConnectionMediaType(&mt)))
     {
-    
+      m_pEvr->SetDSMediaType(mt);
     }
   }
   m_pOurOutput->SetFrameSize(m_vi.bmiHeader.biBitCount * m_vi.bmiHeader.biWidth * (m_vi.bmiHeader.biHeight + 2) / 8);
@@ -841,6 +841,7 @@ dsnerror_t DSVideoCodec::Decode(const BYTE *src, int size, double pts, double *n
   
     *pImageSize = m_pOurOutput->GetPointerSize();
     *newpts = RT2PTS(m_pOurOutput->GetPTS());
+    
     return DSN_OK;
   }
   //Verify its not going to dead lock before sending the sample
