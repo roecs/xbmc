@@ -922,7 +922,7 @@ void CDVDPlayerVideo::ProcessOverlays(DVDVideoPicture* pSource, YV12Image* pDest
   else if(pSource->format == DVDVideoPicture::FMT_DXVA)
     g_renderManager.AddProcessor(pSource->proc, pSource->proc_id);
   else if(pSource->format == DVDVideoPicture::FMT_DSHOW)
-    g_renderManager.AddProcessor(pSource->pAlloc);
+    g_renderManager.AddProcessor(pSource->pAlloc, pSource->pSurfaceIndex);
 
 #endif
 #ifdef HAVE_LIBVDPAU

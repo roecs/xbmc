@@ -176,11 +176,13 @@ struct D3DBuffer : SVideoBuffer
   D3DBuffer()
   {
     alloc = NULL;
+    index = NULL;
   }
   ~D3DBuffer();
   virtual void Release();
 
   IPaintCallback* alloc;
+  int             index;
 };
 
 class CWinRenderer : public CBaseRenderer
@@ -199,7 +201,7 @@ public:
   virtual void         ReleaseImage(int source, bool preserve = false);
   virtual unsigned int DrawSlice(unsigned char *src[], int stride[], int w, int h, int x, int y);
   virtual void         AddProcessor(DXVA::CProcessor* processor, int64_t id);
-  virtual void         AddProcessor(IPaintCallback* pAlloc);
+  virtual void         AddProcessor(IPaintCallback* pAlloc, int surface_index);
   virtual void         FlipPage(int source);
   virtual unsigned int PreInit();
   virtual void         UnInit();

@@ -41,6 +41,9 @@ CDVDVideoCodecDirectshow::CDVDVideoCodecDirectshow() : CDVDVideoCodec()
   codec = NULL;
   m_pCurrentData = NULL;
   m_requireResync = true;
+  m_wait_timeout = 1;
+  current_surface_index = -1;
+  number_of_frame_ready = 0;
 }
 
 CDVDVideoCodecDirectshow::~CDVDVideoCodecDirectshow()
@@ -71,6 +74,8 @@ bool CDVDVideoCodecDirectshow::Open(CDVDStreamInfo &hints, CDVDCodecOptions &opt
   int profile = hints.profile;
 
   int64_t frametime = MulDiv(DVD_TIME_BASE*10, hints.fpsscale, hints.fpsrate);
+  
+  m_wait_timeout = ( DVD_TIME_BASE / (hints.fpsrate / hints.fpsscale) ) / 2000;
   CStdString curfile = g_application.CurrentFile();
   CLog::Log(LOGNOTICE,"Loading directshow filter for file %s",curfile.c_str());
 //Correcting some mpeg-ts extradata for some video codecs which can't handle NAL_AUD in 2 first parameter
@@ -116,8 +121,6 @@ bool CDVDVideoCodecDirectshow::Open(CDVDStreamInfo &hints, CDVDCodecOptions &opt
   //CLSID_FFDShow_Video_Decoder
   //CLSID_FFDShow_DXVA_Video_Decoder
   //CLSID_MPC_Video_Decoder
-  
-  
   
   if (!codec)
   {
@@ -186,14 +189,27 @@ int CDVDVideoCodecDirectshow::Decode(BYTE* pData, int iSize, double dts, double 
     rt = dts * 10;
   }
 
+  if (!pData)
+  {
+    if (number_of_frame_ready == 1)
+      return VC_PICTURE | VC_BUFFER;
+    if (number_of_frame_ready > 2)
+      return VC_PICTURE;
+    else
+      return VC_BUFFER;
+  }
+  
   err = DSVideoDecode(codec, pData, iSize, rt, &newpts, m_pCurrentData, &imageSize, keyframe);
   
   if (err == 13)//DSN_SUCCEEDED_BUT_NOSURFACE == 13
+  {
     return VC_BUFFER;
-  
-  if (err == 14)//DSN_DATA_QUEUE_FULL
-    return VC_FLUSHED;
-
+  }
+  else if (err == 14)//DSN_DATA_QUEUE_FULL
+  {
+    CLog::Log(LOGDEBUG, "%s: m_pInputThread->AddInput full.", __FUNCTION__);
+    Sleep(10);
+  }
   else if (err != 0)
   {
       CLog::Log(LOGERROR,"DShowNative codec failed:%s", DSStrError((dsnerror_t) err));
@@ -201,13 +217,22 @@ int CDVDVideoCodecDirectshow::Decode(BYTE* pData, int iSize, double dts, double 
   }
   m_pts = pts;
   
+  IPaintCallback* pAlloc = DSVideoGetEvrCallback(codec);
+  bool ret = false;
+  if (!pAlloc->GetD3DSurfaceFromScheduledSample(&current_surface_index))
+    return VC_BUFFER;
   
     
-  if (!m_pCurrentData)
-    return VC_ERROR;
+  //if (!m_pCurrentData)
+  //  return VC_ERROR;
 
   m_dts = dts;
   return VC_PICTURE | VC_BUFFER;
+}
+
+void CDVDVideoCodecDirectshow::FrameReady(int number)
+{
+  number_of_frame_ready = number;
 }
 
 void CDVDVideoCodecDirectshow::Reset()
@@ -240,10 +265,9 @@ bool CDVDVideoCodecDirectshow::GetPicture(DVDVideoPicture* pDvdVideoPicture)
   {
     pDvdVideoPicture->format = DVDVideoPicture::FMT_DSHOW;
     pDvdVideoPicture->pAlloc = pAlloc;
-    
+    pDvdVideoPicture->pSurfaceIndex = current_surface_index;
     return true;
   }
-  else
     return false;
     
   

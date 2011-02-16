@@ -98,11 +98,11 @@ public:
     if (m_pRenderer)
       m_pRenderer->AddProcessor(processor, id);
   }
-  void AddProcessor(IPaintCallback* pAlloc)
+  void AddProcessor(IPaintCallback* pAlloc, int surface_index)
   {
     CSharedLock lock(m_sharedSection);
     if (m_pRenderer)
-      m_pRenderer->AddProcessor(pAlloc);
+      m_pRenderer->AddProcessor(pAlloc, surface_index);
   }
 #endif
 

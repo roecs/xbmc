@@ -46,7 +46,6 @@ using namespace std;
 #include "threads/Event.h"
 
 
-
 #ifndef EXECUTE_ASSERT
 #define EXECUTE_ASSERT(_x_) ASSERT(_x_)
 #endif
@@ -138,15 +137,16 @@ public:
   void Lock() { m_mutex->Wait(); }
   void Unlock() { m_mutex->Release();}
   //IPaintCallback
-  virtual void Render(const RECT& dst, IDirect3DSurface9* target);
-  void SetPointer(IMFSample *ptr){ m_gPtr = ptr; }
+  virtual void Render(const RECT& dst, IDirect3DSurface9* target, int index);
+  virtual bool WaitOutput(unsigned int msec);
+  virtual bool GetD3DSurfaceFromScheduledSample(int *surface_index);
+  virtual int GetReadySample() { return m_ScheduledSamples.GetCount();}
+  
   void SetDSMediaType(CMediaType mt);
 protected:
   IMFSample *m_gPtr;
   void RenegotiateEVRMediaType();
   void AllocateEVRSurfaces();
-  void FlushEVRSamples();
-  void GetEVRSamples();
 
   void ResetSyncOffsets();
   void CalcSyncOffsets(int sync);
@@ -200,10 +200,6 @@ protected:
   vector<IDirect3DTexture9*> m_pTextures;
   IDirect3DSurface9* m_pSurfaceRenderTarget;
   IDirect3DTexture9* m_pTextureRenderTarget;
-  queue<IMFSample*> emptyevrsamples;
-  queue<IMFSample*> fullevrsamples;
-  VideoSampleList          m_FreeSamples;
-  VideoSampleList          m_ScheduledSamples;
   LONGLONG          m_iLastSampleDuration;
   LONGLONG          m_iLastSampleTime;
   int               m_bInterlaced;
@@ -285,9 +281,17 @@ private:
   bool                     m_bSignaledStarvation; 
   int64_t                  m_StarvationClock;
 
-  CCritSec                 m_SampleQueueLock;
-  CCritSec                 m_ImageProcessingLock;
-  CCritSec                 m_DisplaydSampleQueueLock;
+  VideoSampleList          m_FreeSamples;
+  VideoSampleList          m_ScheduledSamples;
+  VideoSampleList          m_BusySamples;
+
+  //Com::CSyncPtrQueue<IMFSample> m_FreeSamples;
+  //Com::CSyncPtrQueue<IMFSample> m_ScheduledSamples;
+  CEvent                     m_ready_event;
+  CCritSec                   m_section;
+  //CCritSec                 m_SampleQueueLock;
+  //CCritSec                 m_ImageProcessingLock;
+  //CCritSec                 m_DisplaydSampleQueueLock;
   bool                     m_bPendingRenegotiate;
   bool                     m_bPendingMediaFinished;
   bool                     m_bCorrectedFrameTime;

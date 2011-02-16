@@ -108,7 +108,29 @@ public:
     };
 };
 
+class CAutoSingleLock
+{
+public:
+  void Unlock();
+  void Lock();
 
+  CAutoSingleLock(CCritSec& cs);
+  CAutoSingleLock(const CCritSec& cs);
+  virtual ~CAutoSingleLock();
+
+  bool IsOwner() const;
+  bool Enter();
+  void Leave();
+
+private:
+  CAutoSingleLock(const CAutoSingleLock& src);
+  CAutoSingleLock& operator=(const CAutoSingleLock& src);
+
+  // Reference to critical section object
+  CCritSec& m_cs;
+  // Ownership flag
+  bool m_bIsOwner;
+};
 
 // wrapper for event objects
 class CAMEvent

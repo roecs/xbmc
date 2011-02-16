@@ -267,7 +267,7 @@ void CWinRenderer::AddProcessor(DXVA::CProcessor* processor, int64_t id)
   buf->id   = id;
 }
 
-void CWinRenderer::AddProcessor(IPaintCallback* pAlloc)
+void CWinRenderer::AddProcessor(IPaintCallback* pAlloc, int surface_index)
 {
   int source = NextYV12Texture();
   if(source < 0)
@@ -275,6 +275,7 @@ void CWinRenderer::AddProcessor(IPaintCallback* pAlloc)
   D3DBuffer *buf = (D3DBuffer*)m_VideoBuffers[source];
   /*SAFE_RELEASE(buf->surf);*/
   buf->alloc = pAlloc;
+  buf->index = surface_index;
 
 }
 
@@ -1006,7 +1007,7 @@ void CWinRenderer::RenderDirectshow(DWORD flags)
   
   hr = pD3DDevice->SetPixelShader(m_resizerpixershader[1]);
 
-  image->alloc->Render(rect,target);
+  image->alloc->Render(rect, target, image->index);
   target->Release();
   g_Windowing.Get3DDevice()->SetPixelShader(NULL);
 }

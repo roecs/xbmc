@@ -785,4 +785,57 @@ bool TimeKillSynchronousFlagAvailable( void )
     return false;
 }
 
+//////////////////////////////////////////////////////////////////////
+// Construction/Destruction
+//////////////////////////////////////////////////////////////////////
 
+CAutoSingleLock::CAutoSingleLock(CCritSec& cs)
+    : m_cs( cs )
+    , m_bIsOwner( false )
+{
+  Enter();
+}
+
+CAutoSingleLock::CAutoSingleLock(const CCritSec& cs)
+    : m_cs( const_cast<CCritSec&>(cs) )
+    , m_bIsOwner( false )
+{
+  Enter();
+}
+
+CAutoSingleLock::~CAutoSingleLock()
+{
+  Leave();
+}
+
+bool CAutoSingleLock::IsOwner() const
+{
+  return m_bIsOwner;
+}
+
+bool CAutoSingleLock::Enter()
+{
+  // Test if we already own the critical section
+  if ( true == m_bIsOwner )
+  {
+    return true;
+  }
+
+  // Blocking call
+  m_cs.Lock();
+  m_bIsOwner = true;
+
+  return m_bIsOwner;
+}
+
+void CAutoSingleLock::Leave()
+{
+  if ( false == m_bIsOwner )
+  {
+    return ;
+  }
+
+  m_cs.Unlock();
+  
+  m_bIsOwner = false;
+}

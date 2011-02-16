@@ -187,7 +187,11 @@ namespace Com
     // address-of operator
     T** operator&()
     {
-      ASSERT( m_ptr == NULL );
+      if (m_ptr != NULL)
+      {
+        ASSERT( m_ptr == NULL );
+      }
+      
       return &m_ptr;
     }
 

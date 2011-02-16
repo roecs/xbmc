@@ -766,7 +766,11 @@ dsnerror_t DSVideoCodec::Decode(const BYTE *src, int size, double pts, double *n
     start = 0;
   REFERENCE_TIME stoptime = start + m_frametime;
   BYTE *ptr;
-
+  if (m_pEvr)
+  {
+    if (!m_pEvr->AcceptMoreData())
+      return DSN_DATA_QUEUE_FULL;
+  }
   DSN_CHECK(m_pMemAllocator->GetBuffer(&sample, 0, 0, 0), DSN_FAIL_DECODESAMPLE);
   HRESULT hr = S_OK;
   if (size > sample->GetSize())
@@ -817,7 +821,7 @@ dsnerror_t DSVideoCodec::Decode(const BYTE *src, int size, double pts, double *n
   }
   else if (pImage->format == DSVideoOutputData::FMT_EVR)
   {
-    m_pEvr->SetPointer(pImage->sample);
+    
     hr = m_pMemInputPin->Receive(sample);
     if (FAILED(hr))
     {

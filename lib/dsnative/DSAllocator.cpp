@@ -70,7 +70,7 @@ void DebugPrint(const wchar_t *format, ... )
 
 }
 
-#define TRACE_EVR
+#define TRACE_EVR(x) CLog::DebugLog(x)
 
 #pragma pack(push, 1)
 template<int texcoords>
@@ -244,6 +244,15 @@ DsAllocator::DsAllocator(IDSInfoCallback *pCallback)
   m_pCurrentDisplaydSample  = NULL;
   m_nStepCount        = 0;
   m_nUsedBuffer = 0;
+  m_iLastSampleTime = 0;
+  m_ClockTimeChangeHistoryPos = 0;
+  m_ModeratedTimeSpeed = 0;
+  m_ModeratedTimeSpeedPrim = 0;
+	m_ModeratedTimeSpeedDiff = 0;
+  m_OrderedPaint = 0;
+  m_PaintTime = 0;
+  m_PaintTimeMin = 0;
+  m_PaintTimeMax = 0;
   //m_dwVideoAspectRatioMode  = MFVideoARMode_PreservePicture;
   //m_dwVideoRenderPrefs    = (MFVideoRenderPrefs)0;
   //m_BorderColor        = RGB (0,0,0);
@@ -277,18 +286,6 @@ void DsAllocator::ResetStats()
 void DsAllocator::CleanupSurfaces() 
 {
   Lock();
-  while(fullevrsamples.size()>0)
-  {
-    IMFSample *sample=fullevrsamples.front();
-    fullevrsamples.pop();
-    sample->Release();
-  }
-  while(emptyevrsamples.size()>0)
-  {
-    IMFSample *sample=emptyevrsamples.front();
-    emptyevrsamples.pop();
-    sample->Release();
-  }
 
   for (int i=0;i<m_pSurfaces.size();i++) 
   {
@@ -301,7 +298,7 @@ void DsAllocator::CleanupSurfaces()
 HRESULT STDMETHODCALLTYPE DsAllocator::InitializeDevice(DWORD_PTR userid,VMR9AllocationInfo* allocinf,DWORD*numbuf)
 {
   if (!surfallocnotify) return S_FALSE;
-
+  FlushSamples();
   CleanupSurfaces();
   Lock();
   m_pSurfaces.resize(*numbuf);
@@ -518,112 +515,17 @@ HRESULT STDMETHODCALLTYPE DsAllocator::GetService(const GUID &guid,const IID &ii
   }
 }
 
-
-void DsAllocator::GetEVRSamples()
-{
-  Lock();
-  MFCLOCK_STATE clockstate;
-  MFT_OUTPUT_DATA_BUFFER  Buffer;
-  if (m_pClock) 
-    m_pClock->GetState(0, &clockstate);
-  //MessageBox(0,"get samples","samples",0);
-  
-  if (m_pClock && clockstate==MFCLOCK_STATE_STOPPED && fullevrsamples.size()>0)
-  {
-    Unlock();
-    return;
-  }
-
-  while (emptyevrsamples.size()>0)
-  {
-
-    MFT_OUTPUT_DATA_BUFFER outdatabuffer;
-    ZeroMemory(&outdatabuffer,sizeof(outdatabuffer));
-    outdatabuffer.pSample=emptyevrsamples.front();
-    DWORD status=0;
-    LONGLONG starttime,endtime;
-    MFTIME dummy;
-    starttime=0;
-    endtime=0;
-
-    if (m_pClock) 
-    {
-      m_pClock->GetCorrelatedTime(0,&starttime,&dummy);
-      if (lastdelframe) CalcJitter( (starttime-lastdelframe)/10000);
-      lastdelframe=starttime;
-    }
-    if (!m_pMixer)
-    {
-      Unlock();
-      return;
-    }
-    HRESULT hr=m_pMixer->ProcessOutput(0,1,&outdatabuffer,&status);
-    
-
-    if (hr==MF_E_TRANSFORM_NEED_MORE_INPUT)
-    {
-      if (endofstream)
-      {
-
-        endofstream=false;
-        m_pSink->Notify(EC_COMPLETE,(LONG_PTR) S_OK,0);
-
-      }
-      break;
-    }
-    else if (hr==MF_E_TRANSFORM_STREAM_CHANGE)
-    {
-      //if (m_pMediaType) m_pMediaType->Release();
-      m_pMediaType=NULL;
-      break;
-    } 
-    else if (hr==MF_E_TRANSFORM_TYPE_NOT_SET)
-    {
-      //if (m_pMediaType) m_pMediaType->Release();
-      m_pMediaType=NULL;
-      RenegotiateEVRMediaType();
-      break;
-    } 
-    else if (hr==S_OK)
-    {
-      
-      LONGLONG prestime=0;
-      hr=outdatabuffer.pSample->GetSampleTime(&prestime);
-      m_gPtr = outdatabuffer.pSample;
-      outdatabuffer.pSample->GetUINT32(GUID_SURFACE_INDEX, (UINT32 *)&m_nCurSurface);
-      //OutputDebugString(L"Got EVR Sample %lld",prestime);
-      IMFSample *temp=emptyevrsamples.front();
-      emptyevrsamples.pop();
-      
-
-
-      fullevrsamples.push(temp);
-      //OutputDebugString(L"got evr sample %d, %d",
-      //	emptyevrsamples.size(),fullevrsamples.size());
-      if (m_pClock)
-{
-        m_pClock->GetCorrelatedTime(0,&endtime,&dummy);
-        LONGLONG delay=endtime-starttime;
-        m_pSink->Notify( EC_PROCESSING_LATENCY,(LONG_PTR)&delay,0);
-      }
-    }
-  else break;
-
-  }
-  Unlock();
-}
-
 HRESULT STDMETHODCALLTYPE DsAllocator::ProcessMessage(MFVP_MESSAGE_TYPE mess,ULONG_PTR mess_para)
 {
   switch (mess)
   {
     case MFVP_MESSAGE_FLUSH:
-    {
-      SetEvent(m_hEvtFlush);
+      /*SetEvent(m_hEvtFlush);
       m_bEvtFlush = true;
-      m_drawingIsDone.Set();
+      m_drawingIsDone.Set();*/
       OutputDebugString(L"EVR: MFVP_MESSAGE_FLUSH");
-      while (WaitForSingleObject(m_hEvtFlush, 1) == WAIT_OBJECT_0);
+      FlushSamples();
+      /*while (WaitForSingleObject(m_hEvtFlush, 1) == WAIT_OBJECT_0);*/
     break;
     case MFVP_MESSAGE_INVALIDATEMEDIATYPE: 
     {
@@ -635,7 +537,8 @@ HRESULT STDMETHODCALLTYPE DsAllocator::ProcessMessage(MFVP_MESSAGE_TYPE mess,ULO
     }
     break;
     case MFVP_MESSAGE_PROCESSINPUTNOTIFY: 
-    { 
+    {
+      GetImageFromMixer();
     } 
     break;
     case MFVP_MESSAGE_BEGINSTREAMING:
@@ -658,7 +561,7 @@ HRESULT STDMETHODCALLTYPE DsAllocator::ProcessMessage(MFVP_MESSAGE_TYPE mess,ULO
     {
       // Request frame step the param is the number of frame to step
       CLog::Log(LOGINFO, "EVR Message MFVP_MESSAGE_STEP %i", mess_para);
-      FlushEVRSamples(/*LOWORD(mess_para)*/); //Message sending, has to be done after compeletion
+      m_nStepCount = mess_para;
     } 
     break;
     case MFVP_MESSAGE_CANCELSTEP:
@@ -821,7 +724,6 @@ int64_t DsAllocator::GetClockTime(int64_t PerformanceCounter)
 // IBaseFilter delegate
 bool DsAllocator::GetState( DWORD dwMilliSecsTimeout, FILTER_STATE *State, HRESULT &_ReturnValue)
 {
-  CAutoLock lock(&m_SampleQueueLock);
 
   if (m_bSignaledStarvation)
   {
@@ -1115,7 +1017,6 @@ void DsAllocator::RenegotiateEVRMediaType()
 
 void DsAllocator::AllocateEVRSurfaces()
 {
-
   LARGE_INTEGER temp64;
   m_pMediaType->GetUINT64(MF_MT_FRAME_SIZE, (UINT64*)&temp64);
   vwidth=temp64.HighPart;
@@ -1127,8 +1028,8 @@ void DsAllocator::AllocateEVRSurfaces()
   DebugPrint(L"Surfaceformat is %d, width %d, height %d",format,vwidth,vheight);
   format=D3DFMT_X8R8G8B8;
 
-  CleanupSurfaces();
-  Lock();
+  RemoveAllSamples();
+  //CleanupSurfaces();
 
   m_pSurfaces.resize(10);
   m_pTextures.resize(10);
@@ -1172,20 +1073,7 @@ void DsAllocator::AllocateEVRSurfaces()
       assert(SUCCEEDED (hr));
     }
   }
-  Unlock();
 
-}
-
-void DsAllocator::FlushEVRSamples()
-{
-  Lock();
-  while(fullevrsamples.size()>0)
-  {
-    IMFSample *sample=fullevrsamples.front();
-    fullevrsamples.pop();
-    emptyevrsamples.push(sample);
-  }
-  Unlock();
 }
 
 void DsAllocator::ResetSyncOffsets()
@@ -1258,17 +1146,7 @@ IPaintCallback* DsAllocator::AcquireCallback()
   
 }
 
-bool DsAllocator::AcceptMoreData()
-{
-  DWORD status;
-  if (S_OK == m_pMixer->GetInputStatus(0, &status))
-  {
-     if (status & MFT_INPUT_STATUS_ACCEPT_DATA)
-       return true;
-  }
-  
-  return false;
-}
+
 bool DsAllocator::SurfaceReady()
 {
   DWORD status;
@@ -1282,7 +1160,30 @@ bool DsAllocator::SurfaceReady()
     return false;
 }
 
-void DsAllocator::Render(const RECT& dst, IDirect3DSurface9* target)
+bool DsAllocator::WaitOutput(unsigned int msec)
+{
+  return m_ready_event.WaitMSec(msec);
+}
+
+bool DsAllocator::GetD3DSurfaceFromScheduledSample(int *surface_index)
+{
+  
+  Com::SmartPtr<IMFSample>    pMFSample;
+  int                         nSamplesLeft = 0;
+  CAutoSingleLock lock(m_section);
+  if (SUCCEEDED (GetScheduledSample(&pMFSample, nSamplesLeft)))
+  {
+    HRESULT hr = pMFSample->GetUINT32(GUID_SURFACE_INDEX, (UINT32 *)surface_index);
+    m_BusySamples.InsertBack(pMFSample);
+    
+    
+    return true;
+  }
+  else
+  return false;
+}
+
+void DsAllocator::Render(const RECT& dst, IDirect3DSurface9* target, int index)
 {
   HRESULT hr = S_OK;;
   LONGLONG prestime = 0;
@@ -1292,26 +1193,15 @@ void DsAllocator::Render(const RECT& dst, IDirect3DSurface9* target)
   if (!m_pCallback || endofstream)
     return;
   LPDIRECT3DDEVICE9 pDevice = m_pCallback->GetD3DDev();
-  Com::SmartPtr<IMFSample>    pMFSample;
+  
   int64_t  llPerf = 0;
   int                         nSamplesLeft = 0;
-  if (SUCCEEDED (GetScheduledSample(&pMFSample, nSamplesLeft)))
-  {
-
-
-    hr=pMFSample->GetSampleTime(&prestime);
-    m_iLastSampleDuration = m_iLastSampleTime - prestime;
-    m_iLastSampleTime = prestime;
-    if (FAILED(pMFSample->GetUINT32(GUID_SURFACE_INDEX, (UINT32 *)&m_nCurSurface)))
-    {
-      MoveToFreeList(pMFSample, true);
-      return;
-    }
+  CAutoSingleLock lock(m_section);
     
 
-  if ((m_nCurSurface < 0 )&& (m_nCurSurface > m_pSurfaces.size()))
+  if ((index < 0 )&& (index > m_pSurfaces.size()))
     return;
-  if (m_pSurfaces.at(m_nCurSurface))
+  if (m_pSurfaces.at(index))
   {
     Vector v[4];
     v[0] = Vector(dst.left, dst.top, 0);
@@ -1336,7 +1226,7 @@ void DsAllocator::Render(const RECT& dst, IDirect3DSurface9* target)
     }
     
     D3DSURFACE_DESC desc;
-    m_pTextures[m_nCurSurface]->GetLevelDesc(0,&desc);
+    m_pTextures[index]->GetLevelDesc(0,&desc);
     const float dx = 1.0f/(float)desc.Width;
     const float dy = 1.0f/(float)desc.Height;
     const float tx0 = (float) 0;
@@ -1355,7 +1245,7 @@ void DsAllocator::Render(const RECT& dst, IDirect3DSurface9* target)
   };
 
   AdjustQuad(vv, 1.0, 1.0);
-  hr = pDevice->SetTexture(0,m_pTextures[m_nCurSurface]);
+  hr = pDevice->SetTexture(0,m_pTextures[index]);
   hr = TextureBlt(pDevice, vv, D3DTEXF_POINT);
     
     //vheight
@@ -1363,7 +1253,7 @@ void DsAllocator::Render(const RECT& dst, IDirect3DSurface9* target)
     
   if (FAILED(hr))
   {
-    hr = pDevice->StretchRect(m_pSurfaces[m_nCurSurface], NULL, target, NULL, D3DTEXF_NONE);
+    hr = pDevice->StretchRect(m_pSurfaces[index], NULL, target, NULL, D3DTEXF_NONE);
     //OutputDebugStringA("DSAllocator Failed to Render Target with EVR");
   }
   //Lock();
@@ -1373,20 +1263,45 @@ void DsAllocator::Render(const RECT& dst, IDirect3DSurface9* target)
     Unlock();
     return;
   }*/
-    MoveToFreeList(pMFSample, true);
-  //IMFSample *pMFSample=fullevrsamples.front();
-  //fullevrsamples.pop();
-  //emptyevrsamples.push(pMFSample);
+  IMFSample* pMFSample;
+  bool lastloop = false;
+  int sampleindex;
+  VideoSampleList::POSITION pos = m_BusySamples.FrontPosition();
+  for(;;)
+  {
+
+    m_BusySamples.GetItemPos(pos, &pMFSample);
+    if (pos == m_BusySamples.EndPosition())
+      lastloop = true;
+    pMFSample->GetUINT32(GUID_SURFACE_INDEX, (UINT32 *)&sampleindex);
+    if (sampleindex == index)
+    {
+      m_BusySamples.Remove(pos, &pMFSample);
+      MoveToFreeList(pMFSample, true);
+      break;
+    }
+    if (lastloop)
+      break;
+    pos = m_BusySamples.Next(pos);
+   
+    
+
+  }
+  /*for (VideoSampleList::POSITION pos = m_BusySamples.FrontPosition() ; pos != m_BusySamples.EndPosition();  m_BusySamples.Next(pos))
+  {
+    m_BusySamples.GetItemPos(pos, &pMFSample);
+    pMFSample->GetUINT32(GUID_SURFACE_INDEX, (UINT32 *)&sampleindex);
+    if (sampleindex == index)
+    {
+      m_BusySamples.Remove(pos, &pMFSample);
+      MoveToFreeList(pMFSample, true);
+      break;
+    }
+  }*/
+
     waittime=0;
   }
-  else
-  {
-    OutputDebugStringA("DSAllocator Failed to get surface from sample");
-  }
   
-  //Unlock();
-  
-  }
 }
 DWORD WINAPI DsAllocator::GetMixerThreadStatic(LPVOID lpParam)
 {
@@ -1397,6 +1312,7 @@ DWORD WINAPI DsAllocator::GetMixerThreadStatic(LPVOID lpParam)
 
 void DsAllocator::GetMixerThread()
 {
+#if 0
   HANDLE        hEvts[]    = { m_hEvtQuit};
   bool        bQuit    = false;
     TIMECAPS      tc;
@@ -1420,8 +1336,12 @@ void DsAllocator::GetMixerThread()
       {
         bool bDoneSomething = false;
         {
-          CAutoLock AutoLock(&m_ImageProcessingLock);
-          bDoneSomething = GetImageFromMixer();
+          //CAutoLock AutoLock(&m_ImageProcessingLock);
+          if (m_ImageProcessingLock.TryLock())
+          {
+            bDoneSomething = GetImageFromMixer();
+            m_ImageProcessingLock.Unlock();
+          }
         }
         if (m_rtTimePerFrame == 0 && bDoneSomething)
         {
@@ -1438,6 +1358,7 @@ void DsAllocator::GetMixerThread()
   }
 
   timeEndPeriod (dwResolution);
+#endif
 }
 
 bool DsAllocator::GetImageFromMixer()
@@ -1467,9 +1388,9 @@ bool DsAllocator::GetImageFromMixer()
     pSample->GetUINT32 (GUID_SURFACE_INDEX, &dwSurface);
 
     {
-      llClockBefore = CurrentHostCounter();//CTimeUtils::GetPerfCounter();
+      //llClockBefore = CurrentHostCounter();//CTimeUtils::GetPerfCounter();
       hr = m_pMixer->ProcessOutput (0 , 1, &Buffer, &dwStatus);
-      llClockAfter = CurrentHostCounter();//CTimeUtils::GetPerfCounter();
+      //llClockAfter = CurrentHostCounter();//CTimeUtils::GetPerfCounter();
     }
 
     if (hr == MF_E_TRANSFORM_NEED_MORE_INPUT) 
@@ -1488,25 +1409,9 @@ bool DsAllocator::GetImageFromMixer()
     pSample->GetSampleTime (&nsSampleTime);
     REFERENCE_TIME        nsDuration;
     pSample->GetSampleDuration (&nsDuration);
-    //Dont give a fuck about the tearing test
-    /*if (AfxGetMyApp()->m_fTearingTest)
-    {
-      RECT    rcTearing;
-      
-      rcTearing.left    = m_nTearingPos;
-      rcTearing.top    = 0;
-      rcTearing.right    = rcTearing.left + 4;
-      rcTearing.bottom  = m_NativeVideoSize.cy;
-      m_pD3DDev->ColorFill (m_pVideoSurface[dwSurface], &rcTearing, D3DCOLOR_ARGB (255,255,0,0));
-
-      rcTearing.left  = (rcTearing.right + 15) % m_NativeVideoSize.cx;
-      rcTearing.right  = rcTearing.left + 4;
-      m_pD3DDev->ColorFill (m_pVideoSurface[dwSurface], &rcTearing, D3DCOLOR_ARGB (255,255,0,0));
-      m_nTearingPos = (m_nTearingPos + 7) % m_NativeVideoSize.cx;
-    }  */
 
     int64_t TimePerFrame = m_rtTimePerFrame;
-    TRACE_EVR ("EVR: Get from Mixer : %d  (%I64d) (%I64d)\n", dwSurface, nsSampleTime, TimePerFrame!=0?nsSampleTime/TimePerFrame:0);
+    //CLog::DebugLog("EVR: Get from Mixer : %d  (%I64d) (%I64d)", dwSurface, nsSampleTime, TimePerFrame!=0?nsSampleTime/TimePerFrame:0);
 
     MoveToScheduledList (pSample, false);
     bDoneSomething = true;
@@ -1942,20 +1847,20 @@ void DsAllocator::RenderThread()
 }
 
 /*Sample stuff*/
+bool DsAllocator::AcceptMoreData()
+{
+  return (m_FreeSamples.GetCount()>0);
+}
+
 void DsAllocator::RemoveAllSamples()
 {
-  CAutoLock AutoLock(&m_ImageProcessingLock);
-
   FlushSamples();
   m_ScheduledSamples.Clear();
   m_FreeSamples.Clear();
-
-  {
-    m_DisplaydSampleQueueLock.Lock();
-    while (!m_pCurrentDisplaydSampleQueue.empty())
-      m_pCurrentDisplaydSampleQueue.pop();
-    m_DisplaydSampleQueueLock.Unlock();
-  }
+  //while(m_ScheduledSamples.GetCount())
+  //  delete m_ScheduledSamples.Pop();
+  //while(m_FreeSamples.GetCount())
+  //  delete m_FreeSamples.Pop();
 
   m_LastScheduledSampleTime = -1;
   m_LastScheduledUncorrectedSampleTime = -1;
@@ -1965,42 +1870,38 @@ void DsAllocator::RemoveAllSamples()
 
 HRESULT DsAllocator::GetFreeSample(IMFSample** ppSample)
 {
-  CAutoLock lock(&m_SampleQueueLock);
   HRESULT    hr = S_OK;
 
   if (m_FreeSamples.GetCount() > 1)  // <= Cannot use first free buffer (can be currently displayed)
   {
     InterlockedIncrement (&m_nUsedBuffer);
-    m_FreeSamples.RemoveFront(ppSample);
+    hr = m_FreeSamples.RemoveFront(ppSample) ;
   }
   else
     hr = MF_E_SAMPLEALLOCATOR_EMPTY;
-
+  
   return hr;
 }
 
 
 HRESULT DsAllocator::GetScheduledSample(IMFSample** ppSample, int &_Count)
 {
-  CAutoLock lock(&m_SampleQueueLock);
   HRESULT    hr = S_OK;
 
   _Count = m_ScheduledSamples.GetCount();
   if (_Count > 0)
   {
-    m_ScheduledSamples.RemoveFront(ppSample);
+    hr = m_ScheduledSamples.RemoveFront(ppSample);
     --_Count;
   }
   else
     hr = MF_E_SAMPLEALLOCATOR_EMPTY;
-
   return hr;
 }
 
 
 void DsAllocator::MoveToFreeList(IMFSample* pSample, bool bTail)
 {
-  CAutoLock lock(&m_SampleQueueLock);
   InterlockedDecrement (&m_nUsedBuffer);
   if (m_bPendingMediaFinished && m_nUsedBuffer == 0)
   {
@@ -2010,16 +1911,19 @@ void DsAllocator::MoveToFreeList(IMFSample* pSample, bool bTail)
   if (bTail)
     m_FreeSamples.InsertBack(pSample);
   else
-    m_FreeSamples.InsertFront(pSample);
+    m_FreeSamples.InsertFront(pSample);//is it really needed to push to a specific position in the free list?
 }
 
 
 void DsAllocator::MoveToScheduledList(IMFSample* pSample, bool _bSorted)
 {
-
+  CAutoSingleLock lock(m_section);
+  m_ScheduledSamples.InsertFront(pSample);
+  m_ready_event.Set();
+  m_pCallback->FrameReady(m_ScheduledSamples.GetCount());
+#if 0 
   if (_bSorted)
   {
-    CAutoLock lock(&m_SampleQueueLock);
     m_ScheduledSamples.InsertFront(pSample);
   }
   else
@@ -2224,7 +2128,7 @@ void DsAllocator::MoveToScheduledList(IMFSample* pSample, bool _bSorted)
       }
     }
 
-    TRACE_EVR("EVR: Time: %f %f %f\n", Time / 10000000.0, SetDuration / 10000000.0, m_DetectedFrameRate);
+    //TRACE_EVR("EVR: Time: %f %f %f\n", Time / 10000000.0, SetDuration / 10000000.0, m_DetectedFrameRate);
     if (!m_bCorrectedFrameTime && m_FrameTimeCorrection)
       --m_FrameTimeCorrection;
 
@@ -2267,6 +2171,7 @@ void DsAllocator::MoveToScheduledList(IMFSample* pSample, bool _bSorted)
     m_ScheduledSamples.InsertBack(pSample);
 
   }
+#endif
 }
 
 
@@ -2274,7 +2179,6 @@ void DsAllocator::MoveToScheduledList(IMFSample* pSample, bool _bSorted)
 void DsAllocator::FlushSamples()
 {
   CAutoLock        lock(this);
-  CAutoLock        lock2(&m_SampleQueueLock);
   
   FlushSamplesInternal();
   m_LastScheduledSampleTime = -1;
@@ -2285,8 +2189,6 @@ void DsAllocator::FlushSamplesInternal()
   while (m_ScheduledSamples.GetCount() > 0)
   {
     Com::SmartPtr<IMFSample>    pMFSample;
-
-    //pMFSample = m_ScheduledSamples.RemoveHead();
     m_ScheduledSamples.RemoveFront(&pMFSample);
     MoveToFreeList (pMFSample, true);
   }

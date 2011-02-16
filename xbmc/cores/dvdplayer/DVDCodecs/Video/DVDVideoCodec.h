@@ -61,6 +61,7 @@ struct DVDVideoPicture
     };
     struct {
       IPaintCallback* pAlloc;
+      int             pSurfaceIndex;
     };
   };
 

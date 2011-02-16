@@ -51,6 +51,7 @@ public:
   virtual void Reset();
   virtual bool GetPicture(DVDVideoPicture* pDvdVideoPicture);
   virtual bool GetUserData(DVDVideoUserData* pDvdVideoUserData);
+  virtual void FrameReady(int number);
 
   virtual void SetDropState(bool bDrop);
   virtual const char* GetName() { return "DirectShow"; }
@@ -60,11 +61,14 @@ protected:
   bool  m_requireResync;
   DSVideoCodec *codec;
   DSVideoOutputData* m_pCurrentData;
+  int current_surface_index;
+  int number_of_frame_ready;
   
   int buffersize;
   BITMAPINFOHEADER *bih;//bitmap header for the inputpin
   BITMAPINFOHEADER *bihout;//bitmap header for the outputpin
   double m_pts;
   double m_dts;
+  unsigned int m_wait_timeout;
  
 };

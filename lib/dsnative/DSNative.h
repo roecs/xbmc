@@ -61,7 +61,8 @@ public:
   virtual IDirect3DDevice9* GetD3DDev() = 0;
   virtual __int64 GetTime() = 0;
   virtual __int64 GetTotalTime() = 0;
-  virtual void LogCallback(int loglevel, const char *format, ...)=0;
+  virtual void LogCallback(int loglevel, const char *format, ...) = 0;
+  virtual void FrameReady(int number) = 0;
   virtual ~IDSInfoCallback() { }
 };
 struct DSVideoOutputData
