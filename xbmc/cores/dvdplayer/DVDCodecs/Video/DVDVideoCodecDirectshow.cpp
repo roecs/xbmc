@@ -201,11 +201,7 @@ int CDVDVideoCodecDirectshow::Decode(BYTE* pData, int iSize, double dts, double 
   
   err = DSVideoDecode(codec, pData, iSize, rt, &newpts, m_pCurrentData, &imageSize, keyframe);
   
-  if (err == 13)//DSN_SUCCEEDED_BUT_NOSURFACE == 13
-  {
-    return VC_BUFFER;
-  }
-  else if (err == 14)//DSN_DATA_QUEUE_FULL
+  if (err == 14)//DSN_DATA_QUEUE_FULL
   {
     CLog::Log(LOGDEBUG, "%s: m_pInputThread->AddInput full.", __FUNCTION__);
     Sleep(10);
@@ -216,17 +212,18 @@ int CDVDVideoCodecDirectshow::Decode(BYTE* pData, int iSize, double dts, double 
       return VC_ERROR;
   }
   m_pts = pts;
-  
+  m_dts = dts;  
   IPaintCallback* pAlloc = DSVideoGetEvrCallback(codec);
-  bool ret = false;
-  if (!pAlloc->GetD3DSurfaceFromScheduledSample(&current_surface_index))
-    return VC_BUFFER;
-  
+  int rtn = 0;
+  if (pAlloc->GetReadySample() > 2)
+    return VC_PICTURE;
     
-  //if (!m_pCurrentData)
-  //  return VC_ERROR;
+  if (pAlloc->GetReadySample())
+    rtn = VC_PICTURE;
+  return rtn | VC_BUFFER;
+  
 
-  m_dts = dts;
+
   return VC_PICTURE | VC_BUFFER;
 }
 
@@ -264,9 +261,11 @@ bool CDVDVideoCodecDirectshow::GetPicture(DVDVideoPicture* pDvdVideoPicture)
   if (pAlloc)
   {
     pDvdVideoPicture->format = DVDVideoPicture::FMT_DSHOW;
+    bool ret = pAlloc->GetPicture(pDvdVideoPicture);
+    
     pDvdVideoPicture->pAlloc = pAlloc;
-    pDvdVideoPicture->pSurfaceIndex = current_surface_index;
-    return true;
+    //pDvdVideoPicture->pSurfaceIndex = current_surface_index;
+    return ret;
   }
     return false;
     

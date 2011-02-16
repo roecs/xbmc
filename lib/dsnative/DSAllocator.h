@@ -53,9 +53,11 @@ using namespace std;
 #ifndef EC_PROCESSING_LATENCY
 #define EC_PROCESSING_LATENCY               0x21
 #endif
-
+#ifndef DVD_NOPTS_VALUE
+#define DVD_NOPTS_VALUE    (-1LL<<52) // should be possible to represent in both double and __int64
+#endif
 typedef Com::ComPtrList<IMFSample> VideoSampleList;
-
+class CEvrMixerThread;
 //The Allocator and Presenter for VMR9 is also a Presenter for EVR
 class DsAllocator 
   : public IVMRSurfaceAllocator9, IVMRImagePresenter9, 
@@ -64,9 +66,10 @@ class DsAllocator
     public IPaintCallback, CCritSec//callback from xbmc to render on the specified target
 {
 public:
-  CEvent          m_drawingIsDone;
   DsAllocator(IDSInfoCallback *pCallback);
   virtual ~DsAllocator();
+
+  virtual bool GetPicture(DVDVideoPicture *pDvdVideoPicture);
 
   virtual HRESULT STDMETHODCALLTYPE StartPresenting(DWORD_PTR userid);
   virtual HRESULT STDMETHODCALLTYPE StopPresenting(DWORD_PTR userid);
@@ -140,7 +143,7 @@ public:
   virtual void Render(const RECT& dst, IDirect3DSurface9* target, int index);
   virtual bool WaitOutput(unsigned int msec);
   virtual bool GetD3DSurfaceFromScheduledSample(int *surface_index);
-  virtual int GetReadySample() { return m_ScheduledSamples.GetCount();}
+  virtual int GetReadySample();
   
   void SetDSMediaType(CMediaType mt);
 protected:
@@ -212,7 +215,7 @@ protected:
   DWORD vwidth;
   bool inevrmode;
   bool endofstream;
-
+  CEvrMixerThread*            m_pMixerThread;
   Com::SmartPtr<IMFTransform> m_pMixer;
   Com::SmartPtr<IMediaEventSink> m_pSink;
   Com::SmartPtr<IMFClock> m_pClock;
@@ -285,7 +288,7 @@ private:
   VideoSampleList          m_ScheduledSamples;
   VideoSampleList          m_BusySamples;
 
-  //Com::CSyncPtrQueue<IMFSample> m_FreeSamples;
+  Com::CSyncPtrQueue<IMFSample> m_BusyList;
   //Com::CSyncPtrQueue<IMFSample> m_ScheduledSamples;
   CEvent                     m_ready_event;
   CCritSec                   m_section;

@@ -22,6 +22,7 @@
 #pragma once
 //class CRect;
 #include "d3d9.h"
+#include "DVDCodecs\Video\DVDVideoCodec.h"
 class IPaintCallback
 {
 public:
@@ -31,5 +32,6 @@ public:
   virtual bool WaitOutput(unsigned int msec) = 0;
   virtual bool GetD3DSurfaceFromScheduledSample(int *surface_index) = 0;
   virtual int GetReadySample() = 0;
+  virtual bool GetPicture(DVDVideoPicture *pDvdVideoPicture) = 0;
 };
 

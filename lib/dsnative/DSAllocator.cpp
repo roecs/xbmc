@@ -34,6 +34,7 @@
 #include "SmartPtr.h"
 #include <map>
 #include "utils\TimeUtils.h"
+#include "threads\Thread.h"
 // === Helper functions
 #define CheckHR(exp) {if(FAILED(hr = exp)) return hr;}
 //#define PaintInternal() {assert(0);}
@@ -204,8 +205,162 @@ static HRESULT DrawRect(IDirect3DDevice9* pD3DDev, MYD3DVERTEX<0> v[4])
   return S_OK;
 }
 
+////////////////////////////////////////////////////////////////////////////////////////////
+class CEvrMixerThread : public CThread
+{
+public:
+  CEvrMixerThread(IMFTransform* mixer, IMediaEventSink* sink);
+  virtual ~CEvrMixerThread();
+
+  unsigned int        GetReadyCount(void);
+  unsigned int        GetFreeCount(void);
+  IMFSample*          ReadyListPop(void);
+  void                FreeListPush(IMFSample* pBuffer);
+  bool                WaitOutput(unsigned int msec);
+
+protected:
+  bool                ProcessOutput(void);
+  virtual void        Process(void);
+
+  Com::CSyncPtrQueue<IMFSample> m_FreeList;
+  Com::CSyncPtrQueue<IMFSample> m_ReadyList;
+
+  IMFTransform*       m_pMixer;
+  IMediaEventSink*    m_pSink;
+  unsigned int        m_timeout;
+  bool                m_format_valid;
+  int                 m_width;
+  int                 m_height;
+  uint64_t            m_timestamp;
+  uint64_t            m_PictureNumber;
+  uint8_t             m_color_space;
+  unsigned int        m_color_range;
+  unsigned int        m_color_matrix;
+  int                 m_interlace;
+  bool                m_framerate_tracking;
+  uint64_t            m_framerate_cnt;
+  double              m_framerate_timestamp;
+  double              m_framerate;
+  int                 m_aspectratio_x;
+  int                 m_aspectratio_y;
+  CEvent              m_ready_event;
+};
+
+CEvrMixerThread::CEvrMixerThread(IMFTransform* mixer, IMediaEventSink* sink) :
+  CThread(),
+  m_pMixer(mixer),
+  m_pSink(sink),
+  m_timeout(20),
+  m_format_valid(false),
+  m_framerate_tracking(false),
+  m_framerate_cnt(0),
+  m_framerate_timestamp(0.0),
+  m_framerate(0.0)
+{
+}
+
+CEvrMixerThread::~CEvrMixerThread()
+{
+
+  while(m_ReadyList.Count())
+    m_ReadyList.Pop()->Release();
+  while(m_FreeList.Count())
+    m_FreeList.Pop()->Release();
+  SAFE_RELEASE(m_pMixer);
+  SAFE_RELEASE(m_pSink);
+}
+
+unsigned int CEvrMixerThread::GetReadyCount(void)
+{
+  return m_ReadyList.Count();
+}
+
+unsigned int CEvrMixerThread::GetFreeCount(void)
+{
+  return m_FreeList.Count();
+}
+
+IMFSample* CEvrMixerThread::ReadyListPop(void)
+{
+  IMFSample *pBuffer = m_ReadyList.Pop();
+  return pBuffer;
+}
+
+void CEvrMixerThread::FreeListPush(IMFSample* pBuffer)
+{
+  m_FreeList.Push(pBuffer);
+  pBuffer->AddRef();
+}
+
+bool CEvrMixerThread::WaitOutput(unsigned int msec)
+{
+  return m_ready_event.WaitMSec(msec);
+}
+
+bool CEvrMixerThread::ProcessOutput(void)
+{
+  HRESULT     hr = S_OK;
+  DWORD       dwStatus = 0;
+  LONGLONG    mixerStartTime = 0, mixerEndTime = 0, llMixerLatency = 0;
+  MFTIME      systemTime = 0;
+  
+  
+  if (m_FreeList.Count() == 0)
+    return false;
+
+  MFT_OUTPUT_DATA_BUFFER dataBuffer;
+  ZeroMemory(&dataBuffer, sizeof(dataBuffer));
+  IMFSample *pSample = NULL;
+
+  
+          // Get next output buffer from the free list
+  pSample = m_FreeList.Pop();
+  dataBuffer.pSample = pSample;
+  mixerStartTime = CurrentHostCounter();//CTimeUtils::GetPerfCounter();
+  hr = m_pMixer->ProcessOutput (0 , 1, &dataBuffer, &dwStatus);
+  mixerEndTime = CurrentHostCounter();//CTimeUtils::GetPerfCounter();
+  if (hr == MF_E_TRANSFORM_NEED_MORE_INPUT)
+  {
+    m_FreeList.Push(pSample);
+    return false;
+  }
+  if (m_pSink)
+  {
+    llMixerLatency = mixerStartTime - mixerEndTime;
+    m_pSink->Notify (EC_PROCESSING_LATENCY, (LONG_PTR)&llMixerLatency, 0);
+  }
+  m_ReadyList.Push(pSample);
+}
+
+void CEvrMixerThread::Process(void)
+{
+  DWORD res;
+  // decoder is primed so now calls in DtsProcOutputXXCopy will block
+  while (!m_bStop)
+  {
+    if (SUCCEEDED(m_pMixer->GetOutputStatus(&res)))
+    {
+      if (res & MFT_OUTPUT_STATUS_SAMPLE_READY)
+        break;
+    }
+    
+    Sleep(10);
+
+  }
+  CLog::Log(LOGINFO, "%s: CEvrMixerThread Started...", __FUNCTION__);
+  while (!m_bStop)
+  {
+    if (SUCCEEDED(m_pMixer->GetOutputStatus(&res)&&(res & MFT_OUTPUT_STATUS_SAMPLE_READY)))
+      ProcessOutput();
+    else
+      Sleep(1);
+
+  }
+}
+
 DsAllocator::DsAllocator(IDSInfoCallback *pCallback)
-  : m_pCallback(pCallback)
+  : m_pCallback(pCallback),
+    m_pMixerThread(NULL)
 {
   
   
@@ -1010,9 +1165,17 @@ void DsAllocator::RenegotiateEVRMediaType()
   }
   if (!gotcha)
     OutputDebugString(L"No suitable output type!");
+  
+  
+  
+  m_pMixerThread->Create();
 
 
+}
 
+int DsAllocator::GetReadySample()
+{ 
+  return m_pMixerThread->GetReadyCount();
 }
 
 void DsAllocator::AllocateEVRSurfaces()
@@ -1029,6 +1192,7 @@ void DsAllocator::AllocateEVRSurfaces()
   format=D3DFMT_X8R8G8B8;
 
   RemoveAllSamples();
+  m_pMixerThread = new CEvrMixerThread(m_pMixer, m_pSink);
   //CleanupSurfaces();
 
   m_pSurfaces.resize(10);
@@ -1061,14 +1225,14 @@ void DsAllocator::AllocateEVRSurfaces()
   {
     if (m_pSurfaces[i]!=NULL) 
     {
-      Com::SmartPtr<IMFSample> pMFSample;
+      IMFSample* pMFSample = NULL;
       hr = ptrMFCreateVideoSampleFromSurface(m_pSurfaces[i],&pMFSample);
       pMFSample->SetUINT32 (GUID_SURFACE_INDEX, i);
       
       if (SUCCEEDED (hr))
       {
         pMFSample->SetUINT32 (GUID_SURFACE_INDEX, i);
-        m_FreeSamples.InsertBack(pMFSample);
+        m_pMixerThread->FreeListPush(pMFSample);
       }
       assert(SUCCEEDED (hr));
     }
@@ -1263,43 +1427,6 @@ void DsAllocator::Render(const RECT& dst, IDirect3DSurface9* target, int index)
     Unlock();
     return;
   }*/
-  IMFSample* pMFSample;
-  bool lastloop = false;
-  int sampleindex;
-  VideoSampleList::POSITION pos = m_BusySamples.FrontPosition();
-  for(;;)
-  {
-
-    m_BusySamples.GetItemPos(pos, &pMFSample);
-    if (pos == m_BusySamples.EndPosition())
-      lastloop = true;
-    pMFSample->GetUINT32(GUID_SURFACE_INDEX, (UINT32 *)&sampleindex);
-    if (sampleindex == index)
-    {
-      m_BusySamples.Remove(pos, &pMFSample);
-      MoveToFreeList(pMFSample, true);
-      break;
-    }
-    if (lastloop)
-      break;
-    pos = m_BusySamples.Next(pos);
-   
-    
-
-  }
-  /*for (VideoSampleList::POSITION pos = m_BusySamples.FrontPosition() ; pos != m_BusySamples.EndPosition();  m_BusySamples.Next(pos))
-  {
-    m_BusySamples.GetItemPos(pos, &pMFSample);
-    pMFSample->GetUINT32(GUID_SURFACE_INDEX, (UINT32 *)&sampleindex);
-    if (sampleindex == index)
-    {
-      m_BusySamples.Remove(pos, &pMFSample);
-      MoveToFreeList(pMFSample, true);
-      break;
-    }
-  }*/
-
-    waittime=0;
   }
   
 }
@@ -1451,8 +1578,6 @@ void DsAllocator::StopWorkerThreads()
     SetEvent (m_hEvtQuit);
     m_bEvtQuit = true;
 
-    m_drawingIsDone.Set();
-
     if ((m_hThread != INVALID_HANDLE_VALUE) && (WaitForSingleObject (m_hThread, 10000) == WAIT_TIMEOUT))
     {
       ASSERT (FALSE);
@@ -1485,8 +1610,47 @@ DWORD WINAPI DsAllocator::PresentThread(LPVOID lpParam)
   return 0;
 }
 
+bool DsAllocator::GetPicture(DVDVideoPicture *pDvdVideoPicture)
+{
+  IMFSample* pMFSample = m_pMixerThread->ReadyListPop();
+  if (!pMFSample)
+    return false;
+  int nSamplesLeft = 0;
+  int surf_index = 0;
+  LONGLONG sample_time;
+  CAutoSingleLock lock(m_section);
+  HRESULT hr = pMFSample->GetUINT32(GUID_SURFACE_INDEX, (UINT32 *)&surf_index);
+  /*if (SUCCEEDED (GetScheduledSample(&pMFSample, nSamplesLeft)))
+  {
+    HRESULT hr = pMFSample->GetUINT32(GUID_SURFACE_INDEX, (UINT32 *)&surf_index);*/
+    pDvdVideoPicture->pts = DVD_NOPTS_VALUE;
+    pDvdVideoPicture->dts = DVD_NOPTS_VALUE;
+    if (SUCCEEDED(pMFSample->GetSampleTime(&sample_time)))
+    {
+      pDvdVideoPicture->pts = sample_time / 10;
+    }
+    UINT32 width, height;
+    if (SUCCEEDED(MFGetAttributeSize(pMFSample, MF_MT_FRAME_SIZE, &width, &height)))
+    {
+      pDvdVideoPicture->iWidth = width;
+      pDvdVideoPicture->iHeight = height;
+      pDvdVideoPicture->iDisplayWidth = width;
+      pDvdVideoPicture->iDisplayHeight = height;
+    }
+    pDvdVideoPicture->pSurfaceIndex = surf_index;
+    //m_BusySamples.InsertBack(pMFSample);
+    while( m_BusyList.Count())
+      m_pMixerThread->FreeListPush( m_BusyList.Pop() );
+    m_BusyList.Push(pMFSample);
+    
+    return true;
+  /*}
+  else
+    return false;*/
+}
 void DsAllocator::RenderThread()
 {
+  
   HANDLE    hAvrt;
   DWORD     dwTaskIndex, dwUser   = 0;
   HANDLE    hEvts[]       = { m_hEvtQuit, m_hEvtFlush};
@@ -1527,7 +1691,6 @@ void DsAllocator::RenderThread()
       FlushSamples();
       m_bEvtFlush = false;
       ResetEvent(m_hEvtFlush);
-      m_drawingIsDone.Reset();
       TRACE_EVR ("EVR: Flush done!\n");
       break;
 
@@ -1849,7 +2012,7 @@ void DsAllocator::RenderThread()
 /*Sample stuff*/
 bool DsAllocator::AcceptMoreData()
 {
-  return (m_FreeSamples.GetCount()>0);
+  return (m_pMixerThread->GetFreeCount()>0);
 }
 
 void DsAllocator::RemoveAllSamples()
@@ -1857,6 +2020,16 @@ void DsAllocator::RemoveAllSamples()
   FlushSamples();
   m_ScheduledSamples.Clear();
   m_FreeSamples.Clear();
+  if (m_pMixerThread)
+  {
+    while(m_BusyList.Count())
+      m_pMixerThread->FreeListPush( m_BusyList.Pop() );
+
+    m_pMixerThread->StopThread();
+    delete m_pMixerThread;
+    m_pMixerThread = NULL;
+  }
+  
   //while(m_ScheduledSamples.GetCount())
   //  delete m_ScheduledSamples.Pop();
   //while(m_FreeSamples.GetCount())
