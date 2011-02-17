@@ -20,7 +20,13 @@
 #include "stdafx.h"
 #include "dsVideocodec.h"
 #include "ExtradataParser.h"
+#include "Gdiplus.h"
+using namespace Gdiplus;
+using namespace Gdiplus::DllExports;
+
+#pragma comment (lib,"Gdiplus.lib")
 #pragma comment (lib,"Quartz.lib")
+
 DSVideoCodec::DSVideoCodec(const char *cfname, IDSInfoCallback *pCallback, const GUID guid, BITMAPINFOHEADER *bih, unsigned int outfmt, REFERENCE_TIME frametime, const char *sfname, int mpegts) 
   :  m_pCallback(pCallback), m_guid(guid), m_bih(bih), m_hDll(NULL), m_outfmt(outfmt), 
      m_frametime(frametime), m_vinfo(NULL), m_discontinuity(1), m_pEvr(NULL),
@@ -894,10 +900,101 @@ dsnerror_t DSVideoCodec::Resync(REFERENCE_TIME pts)
   return DSN_OK;
 }
 
+class CMyPropertyPageSite : public IPropertyPageSite, CUnknown
+{
+public:
+	CMyPropertyPageSite(void) 
+  : CUnknown(NAME("CMyPropertyPageSite"),NULL)
+  {
+  }
+  DECLARE_IUNKNOWN
+  STDMETHODIMP NonDelegatingQueryInterface(REFIID riid,void **ppv);
+  virtual HRESULT STDMETHODCALLTYPE OnStatusChange(DWORD dwFlags);
+  virtual HRESULT STDMETHODCALLTYPE GetLocaleID(LCID *pLocaleID);
+  virtual HRESULT STDMETHODCALLTYPE GetPageContainer(IUnknown **ppUnk);
+  virtual HRESULT STDMETHODCALLTYPE TranslateAccelerator(MSG *pMsg);
+
+
+};
+
+/// *** CMyPropertyPageSite : IUnknown *** ///
+STDMETHODIMP CMyPropertyPageSite::NonDelegatingQueryInterface(REFIID riid, void **ppv)
+{
+  if (riid==IID_IPropertyPageSite)
+    *ppv = (IPropertyPageSite *)this;
+  
+  return __super::NonDelegatingQueryInterface(riid,ppv);
+}
+
+/// *** CMyPropertyPageSite : IPropertyPageSite *** ///
+STDMETHODIMP CMyPropertyPageSite::OnStatusChange(DWORD dwFlags)
+{
+  return S_OK; 
+}
+
+STDMETHODIMP CMyPropertyPageSite::GetLocaleID(LCID *pLocaleID)
+{
+  *pLocaleID = 0; return S_OK; 
+}
+
+STDMETHODIMP CMyPropertyPageSite::GetPageContainer(IUnknown **ppUnk)
+{ 
+  *ppUnk = NULL; 
+  return E_NOTIMPL; 
+}
+
+HRESULT __stdcall CMyPropertyPageSite::TranslateAccelerator(LPMSG pMsg)
+{
+  pMsg->message = NULL;
+  return E_NOTIMPL; 
+}
+
+int GetEncoderClsid(const WCHAR* format, CLSID* pClsid)
+{
+   UINT  num = 0;          // number of image encoders
+   UINT  size = 0;         // size of the image encoder array in bytes
+
+   Gdiplus::ImageCodecInfo* pImageCodecInfo = NULL;
+
+   Gdiplus::GetImageEncodersSize(&num, &size);
+   if(size == 0)
+      return -1;  // Failure
+
+   pImageCodecInfo = (Gdiplus::ImageCodecInfo*)(malloc(size));
+   if(pImageCodecInfo == NULL)
+      return -1;  // Failure
+
+   GetImageEncoders(num, size, pImageCodecInfo);
+
+   for(UINT j = 0; j < num; ++j)
+   {
+      if( wcscmp(pImageCodecInfo[j].MimeType, format) == 0 )
+      {
+         *pClsid = pImageCodecInfo[j].Clsid;
+         free(pImageCodecInfo);
+         return j;  // Success
+      }    
+   }
+
+   free(pImageCodecInfo);
+   return -1;  // Failure
+}
+
 BOOL DSVideoCodec::ShowPropertyPage()
 {
+  Gdiplus::GdiplusStartupInput gdiplusStartupInput;
+  ULONG_PTR gdiplusToken;
+  Gdiplus::GdiplusStartup(&gdiplusToken, &gdiplusStartupInput, NULL);
+
   if (!m_pFilter) 
     return FALSE;
+  IPropertyPageSite *pSite = NULL;
+  IUnknown *pUnk = NULL;
+	IPropertyPage *pPage = NULL;
+	RECT rect = { 0, 0, 1, 1, };
+	HWND hDlg = NULL, hButton = NULL;
+  
+  
   ISpecifyPropertyPages *pProp;
   if ((m_res = m_pFilter->QueryInterface(IID_ISpecifyPropertyPages, (LPVOID *) &pProp)) == S_OK)
   {
@@ -905,7 +1002,78 @@ BOOL DSVideoCodec::ShowPropertyPage()
     FILTER_INFO FilterInfo;
     m_res = m_pFilter->QueryFilterInfo(&FilterInfo);
     IUnknown *pFilterUnk;
-    m_res = m_pFilter->QueryInterface(IID_IUnknown, (LPVOID *) &pFilterUnk);
+    m_res = m_pFilter->QueryInterface(IID_IUnknown, (void **) &pFilterUnk);
+    CAUUID caGUID;
+    pProp->GetPages(&caGUID);
+    pProp->Release();
+    CoCreateInstance(caGUID.pElems[0], NULL, CLSCTX_INPROC_SERVER, IID_IPropertyPage, (void **)&pPage);
+  }
+  PROPPAGEINFO pInfo;
+  pPage->GetPageInfo(&pInfo);
+  HWND hWnd = CreateWindowW(L"",L"",WS_EX_NOACTIVATE,1,1,pInfo.size.cx,pInfo.size.cy,(HWND) NULL,(HMENU)NULL, (HINSTANCE)NULL,NULL);
+  
+	/*CoCreateInstance(
+		CLSID_SomeFilterPropertyPage,
+		NULL,
+		CLSCTX_INPROC_SERVER,
+		IID_IPropertyPage,
+		(void **)&pPage
+	);*/
+  m_pFilter->QueryInterface(IID_IUnknown, (void **) &pUnk);
+	
+	pSite = (IPropertyPageSite *)new CMyPropertyPageSite();
+	
+
+	pPage->SetPageSite(pSite);
+	pPage->SetObjects(1,&pUnk);
+  
+	pPage->Activate(hWnd,&rect,FALSE);
+  HDC pageHdc = GetDC(hWnd);
+  
+  Gdiplus::Graphics* pageGraph = NULL;
+  Gdiplus::Bitmap* pageBitmap = NULL;
+  BitmapData data;
+  PixelFormat pixelFormat = PixelFormat32bppRGB;
+  pageGraph = Gdiplus::Graphics::FromHDC(pageHdc);
+  //Gdiplus::GpStatus pageGraphStatus = Gdiplus::DllExports::GdipCreateFromHDC(pageHdc, &pageGraph);
+  pageBitmap = new Bitmap(pInfo.size.cx,pInfo.size.cy,pageGraph);
+  //pageGraphStatus = Gdiplus::DllExports::GdipCreateBitmapFromGraphics(pInfo.size.cx,pInfo.size.cy, pageGraph,&pageBitmap);
+  //pageGraphStatus = GdipBitmapLockBits(pageBitmap, NULL, ImageLockModeRead, pixelFormat, &data);
+  
+  //::Save(L"C:\\test.bmp",ImageItemData itemData;
+  CLSID  encoderClsid;
+  INT    result;
+
+  result = GetEncoderClsid(L"image/bmp", &encoderClsid);
+  pageBitmap->Save(L"C:\\test.bmp",&encoderClsid,NULL);
+  
+	while(hDlg = FindWindowExA(hWnd,hDlg,NULL/*PAGECLASS*/,NULL)) {
+		if(hButton = FindWindowExA(hDlg,NULL,NULL,NULL))
+		{
+			SendMessage(hButton,BM_SETCHECK,BST_CHECKED,0);
+			SendMessage(hDlg,WM_COMMAND,MAKEWPARAM(GetDlgCtrlID(hButton),BN_CLICKED),(LPARAM)hButton);
+			break;
+		}
+	}
+
+	pPage->Apply();
+
+	pPage->Deactivate();
+	pPage->SetObjects(0,NULL);
+	pPage->SetPageSite(NULL);
+	pUnk->Release();
+	pPage->Release();
+	pSite->Release();
+  return 1;
+#if 0
+  ISpecifyPropertyPages *pProp;
+  if ((m_res = m_pFilter->QueryInterface(IID_ISpecifyPropertyPages, (LPVOID *) &pProp)) == S_OK)
+  {
+    // Get the filter's name and IUnknown pointer.
+    FILTER_INFO FilterInfo;
+    m_res = m_pFilter->QueryFilterInfo(&FilterInfo);
+    IUnknown *pFilterUnk;
+    m_res = m_pFilter->QueryInterface(IID_IUnknown, (void **) &pFilterUnk);
     CAUUID caGUID;
     pProp->GetPages(&caGUID);
     pProp->Release();
@@ -934,6 +1102,7 @@ BOOL DSVideoCodec::ShowPropertyPage()
     CoTaskMemFree(caGUID.pElems);
   }
   return (!FAILED(m_res));
+#endif
 }
 
 BOOL DSVideoCodec::SetOutputFormat(WORD *biBitCount, WORD *biPlanes)

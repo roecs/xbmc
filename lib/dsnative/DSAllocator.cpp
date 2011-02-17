@@ -225,9 +225,9 @@ protected:
   Com::CSyncPtrQueue<IMFSample> m_FreeList;
   Com::CSyncPtrQueue<IMFSample> m_ReadyList;
 
-  IMFTransform*       m_pMixer;
-  IMediaEventSink*    m_pSink;
-  unsigned int        m_timeout;
+  Com::SmartPtr<IMFTransform>       m_pMixer;
+  Com::SmartPtr<IMediaEventSink>    m_pSink;
+  unsigned int                      m_timeout;
   bool                m_format_valid;
   int                 m_width;
   int                 m_height;
@@ -266,8 +266,8 @@ CEvrMixerThread::~CEvrMixerThread()
     m_ReadyList.Pop()->Release();
   while(m_FreeList.Count())
     m_FreeList.Pop()->Release();
-  SAFE_RELEASE(m_pMixer);
-  SAFE_RELEASE(m_pSink);
+  m_pMixer = NULL;
+  m_pSink = NULL;
 }
 
 unsigned int CEvrMixerThread::GetReadyCount(void)
@@ -441,8 +441,7 @@ void DsAllocator::ResetStats()
 void DsAllocator::CleanupSurfaces() 
 {
   Lock();
-
-  for (int i=0;i<m_pSurfaces.size();i++) 
+  for (size_t i=0;i<m_pSurfaces.size();i++) 
   {
     SAFE_RELEASE(m_pTextures[i]);
     SAFE_RELEASE(m_pSurfaces[i]);
@@ -678,8 +677,11 @@ HRESULT STDMETHODCALLTYPE DsAllocator::ProcessMessage(MFVP_MESSAGE_TYPE mess,ULO
       /*SetEvent(m_hEvtFlush);
       m_bEvtFlush = true;
       m_drawingIsDone.Set();*/
-      OutputDebugString(L"EVR: MFVP_MESSAGE_FLUSH");
+      CLog::DebugLog("EVR: MFVP_MESSAGE_FLUSH");
+      if (m_pMixerThread)
+        m_pMixerThread->StopThread(true);
       FlushSamples();
+
       /*while (WaitForSingleObject(m_hEvtFlush, 1) == WAIT_OBJECT_0);*/
     break;
     case MFVP_MESSAGE_INVALIDATEMEDIATYPE: 
@@ -698,16 +700,26 @@ HRESULT STDMETHODCALLTYPE DsAllocator::ProcessMessage(MFVP_MESSAGE_TYPE mess,ULO
     break;
     case MFVP_MESSAGE_BEGINSTREAMING:
     {
-      OutputDebugString(L"EVR Message MFVP_MESSAGE_BEGINSTREAMING received");
+      CLog::DebugLog("EVR Message MFVP_MESSAGE_BEGINSTREAMING received");
       ResetStats();  
     }
     break;
     case MFVP_MESSAGE_ENDSTREAMING:
-      OutputDebugString(L"EVR Message MFVP_MESSAGE_ENDSTREAMING received");
+      CLog::DebugLog("EVR Message MFVP_MESSAGE_ENDSTREAMING received");
+      if (m_pMixerThread)
+      {
+        while(m_BusyList.Count())
+          m_pMixerThread->FreeListPush( m_BusyList.Pop() );
+
+        m_pMixerThread->StopThread();
+        delete m_pMixerThread;
+        m_pMixerThread = NULL;
+      }
       break;
     case MFVP_MESSAGE_ENDOFSTREAM: 
     {
-      OutputDebugString(L"EVR Message MFVP_MESSAGE_ENDOFSTREAM received");
+     CLog::DebugLog("EVR Message MFVP_MESSAGE_ENDOFSTREAM received");
+
       m_bPendingMediaFinished = true;
       endofstream=true;
     } 
@@ -735,7 +747,7 @@ STDMETHODIMP DsAllocator::OnClockStart(MFTIME hnsSystemTime,  int64_t llClockSta
 {
   m_nRenderState    = Started;
 
-  TRACE_EVR ("EVR: OnClockStart  hnsSystemTime = %I64d,   llClockStartOffset = %I64d\n", hnsSystemTime, llClockStartOffset);
+  CLog::DebugLog("EVR: OnClockStart  hnsSystemTime = %I64d,   llClockStartOffset = %I64d", hnsSystemTime, llClockStartOffset);
   m_ModeratedTimeLast = -1;
   m_ModeratedClockLast = -1;
 
@@ -744,7 +756,7 @@ STDMETHODIMP DsAllocator::OnClockStart(MFTIME hnsSystemTime,  int64_t llClockSta
 
 STDMETHODIMP DsAllocator::OnClockStop(MFTIME hnsSystemTime)
 {
-  TRACE_EVR ("EVR: OnClockStop  hnsSystemTime = %I64d\n", hnsSystemTime);
+  CLog::DebugLog("EVR: OnClockStop  hnsSystemTime = %I64d", hnsSystemTime);
   m_nRenderState    = Stopped;
 
   m_ModeratedClockLast = -1;
@@ -754,7 +766,7 @@ STDMETHODIMP DsAllocator::OnClockStop(MFTIME hnsSystemTime)
 
 STDMETHODIMP DsAllocator::OnClockPause(MFTIME hnsSystemTime)
 {
-  TRACE_EVR ("EVR: OnClockPause  hnsSystemTime = %I64d\n", hnsSystemTime);
+  CLog::DebugLog("EVR: OnClockPause  hnsSystemTime = %I64d", hnsSystemTime);
   if (!m_bSignaledStarvation)
     m_nRenderState    = Paused;
 
@@ -769,7 +781,7 @@ STDMETHODIMP DsAllocator::OnClockRestart(MFTIME hnsSystemTime)
 
   m_ModeratedTimeLast = -1;
   m_ModeratedClockLast = -1;
-  TRACE_EVR ("EVR: OnClockRestart  hnsSystemTime = %I64d\n", hnsSystemTime);
+  CLog::DebugLog("EVR: OnClockRestart  hnsSystemTime = %I64d", hnsSystemTime);
 
   return S_OK;
 }
@@ -1188,7 +1200,7 @@ void DsAllocator::AllocateEVRSurfaces()
   subtype.Data1=D3DFMT_X8R8G8B8;
   m_pMediaType->GetGUID(MF_MT_SUBTYPE,&subtype);
   D3DFORMAT format=(D3DFORMAT)subtype.Data1;
-  DebugPrint(L"Surfaceformat is %d, width %d, height %d",format,vwidth,vheight);
+  CLog::DebugLog("Surfaceformat is %d, width %d, height %d",format,vwidth,vheight);
   format=D3DFMT_X8R8G8B8;
 
   RemoveAllSamples();
@@ -1200,10 +1212,7 @@ void DsAllocator::AllocateEVRSurfaces()
   for (int i=0;i<10;i++)
   {
     HRESULT hr;
-    LPDIRECT3DSURFACE9 surf;
-    LPDIRECT3DTEXTURE9 text;
     hr = m_pCallback->GetD3DDev()->CreateTexture(vwidth, vheight, 1, D3DUSAGE_RENDERTARGET, format, D3DPOOL_DEFAULT,&m_pTextures[i],NULL);
-    //hr = m_pCallback->GetD3DDev()->CreateRenderTarget(vwidth,vheight,format, D3DMULTISAMPLE_NONE,0,FALSE,&surfy,NULL);
     if (SUCCEEDED(hr))
     {
       if (FAILED(m_pTextures[i]->GetSurfaceLevel(0, &m_pSurfaces[i])))
@@ -1221,7 +1230,7 @@ void DsAllocator::AllocateEVRSurfaces()
   
 
   HRESULT hr = S_OK;
-  for (int i=0;i<m_pSurfaces.size();i++)
+  for (size_t i=0;i<m_pSurfaces.size();i++)
   {
     if (m_pSurfaces[i]!=NULL) 
     {
@@ -1234,7 +1243,7 @@ void DsAllocator::AllocateEVRSurfaces()
         pMFSample->SetUINT32 (GUID_SURFACE_INDEX, i);
         m_pMixerThread->FreeListPush(pMFSample);
       }
-      assert(SUCCEEDED (hr));
+      ASSERT(SUCCEEDED (hr));
     }
   }
 

@@ -121,7 +121,7 @@ bool CDVDVideoCodecDirectshow::Open(CDVDStreamInfo &hints, CDVDCodecOptions &opt
   //CLSID_FFDShow_Video_Decoder
   //CLSID_FFDShow_DXVA_Video_Decoder
   //CLSID_MPC_Video_Decoder
-  
+  //int pageres = DSShowPropertyPage(codec);
   if (!codec)
   {
     CLog::Log(LOGERROR,"DShowNative codec failed:%s",/*m_dllDsNative.*/DSStrError(err));
