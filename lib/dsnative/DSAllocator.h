@@ -142,7 +142,7 @@ public:
   //IPaintCallback
   virtual void Render(const RECT& dst, IDirect3DSurface9* target, int index);
   virtual bool WaitOutput(unsigned int msec);
-  virtual bool GetD3DSurfaceFromScheduledSample(int *surface_index);
+  
   virtual int GetReadySample();
   
   void SetDSMediaType(CMediaType mt);
@@ -238,26 +238,12 @@ protected:
   LONGLONG lastdelframe;
   CMutex* m_mutex;
 
-  void                     GetMixerThread();
-  static DWORD WINAPI      GetMixerThreadStatic(LPVOID lpParam);
-
-  bool                     GetImageFromMixer();
-  void                     RenderThread();
-  static DWORD WINAPI      PresentThread(LPVOID lpParam);
-  void                     StartWorkerThreads();
-  void                     StopWorkerThreads();
   HANDLE                   m_hEvtQuit;      // Stop rendering thread event
   bool                     m_bEvtQuit;
   HANDLE                   m_hEvtFlush;    // Discard all buffers
   bool                     m_bEvtFlush;
 
   void                     RemoveAllSamples();
-  HRESULT                  GetFreeSample(IMFSample** ppSample);
-  HRESULT                  GetScheduledSample(IMFSample** ppSample, int &_Count);
-  void                     MoveToFreeList(IMFSample* pSample, bool bTail);
-  void                     MoveToScheduledList(IMFSample* pSample, bool _bSorted);
-  void                     FlushSamples();
-  void                     FlushSamplesInternal();
   void                     ResetStats();
 private:
   typedef enum
@@ -268,8 +254,7 @@ private:
     Shutdown = State_Running + 1
   } RENDER_STATE;
   RENDER_STATE             m_nRenderState;
-  HANDLE                   m_hThread;
-  HANDLE                   m_hGetMixerThread;
+  
 
   int64_t                  m_rtTimePerFrame;
 
@@ -283,10 +268,6 @@ private:
 
   bool                     m_bSignaledStarvation; 
   int64_t                  m_StarvationClock;
-
-  VideoSampleList          m_FreeSamples;
-  VideoSampleList          m_ScheduledSamples;
-  VideoSampleList          m_BusySamples;
 
   Com::CSyncPtrQueue<IMFSample> m_BusyList;
   //Com::CSyncPtrQueue<IMFSample> m_ScheduledSamples;

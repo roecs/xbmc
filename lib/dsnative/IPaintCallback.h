@@ -30,7 +30,6 @@ public:
 
   virtual void Render(const RECT& dst, IDirect3DSurface9* target, int index) = 0;
   virtual bool WaitOutput(unsigned int msec) = 0;
-  virtual bool GetD3DSurfaceFromScheduledSample(int *surface_index) = 0;
   virtual int GetReadySample() = 0;
   virtual bool GetPicture(DVDVideoPicture *pDvdVideoPicture) = 0;
 };
