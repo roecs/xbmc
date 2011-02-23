@@ -26,7 +26,7 @@
 class DSVideoCodec
 {
 public:
-  DSVideoCodec(const char *cfname, IDSInfoCallback *pCallback, const GUID guid, BITMAPINFOHEADER *bih, unsigned int outfmt, REFERENCE_TIME frametime, const char *sfname, int mpegts);
+  DSVideoCodec(const char *cfname, IDSInfoCallback *pCallback, const GUID guid, BITMAPINFOHEADER *bih, unsigned int outfmt, REFERENCE_TIME frametime, const char *sfname);
   ~DSVideoCodec();
   void ReleaseGraph();
   BOOL LoadLibrary();
@@ -56,7 +56,6 @@ private:
   wchar_t *m_cfname, *m_sfname;
   unsigned int m_outfmt;
   int m_discontinuity;
-  int m_mpegts;
   HRESULT m_res;
   __int64        m_currentframeindex;
   REFERENCE_TIME m_frametime;

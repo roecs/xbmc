@@ -27,9 +27,9 @@
 
 
 extern "C" DSVideoCodec * WINAPI DSOpenVideoCodec(const char *dll, IDSInfoCallback *pCallback, const GUID guid, BITMAPINFOHEADER* bih,
-                                                  unsigned int outfmt, REFERENCE_TIME frametime, const char *filename, int mpegts, BITMAPINFOHEADER *pDestType,dsnerror_t *err)
+                                                  unsigned int outfmt, REFERENCE_TIME frametime, const char *filename, BITMAPINFOHEADER *pDestType,dsnerror_t *err)
 {
-    DSVideoCodec *vcodec = new DSVideoCodec(dll, pCallback, guid, bih, outfmt, frametime, filename, mpegts);
+    DSVideoCodec *vcodec = new DSVideoCodec(dll, pCallback, guid, bih, outfmt, frametime, filename);
     dsnerror_t res = DSN_OK;
 
     if (!vcodec->LoadLibrary())

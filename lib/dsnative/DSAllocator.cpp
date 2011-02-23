@@ -55,6 +55,24 @@ PTR_AvRevertMmThreadCharacteristics     pfAvRevertMmThreadCharacteristics;
 // Guid to tag IMFSample with DirectX surface index
 static const GUID GUID_SURFACE_INDEX = { 0x30c8e9f6, 0x415, 0x4b81, { 0xa3, 0x15, 0x1, 0xa, 0xc6, 0xa9, 0xda, 0x19 } };
 
+static int64_t GetPerfCounter()
+{
+  LARGE_INTEGER i64Ticks100ns;
+  LARGE_INTEGER llPerfFrequency;
+
+  QueryPerformanceFrequency (&llPerfFrequency);
+  if (llPerfFrequency.QuadPart != 0)
+  {
+    QueryPerformanceCounter (&i64Ticks100ns);
+    return llMulDiv(i64Ticks100ns.QuadPart, 10000000, llPerfFrequency.QuadPart, 0);
+  }
+  else
+  {
+    // ms to 100ns units
+    return timeGetTime() * 10000; 
+  }
+}
+
 void DebugPrint(const wchar_t *format, ... )
 {
   CStdStringW strData;
@@ -244,6 +262,7 @@ protected:
   int                 m_aspectratio_x;
   int                 m_aspectratio_y;
   CEvent              m_ready_event;
+  double              m_pSleepTimePerFrame;
 };
 
 CEvrMixerThread::CEvrMixerThread(IMFTransform* mixer, IMediaEventSink* sink) :
@@ -255,7 +274,8 @@ CEvrMixerThread::CEvrMixerThread(IMFTransform* mixer, IMediaEventSink* sink) :
   m_framerate_tracking(false),
   m_framerate_cnt(0),
   m_framerate_timestamp(0.0),
-  m_framerate(0.0)
+  m_framerate(0.0),
+  m_pSleepTimePerFrame(0.0)
 {
 }
 
@@ -311,14 +331,12 @@ bool CEvrMixerThread::ProcessOutput(void)
   MFT_OUTPUT_DATA_BUFFER dataBuffer;
   ZeroMemory(&dataBuffer, sizeof(dataBuffer));
   IMFSample *pSample = NULL;
-
-  
-          // Get next output buffer from the free list
+  // Get next output buffer from the free list
   pSample = m_FreeList.Pop();
   dataBuffer.pSample = pSample;
-  mixerStartTime = CurrentHostCounter();//CTimeUtils::GetPerfCounter();
+  mixerStartTime = GetPerfCounter();
   hr = m_pMixer->ProcessOutput (0 , 1, &dataBuffer, &dwStatus);
-  mixerEndTime = CurrentHostCounter();//CTimeUtils::GetPerfCounter();
+  mixerEndTime = GetPerfCounter();
   if (hr == MF_E_TRANSFORM_NEED_MORE_INPUT)
   {
     m_FreeList.Push(pSample);
@@ -326,8 +344,17 @@ bool CEvrMixerThread::ProcessOutput(void)
   }
   if (m_pSink)
   {
-    llMixerLatency = mixerStartTime - mixerEndTime;
+    llMixerLatency = mixerEndTime - mixerStartTime;
     m_pSink->Notify (EC_PROCESSING_LATENCY, (LONG_PTR)&llMixerLatency, 0);
+  }
+  if (m_pSleepTimePerFrame == 0)
+  {
+    LONGLONG sample_duration = 0;
+    if (SUCCEEDED(pSample->GetSampleDuration(&sample_duration)))
+    {
+      sample_duration = sample_duration-llMixerLatency;
+      m_pSleepTimePerFrame = DS_TIME_TO_MSEC(sample_duration);
+    }
   }
   m_ReadyList.Push(pSample);
 }
@@ -350,10 +377,11 @@ void CEvrMixerThread::Process(void)
   CLog::Log(LOGINFO, "%s: CEvrMixerThread Started...", __FUNCTION__);
   while (!m_bStop)
   {
+
     if (SUCCEEDED(m_pMixer->GetOutputStatus(&res)&&(res & MFT_OUTPUT_STATUS_SAMPLE_READY)))
       ProcessOutput();
-    else
-      Sleep(1);
+   
+    Sleep(m_pSleepTimePerFrame);
 
   }
 }
@@ -1417,33 +1445,27 @@ bool DsAllocator::GetPicture(DVDVideoPicture *pDvdVideoPicture)
   LONGLONG sample_time;
   CAutoSingleLock lock(m_section);
   HRESULT hr = pMFSample->GetUINT32(GUID_SURFACE_INDEX, (UINT32 *)&surf_index);
-  /*if (SUCCEEDED (GetScheduledSample(&pMFSample, nSamplesLeft)))
+  pDvdVideoPicture->pts = DVD_NOPTS_VALUE;
+  pDvdVideoPicture->dts = DVD_NOPTS_VALUE;
+  if (SUCCEEDED(pMFSample->GetSampleTime(&sample_time)))
+    pDvdVideoPicture->pts = sample_time / 10;
+  
+  UINT32 width, height;
+  /*if (SUCCEEDED(MFGetAttributeSize(pMFSample, MF_MT_FRAME_SIZE, &width, &height)))
   {
-    HRESULT hr = pMFSample->GetUINT32(GUID_SURFACE_INDEX, (UINT32 *)&surf_index);*/
-    pDvdVideoPicture->pts = DVD_NOPTS_VALUE;
-    pDvdVideoPicture->dts = DVD_NOPTS_VALUE;
-    if (SUCCEEDED(pMFSample->GetSampleTime(&sample_time)))
-    {
-      pDvdVideoPicture->pts = sample_time / 10;
-    }
-    UINT32 width, height;
-    if (SUCCEEDED(MFGetAttributeSize(pMFSample, MF_MT_FRAME_SIZE, &width, &height)))
-    {
-      pDvdVideoPicture->iWidth = width;
-      pDvdVideoPicture->iHeight = height;
-      pDvdVideoPicture->iDisplayWidth = width;
-      pDvdVideoPicture->iDisplayHeight = height;
-    }
-    pDvdVideoPicture->pSurfaceIndex = surf_index;
-    //m_BusySamples.InsertBack(pMFSample);
-    while( m_BusyList.Count())
-      m_pMixerThread->FreeListPush( m_BusyList.Pop() );
-    m_BusyList.Push(pMFSample);
-    
-    return true;
-  /*}
-  else
-    return false;*/
+    pDvdVideoPicture->iWidth = width;
+    pDvdVideoPicture->iHeight = height;
+    pDvdVideoPicture->iDisplayWidth = width;
+    pDvdVideoPicture->iDisplayHeight = height;
+  }*/
+  pDvdVideoPicture->pSurfaceIndex = surf_index;
+  
+  while( m_BusyList.Count())
+    m_pMixerThread->FreeListPush( m_BusyList.Pop() );
+  m_BusyList.Push(pMFSample);
+
+  return true;
+
 }
 
 /*Sample stuff*/

@@ -56,6 +56,15 @@ using namespace std;
 #ifndef DVD_NOPTS_VALUE
 #define DVD_NOPTS_VALUE    (-1LL<<52) // should be possible to represent in both double and __int64
 #endif
+//Time base from directshow is a 100 nanosec unit
+#define DS_TIME_BASE 1E7
+
+#define DS_TIME_TO_SEC(x)     ((double)(x / DS_TIME_BASE))
+#define DS_TIME_TO_MSEC(x)    ((double)(x * 1000 / DS_TIME_BASE))
+#define SEC_TO_DS_TIME(x)     ((__int64)(x * DS_TIME_BASE))
+#define MSEC_TO_DS_TIME(x)    ((__int64)(x * DS_TIME_BASE / 1000))
+#define SEC_TO_MSEC(x)        ((double)(x * 1E3))
+
 typedef Com::ComPtrList<IMFSample> VideoSampleList;
 class CEvrMixerThread;
 //The Allocator and Presenter for VMR9 is also a Presenter for EVR

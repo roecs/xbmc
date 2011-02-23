@@ -20,18 +20,14 @@
 #include "stdafx.h"
 #include "dsVideocodec.h"
 #include "ExtradataParser.h"
-#include "Gdiplus.h"
-using namespace Gdiplus;
-using namespace Gdiplus::DllExports;
 
-#pragma comment (lib,"Gdiplus.lib")
 #pragma comment (lib,"Quartz.lib")
 
-DSVideoCodec::DSVideoCodec(const char *cfname, IDSInfoCallback *pCallback, const GUID guid, BITMAPINFOHEADER *bih, unsigned int outfmt, REFERENCE_TIME frametime, const char *sfname, int mpegts) 
+DSVideoCodec::DSVideoCodec(const char *cfname, IDSInfoCallback *pCallback, const GUID guid, BITMAPINFOHEADER *bih, unsigned int outfmt, REFERENCE_TIME frametime, const char *sfname) 
   :  m_pCallback(pCallback), m_guid(guid), m_bih(bih), m_hDll(NULL), m_outfmt(outfmt), 
      m_frametime(frametime), m_vinfo(NULL), m_discontinuity(1), m_pEvr(NULL),
      m_pFilter(NULL), m_pInputPin(NULL), m_pOutputPin(NULL), m_pEvrInputPin(NULL),
-     m_pOurInput(NULL), m_pOurOutput(NULL), m_mpegts(mpegts),
+     m_pOurInput(NULL), m_pOurOutput(NULL),
      m_pMemInputPin(NULL), m_pMemAllocator(NULL), m_pSFilter(NULL), 
      m_pRFilter(NULL), m_pGraph(NULL), m_pMC(NULL), 
      m_cfname(NULL), m_sfname(NULL),m_currentframeindex(0)
@@ -908,84 +904,21 @@ public:
   {
   }
   DECLARE_IUNKNOWN
-  STDMETHODIMP NonDelegatingQueryInterface(REFIID riid,void **ppv);
-  virtual HRESULT STDMETHODCALLTYPE OnStatusChange(DWORD dwFlags);
-  virtual HRESULT STDMETHODCALLTYPE GetLocaleID(LCID *pLocaleID);
-  virtual HRESULT STDMETHODCALLTYPE GetPageContainer(IUnknown **ppUnk);
-  virtual HRESULT STDMETHODCALLTYPE TranslateAccelerator(MSG *pMsg);
-
-
-};
-
-/// *** CMyPropertyPageSite : IUnknown *** ///
-STDMETHODIMP CMyPropertyPageSite::NonDelegatingQueryInterface(REFIID riid, void **ppv)
-{
-  if (riid==IID_IPropertyPageSite)
-    *ppv = (IPropertyPageSite *)this;
+  STDMETHODIMP NonDelegatingQueryInterface(REFIID riid,void **ppv)
+  {
+    if (riid==IID_IPropertyPageSite)
+      *ppv = (IPropertyPageSite *)this;
   
   return __super::NonDelegatingQueryInterface(riid,ppv);
-}
-
-/// *** CMyPropertyPageSite : IPropertyPageSite *** ///
-STDMETHODIMP CMyPropertyPageSite::OnStatusChange(DWORD dwFlags)
-{
-  return S_OK; 
-}
-
-STDMETHODIMP CMyPropertyPageSite::GetLocaleID(LCID *pLocaleID)
-{
-  *pLocaleID = 0; return S_OK; 
-}
-
-STDMETHODIMP CMyPropertyPageSite::GetPageContainer(IUnknown **ppUnk)
-{ 
-  *ppUnk = NULL; 
-  return E_NOTIMPL; 
-}
-
-HRESULT __stdcall CMyPropertyPageSite::TranslateAccelerator(LPMSG pMsg)
-{
-  pMsg->message = NULL;
-  return E_NOTIMPL; 
-}
-
-int GetEncoderClsid(const WCHAR* format, CLSID* pClsid)
-{
-   UINT  num = 0;          // number of image encoders
-   UINT  size = 0;         // size of the image encoder array in bytes
-
-   Gdiplus::ImageCodecInfo* pImageCodecInfo = NULL;
-
-   Gdiplus::GetImageEncodersSize(&num, &size);
-   if(size == 0)
-      return -1;  // Failure
-
-   pImageCodecInfo = (Gdiplus::ImageCodecInfo*)(malloc(size));
-   if(pImageCodecInfo == NULL)
-      return -1;  // Failure
-
-   GetImageEncoders(num, size, pImageCodecInfo);
-
-   for(UINT j = 0; j < num; ++j)
-   {
-      if( wcscmp(pImageCodecInfo[j].MimeType, format) == 0 )
-      {
-         *pClsid = pImageCodecInfo[j].Clsid;
-         free(pImageCodecInfo);
-         return j;  // Success
-      }    
-   }
-
-   free(pImageCodecInfo);
-   return -1;  // Failure
-}
+  }
+  virtual HRESULT STDMETHODCALLTYPE OnStatusChange(DWORD dwFlags) { return S_OK; }
+  virtual HRESULT STDMETHODCALLTYPE GetLocaleID(LCID *pLocaleID) {*pLocaleID = 0; return S_OK; }
+  virtual HRESULT STDMETHODCALLTYPE GetPageContainer(IUnknown **ppUnk){*ppUnk = NULL; return E_NOTIMPL; }
+  virtual HRESULT STDMETHODCALLTYPE TranslateAccelerator(MSG *pMsg){pMsg->message = NULL; return E_NOTIMPL;}
+};
 
 BOOL DSVideoCodec::ShowPropertyPage()
 {
-  Gdiplus::GdiplusStartupInput gdiplusStartupInput;
-  ULONG_PTR gdiplusToken;
-  Gdiplus::GdiplusStartup(&gdiplusToken, &gdiplusStartupInput, NULL);
-
   if (!m_pFilter) 
     return FALSE;
   IPropertyPageSite *pSite = NULL;
@@ -1010,50 +943,120 @@ BOOL DSVideoCodec::ShowPropertyPage()
   }
   PROPPAGEINFO pInfo;
   pPage->GetPageInfo(&pInfo);
-  HWND hWnd = CreateWindowW(L"",L"",WS_EX_NOACTIVATE,1,1,pInfo.size.cx,pInfo.size.cy,(HWND) NULL,(HMENU)NULL, (HINSTANCE)NULL,NULL);
   
-	/*CoCreateInstance(
-		CLSID_SomeFilterPropertyPage,
-		NULL,
-		CLSCTX_INPROC_SERVER,
-		IID_IPropertyPage,
-		(void **)&pPage
-	);*/
+  //create a window to parse button in that page
+  HWND hWnd = CreateWindowW(L"", L"", WS_EX_NOACTIVATE ,1 ,1 ,1 ,1 , (HWND) NULL ,(HMENU) NULL , (HINSTANCE) NULL ,NULL);
+  
   m_pFilter->QueryInterface(IID_IUnknown, (void **) &pUnk);
 	
 	pSite = (IPropertyPageSite *)new CMyPropertyPageSite();
-	
-
 	pPage->SetPageSite(pSite);
 	pPage->SetObjects(1,&pUnk);
   
+  
 	pPage->Activate(hWnd,&rect,FALSE);
-  HDC pageHdc = GetDC(hWnd);
-  
-  Gdiplus::Graphics* pageGraph = NULL;
-  Gdiplus::Bitmap* pageBitmap = NULL;
-  BitmapData data;
-  PixelFormat pixelFormat = PixelFormat32bppRGB;
-  pageGraph = Gdiplus::Graphics::FromHDC(pageHdc);
-  //Gdiplus::GpStatus pageGraphStatus = Gdiplus::DllExports::GdipCreateFromHDC(pageHdc, &pageGraph);
-  pageBitmap = new Bitmap(pInfo.size.cx,pInfo.size.cy,pageGraph);
-  //pageGraphStatus = Gdiplus::DllExports::GdipCreateBitmapFromGraphics(pInfo.size.cx,pInfo.size.cy, pageGraph,&pageBitmap);
-  //pageGraphStatus = GdipBitmapLockBits(pageBitmap, NULL, ImageLockModeRead, pixelFormat, &data);
-  
-  //::Save(L"C:\\test.bmp",ImageItemData itemData;
-  CLSID  encoderClsid;
-  INT    result;
+  struct prop_control
+  {
+    HWND hwnd;
+    int control_id;
+    CStdStringW text;
+  };
 
-  result = GetEncoderClsid(L"image/bmp", &encoderClsid);
-  pageBitmap->Save(L"C:\\test.bmp",&encoderClsid,NULL);
-  
-	while(hDlg = FindWindowExA(hWnd,hDlg,NULL/*PAGECLASS*/,NULL)) {
-		if(hButton = FindWindowExA(hDlg,NULL,NULL,NULL))
+  std::vector<prop_control*> systreeview32;
+  std::vector<prop_control*> statictext32;
+  std::vector<prop_control*> button32;
+  std::vector<prop_control*> edit32;
+	
+  prop_control* pctrl;
+  pctrl = (prop_control*)malloc(sizeof(prop_control*));
+  while(hDlg = FindWindowExA(hWnd, hDlg, NULL, NULL))
+  {
+    
+    if(hButton = FindWindowExA(hDlg,NULL,"SysTreeView32",NULL))
 		{
-			SendMessage(hButton,BM_SETCHECK,BST_CHECKED,0);
-			SendMessage(hDlg,WM_COMMAND,MAKEWPARAM(GetDlgCtrlID(hButton),BN_CLICKED),(LPARAM)hButton);
-			break;
+      pctrl->hwnd = hButton;
+      pctrl->control_id = GetDlgCtrlID(hButton);
+      CStdStringW pstringw;
+      pstringw.resize(255);
+      UINT ctrlsize = GetDlgItemText(hDlg, pctrl->control_id, &pstringw.at(0),255);
+      if (ctrlsize>0)
+        pctrl->text = pstringw;
+      systreeview32.push_back(pctrl);
+
 		}
+    if(hButton = FindWindowExA(hDlg,NULL,"Button",NULL))
+		{
+      pctrl->hwnd = hButton;
+      pctrl->control_id = GetDlgCtrlID(hButton);
+      CStdStringW pstringw;
+      pstringw.resize(255);
+      UINT ctrlsize = GetDlgItemText(hDlg, pctrl->control_id, &pstringw.at(0),255);
+      if (ctrlsize>0)
+        pctrl->text = pstringw;
+
+      button32.push_back(pctrl);
+		}
+    if(hButton = FindWindowExA(hDlg,NULL,"Static",NULL))
+		{
+      pctrl->hwnd = hButton;
+      pctrl->control_id = GetDlgCtrlID(hButton);
+      CStdStringW pstringw;
+      pstringw.resize(255);
+      UINT ctrlsize = GetDlgItemText(hDlg, pctrl->control_id, &pstringw.at(0),255);
+      if (ctrlsize>0)
+        pctrl->text = pstringw;
+      statictext32.push_back(pctrl);
+		}
+    if(hButton = FindWindowExA(hDlg,NULL,"Edit",NULL))
+		{
+      pctrl->hwnd = hButton;
+      pctrl->control_id = GetDlgCtrlID(hButton);
+      CStdStringW pstringw;
+      pstringw.resize(255);
+      UINT ctrlsize = GetDlgItemText(hDlg, pctrl->control_id, &pstringw.at(0),255);
+      if (ctrlsize>0)
+        pctrl->text = pstringw;
+      edit32.push_back(pctrl);
+      
+		}
+    /* GUICONTROL_UNKNOWN,
+    GUICONTROL_BUTTON,
+    GUICONTROL_CHECKMARK,
+    GUICONTROL_FADELABEL,
+    GUICONTROL_IMAGE,
+    GUICONTROL_BORDEREDIMAGE,
+    GUICONTROL_LARGE_IMAGE,
+    GUICONTROL_LABEL,
+    GUICONTROL_LISTGROUP,
+    GUICONTROL_PROGRESS,
+    GUICONTROL_RADIO,
+    GUICONTROL_RSS,
+    GUICONTROL_SELECTBUTTON,
+    GUICONTROL_SLIDER,
+    GUICONTROL_SETTINGS_SLIDER,
+    GUICONTROL_SPIN,
+    GUICONTROL_SPINEX,
+    GUICONTROL_TEXTBOX,
+    GUICONTROL_TOGGLEBUTTON,
+    GUICONTROL_VIDEO,
+    GUICONTROL_MOVER,
+    GUICONTROL_RESIZE,
+    GUICONTROL_BUTTONBAR,
+    GUICONTROL_EDIT,
+    GUICONTROL_VISUALISATION,
+    GUICONTROL_RENDERADDON,
+    GUICONTROL_MULTI_IMAGE,
+    GUICONTROL_GROUP,
+    GUICONTROL_GROUPLIST,
+    GUICONTROL_SCROLLBAR,
+    GUICONTROL_LISTLABEL,
+    GUICONTROL_MULTISELECT,
+    GUICONTAINER_LIST,
+    GUICONTAINER_WRAPLIST,
+    GUICONTAINER_FIXEDLIST,
+    GUICONTAINER_PANEL
+    */
+		
 	}
 
 	pPage->Apply();

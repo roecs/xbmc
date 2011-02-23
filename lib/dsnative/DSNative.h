@@ -87,8 +87,9 @@ class DSVideoCodec;
 class DsAllocator;
 extern "C" unsigned int WINAPI DSGetApiVersion(void);
 extern "C" const char * WINAPI DSStrError(dsnerror_t error);
+
 /*Video*/
-extern "C" DSVideoCodec * WINAPI DSOpenVideoCodec(const char *dll, IDSInfoCallback *pCallback, const GUID guid, BITMAPINFOHEADER* bih, unsigned int outfmt, REFERENCE_TIME frametime, const char *filename, int mpegts, BITMAPINFOHEADER *pDestType,dsnerror_t *err);
+extern "C" DSVideoCodec * WINAPI DSOpenVideoCodec(const char *dll, IDSInfoCallback *pCallback, const GUID guid, BITMAPINFOHEADER* bih, unsigned int outfmt, REFERENCE_TIME frametime, const char *filename, BITMAPINFOHEADER *pDestType,dsnerror_t *err);
 extern "C" void WINAPI DSCloseVideoCodec(DSVideoCodec *vcodec);
 extern "C" dsnerror_t WINAPI DSVideoDecode(DSVideoCodec *vcodec, const BYTE *src, int size, double pts, double *newpts, DSVideoOutputData *pImage, long *pImageSize,int keyframe);
 extern "C" dsnerror_t WINAPI DSVideoGetMediaBuffer(DSVideoCodec *vcodec, DsAllocator* ppAlloc);
