@@ -399,6 +399,8 @@
 #define WINDOW_PYTHON_START               13000
 #define WINDOW_PYTHON_END                 13099
 
+#define WINDOW_DS_FILTER_PROPERTY_PAGE    13100
+
 #define ICON_TYPE_NONE          101
 #define ICON_TYPE_PROGRAMS      102
 #define ICON_TYPE_MUSIC         103

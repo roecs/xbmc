@@ -31,6 +31,7 @@ public:
   CByteParser(const BYTE *pData, uint32_t length);
   virtual ~CByteParser();
 
+  HRESULT ByteRead(BYTE* pData, __int64 len);
   /** Read 1 to 32 Bits from the Byte Array. If peek is set, the data will just be returned, and the buffer not advanced. */
   uint32_t BitRead(uint8_t numBits, bool peek = false);
 

@@ -22,6 +22,7 @@
 
 #ifndef DSNATIVE_H
 #define DSNATIVE_H
+#define DS_TEST_M2TS_CONTAINER 0
 #define _ATL_EX_CONVERSION_MACROS_ONLY
 #define DSN_DLL_VERSION 0.1.1.7
 #define DSN_API_VERSION 7
@@ -61,8 +62,10 @@ public:
   virtual IDirect3DDevice9* GetD3DDev() = 0;
   virtual __int64 GetTime() = 0;
   virtual __int64 GetTotalTime() = 0;
+  virtual MPEG2VIDEOINFO* GetMPEG2VIDEOINFO() = 0;
   virtual void LogCallback(int loglevel, const char *format, ...) = 0;
   virtual void FrameReady(int number) = 0;
+  virtual uint32_t GetOriginalCodecTag() = 0;
   virtual ~IDSInfoCallback() { }
 };
 struct DSVideoOutputData
@@ -91,7 +94,7 @@ extern "C" const char * WINAPI DSStrError(dsnerror_t error);
 /*Video*/
 extern "C" DSVideoCodec * WINAPI DSOpenVideoCodec(const char *dll, IDSInfoCallback *pCallback, const GUID guid, BITMAPINFOHEADER* bih, unsigned int outfmt, REFERENCE_TIME frametime, const char *filename, BITMAPINFOHEADER *pDestType,dsnerror_t *err);
 extern "C" void WINAPI DSCloseVideoCodec(DSVideoCodec *vcodec);
-extern "C" dsnerror_t WINAPI DSVideoDecode(DSVideoCodec *vcodec, const BYTE *src, int size, double pts, double *newpts, DSVideoOutputData *pImage, long *pImageSize,int keyframe);
+extern "C" dsnerror_t WINAPI DSVideoDecode(DSVideoCodec *vcodec, BYTE *src, int size, double pts, double *newpts, DSVideoOutputData *pImage, long *pImageSize,int keyframe);
 extern "C" dsnerror_t WINAPI DSVideoGetMediaBuffer(DSVideoCodec *vcodec, DsAllocator* ppAlloc);
 extern "C" IPaintCallback* WINAPI DSVideoGetEvrCallback(DSVideoCodec *vcodec);
 extern "C" dsnerror_t WINAPI DSVideoResync(DSVideoCodec *vcodec, double pts);

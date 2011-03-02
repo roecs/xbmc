@@ -44,7 +44,7 @@ public:
   void RemoveFromRot(DWORD pdwRegister);
   BOOL StartGraph();
   AM_MEDIA_TYPE GetOutputMediaType();
-  dsnerror_t Decode(const BYTE *src, int size, double pts, double *newpts, DSVideoOutputData *pImage, long *pImageSize, int keyframe);
+  dsnerror_t Decode(BYTE *src, int size, double pts, double *newpts, DSVideoOutputData *pImage, long *pImageSize, int keyframe);
   dsnerror_t DSVideoGetMediaBuffer(DsAllocator* pAlloc);
   IPaintCallback* GetEvrCallback();
   dsnerror_t Resync(REFERENCE_TIME pts);

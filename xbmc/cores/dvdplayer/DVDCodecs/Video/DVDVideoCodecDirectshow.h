@@ -23,7 +23,7 @@
 
 #include "DVDVideoCodec.h"
 #include "DllDSNative.h"
-
+#include "DllAvCodec.h"
 #include "windowingfactory.h" //g_Windowing
 #include "application.h"
 
@@ -43,6 +43,8 @@ public:
   virtual IDirect3DDevice9* GetD3DDev() { return g_Windowing.Get3DDevice(); }
   virtual __int64 GetTime() { return g_application.GetTime(); }
   virtual __int64 GetTotalTime() { return g_application.GetTotalTime(); }
+  virtual MPEG2VIDEOINFO* GetMPEG2VIDEOINFO();
+  virtual uint32_t GetOriginalCodecTag() { return original_codec_tag; }
   virtual void LogCallback(int loglevel, const char *format, ...){ CLog::Log(loglevel,format); }
   virtual bool Open(CDVDStreamInfo &hints, CDVDCodecOptions &options);
   virtual void Dispose();
@@ -56,14 +58,16 @@ public:
   virtual void SetDropState(bool bDrop);
   virtual const char* GetName() { return "DirectShow"; }
 protected:
-
+  DllAvCodec m_dllAvCodec;
   DllDSNative m_dllDsNative;
+  MPEG2VIDEOINFO* m_pMPEG2VIDEOINFO;
   bool  m_requireResync;
   DSVideoCodec *codec;
   DSVideoOutputData* m_pCurrentData;
   int current_surface_index;
   int number_of_frame_ready;
-  
+  uint32_t original_codec_tag;
+
   int buffersize;
   BITMAPINFOHEADER *bih;//bitmap header for the inputpin
   BITMAPINFOHEADER *bihout;//bitmap header for the outputpin

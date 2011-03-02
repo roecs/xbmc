@@ -143,11 +143,11 @@ public:
 }
 
   void CompleteFrameStep(bool bCancel);
-  void CheckWaitingSampleFromMixer(){if (m_bWaitingSample) m_bWaitingSample = false; }
+  
   bool AcceptMoreData();
+  void FreeFirstBuffer();
   bool SurfaceReady();
-  void Lock() { m_mutex->Wait(); }
-  void Unlock() { m_mutex->Release();}
+
   //IPaintCallback
   virtual void Render(const RECT& dst, IDirect3DSurface9* target, int index);
   virtual bool WaitOutput(unsigned int msec);
@@ -164,75 +164,39 @@ protected:
   void CalcSyncOffsets(int sync);
   void CalcJitter(int jitter);
 
-  double                                GetFrameTime() {if (m_DetectedLock) return m_DetectedFrameTime; return m_rtTimePerFrame / 10000000.0; }
-  int64_t                               GetClockTime(int64_t PerformanceCounter);
+  uint32_t                              m_RefreshRate;//not implemented yet TODO
+  
+  int64_t                               m_PaintTime;//TODO
+  int64_t                               m_PaintTimeMin;//TODO
+  int64_t                               m_PaintTimeMax;//TODO
 
-  int64_t                               m_MaxSampleDuration;
-  bool                                  m_bLastSampleOffsetValid;
-  int64_t                               m_LastScheduledSampleTime;
-  double                                m_LastScheduledSampleTimeFP;
-  int64_t                               m_LastScheduledUncorrectedSampleTime;
-  double                                m_TimeChangeHistory[100];
-  double                                m_ClockChangeHistory[100];
-  int                                   m_ClockTimeChangeHistoryPos;
-  double                                m_ModeratedTimeSpeed;
-  double                                m_ModeratedTimeSpeedPrim;
-  double                                m_ModeratedTimeSpeedDiff;
-  uint32_t                              m_RefreshRate;
-  int                                   m_OrderedPaint;
-  uint8_t                               m_VSyncMode;
-  int64_t                               m_PaintTime;
-  int64_t                               m_PaintTimeMin;
-  int64_t                               m_PaintTimeMax;
-  long                                  m_nUsedBuffer;
-  CCritSec                              m_RefreshRateLock;
-  bool                                  m_DetectedLock;
-  double                                m_DetectedFrameTime;
-  double                                m_DetectedFrameTimeStdDev;
-  double                                m_DetectedRefreshTime;
-  double                                m_DetectedRefreshTimePrim;
-  double                                m_DetectedScanlineTime;
-  double                                m_DetectedScanlineTimePrim;
-  double                                m_DetectedScanlinesPerFrame;
-
-  double                                m_ldDetectedRefreshRateList[100];
-  double                                m_ldDetectedScanlineRateList[100];
-  int                                   m_DetectedRefreshRatePos;
-
-  int64_t                               m_LastFrameDuration;
-  int64_t                               m_LastSampleTime;
-  int                                   m_FrameTimeCorrection;
-  int64_t                               m_LastPredictedSync;
-  int64_t                               m_VSyncOffsetHistory[5];
-  int                                  m_VSyncOffsetHistoryPos;
-
-  Com::SmartSize                        m_ScreenSize;
-  Com::SmartRect                        m_pScreenSize;
   vector<IDirect3DSurface9*> m_pSurfaces;
   vector<IDirect3DTexture9*> m_pTextures;
-  IDirect3DSurface9* m_pSurfaceRenderTarget;
-  IDirect3DTexture9* m_pTextureRenderTarget;
-  LONGLONG          m_iLastSampleDuration;
-  LONGLONG          m_iLastSampleTime;
   int               m_bInterlaced;
   float             m_fps;
-  //CCritSec objCritSec;
-  IVMRSurfaceAllocatorNotify9* surfallocnotify;
+  
   void CleanupSurfaces();
   LONG refcount;
   DWORD vheight;
   DWORD vwidth;
+  
   bool inevrmode;
   bool endofstream;
-  CEvrMixerThread*            m_pMixerThread;
-  Com::SmartPtr<IMFTransform> m_pMixer;
+  //Evr
+  CEvrMixerThread*               m_pMixerThread;
+  Com::SmartPtr<IMFTransform>    m_pMixer;
   Com::SmartPtr<IMediaEventSink> m_pSink;
-  Com::SmartPtr<IMFClock> m_pClock;
-  Com::SmartPtr<IMFMediaType> m_pMediaType;
-
-  //IDirect3DDevice9* m_pD3DDevice;
-  IDSInfoCallback* m_pCallback;
-  IDirect3DDeviceManager9* m_pD3DDevManager;
+  Com::SmartPtr<IMFClock>        m_pClock;
+  Com::SmartPtr<IMFMediaType>    m_pMediaType;
+  Com::CSyncPtrQueue<IMFSample>  m_BusyList;
+  CEvent                         m_ready_event;
+  //Vmr9
+  IVMRSurfaceAllocatorNotify9*   surfallocnotify;
+  //common to both
+  IDSInfoCallback*               m_pCallback;
+  IDirect3DDeviceManager9*       m_pD3DDevManager;
+  CCritSec                       m_section;
+  
   static const int n_stats=126;
   int sync_offset[n_stats];
   int jitter_offset[n_stats];
@@ -245,13 +209,6 @@ protected:
   int jitter;
   int avgfps;
   LONGLONG lastdelframe;
-  CMutex* m_mutex;
-
-  HANDLE                   m_hEvtQuit;      // Stop rendering thread event
-  bool                     m_bEvtQuit;
-  HANDLE                   m_hEvtFlush;    // Discard all buffers
-  bool                     m_bEvtFlush;
-
   void                     RemoveAllSamples();
   void                     ResetStats();
 private:
@@ -267,36 +224,11 @@ private:
 
   int64_t                  m_rtTimePerFrame;
 
-  int64_t                  m_LastSampleOffset;
-
-  double                   m_ModeratedTime;
-  int64_t                  m_ModeratedTimeLast;
-  int64_t                  m_ModeratedClockLast;
-  int64_t                  m_ModeratedTimer;
-  MFCLOCK_STATE            m_LastClockState;
-
-  bool                     m_bSignaledStarvation; 
-  int64_t                  m_StarvationClock;
-
-  Com::CSyncPtrQueue<IMFSample> m_BusyList;
-  //Com::CSyncPtrQueue<IMFSample> m_ScheduledSamples;
-  CEvent                     m_ready_event;
-  CCritSec                   m_section;
+  
   //CCritSec                 m_SampleQueueLock;
   //CCritSec                 m_ImageProcessingLock;
   //CCritSec                 m_DisplaydSampleQueueLock;
-  bool                     m_bPendingRenegotiate;
-  bool                     m_bPendingMediaFinished;
-  bool                     m_bCorrectedFrameTime;
-  double                   m_DetectedFrameRate;
-  int                      m_DetectedFrameTimePos;
-  int64_t                  m_DetectedFrameTimeHistory[60];
-  double                   m_DetectedFrameTimeHistoryHistory[500];
-
-  long                     m_LastSetOutputRange;
-  std::queue<IMFSample *>  m_pCurrentDisplaydSampleQueue;
-  IMFSample *              m_pCurrentDisplaydSample;
-  bool                     m_bWaitingSample;
+  
   int                      m_nCurSurface;
   int                      m_nStepCount;
   UINT                     m_pcFrames;

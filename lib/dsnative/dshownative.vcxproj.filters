@@ -130,6 +130,12 @@
       <Filter>Video</Filter>
     </ClCompile>
     <ClCompile Include="DSGeometry.cpp" />
+    <ClCompile Include="GolombBuffer.cpp">
+      <Filter>Video</Filter>
+    </ClCompile>
+    <ClCompile Include="H264Nalu.cpp">
+      <Filter>Video</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="BaseClasses\amextra.h">
@@ -268,5 +274,11 @@
       <Filter>AudioCodec</Filter>
     </ClInclude>
     <ClInclude Include="DSGeometry.h" />
+    <ClInclude Include="GolombBuffer.h">
+      <Filter>Video</Filter>
+    </ClInclude>
+    <ClInclude Include="H264Nalu.h">
+      <Filter>Video</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

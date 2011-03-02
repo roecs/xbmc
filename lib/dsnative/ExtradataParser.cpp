@@ -21,7 +21,7 @@
 
 #include "stdafx.h"
 #include "ExtradataParser.h"
-
+#include "GolombBuffer.h"
 #define MARKER if(BitRead(1) != 1) {ASSERT(0); return 0;}
 static const char kStartCode[4] = { 0x00, 0x00, 0x00, 0x01 };
 // Sequence parameter set or picture parameter set
@@ -75,6 +75,7 @@ CExtradataParser::CExtradataParser(BYTE *pExtradata, uint32_t extra_len,int prof
 {
 
   
+#if 0
   int starthere;
   
   std::vector<int> nal_offset;
@@ -156,11 +157,256 @@ CExtradataParser::CExtradataParser(BYTE *pExtradata, uint32_t extra_len,int prof
   
   
   
-
+#endif
 }
 
 CExtradataParser::~CExtradataParser()
 {
+}
+
+void CExtradataParser::RemoveMpegEscapeCode(BYTE* dst, BYTE* src, int length)
+{
+	int		si=0;
+	int		di=0;
+	while(si+2<length) {
+		//remove escapes (very rare 1:2^22)
+		if(src[si+2]>3) {
+			dst[di++]= src[si++];
+			dst[di++]= src[si++];
+		} else if(src[si]==0 && src[si+1]==0) {
+			if(src[si+2]==3) { //escape
+				dst[di++]= 0;
+				dst[di++]= 0;
+				si+=3;
+				continue;
+			} else { //next start code
+				return;
+			}
+		}
+
+		dst[di++]= src[si++];
+	}
+}
+
+bool CExtradataParser::Read(avchdr& h, int len, CMediaType* pmt)
+{
+	__int64 endpos = Pos() + len; // - sequence header length
+
+	DWORD	dwStartCode;
+
+	while(Pos() < endpos+4 /*&& BitRead(32, true) == 0x00000001*/ && (!h.spslen || !h.ppslen)) {
+		if (BitRead(32, true) != 0x00000001) {
+			BitRead(8);
+			continue;
+		}
+		__int64 pos = Pos();
+
+		BitRead(32);
+		BYTE id = BitRead(8);
+
+		if((id&0x9f) == 0x07 && (id&0x60) != 0) {
+			BYTE			SPSTemp[MAX_SPS];
+			BYTE			SPSBuff[MAX_SPS];
+			CGolombBuffer	gb (SPSBuff, MAX_SPS);
+			__int64			num_units_in_tick;
+			__int64			time_scale;
+			long			fixed_frame_rate_flag;
+
+			h.spspos = pos;
+
+			// Manage H264 escape codes (see "remove escapes (very rare 1:2^22)" in ffmpeg h264.c file)
+			ByteRead((BYTE*)SPSTemp, MAX_SPS);
+			RemoveMpegEscapeCode (SPSBuff, SPSTemp, MAX_SPS);
+
+			h.profile = (BYTE)gb.BitRead(8);
+			gb.BitRead(8);
+			h.level = (BYTE)gb.BitRead(8);
+
+			gb.UExpGolombRead(); // seq_parameter_set_id
+
+			if(h.profile >= 100) { // high profile
+				if(gb.UExpGolombRead() == 3) { // chroma_format_idc
+					gb.BitRead(1); // residue_transform_flag
+				}
+
+				gb.UExpGolombRead(); // bit_depth_luma_minus8
+				gb.UExpGolombRead(); // bit_depth_chroma_minus8
+
+				gb.BitRead(1); // qpprime_y_zero_transform_bypass_flag
+
+				if(gb.BitRead(1)) // seq_scaling_matrix_present_flag
+					for(int i = 0; i < 8; i++)
+						if(gb.BitRead(1)) // seq_scaling_list_present_flag
+							for(int j = 0, size = i < 6 ? 16 : 64, next = 8; j < size && next != 0; ++j) {
+								next = (next + gb.SExpGolombRead() + 256) & 255;
+							}
+			}
+
+			gb.UExpGolombRead(); // log2_max_frame_num_minus4
+
+			UINT64 pic_order_cnt_type = gb.UExpGolombRead();
+
+			if(pic_order_cnt_type == 0) {
+				gb.UExpGolombRead(); // log2_max_pic_order_cnt_lsb_minus4
+			} else if(pic_order_cnt_type == 1) {
+				gb.BitRead(1); // delta_pic_order_always_zero_flag
+				gb.SExpGolombRead(); // offset_for_non_ref_pic
+				gb.SExpGolombRead(); // offset_for_top_to_bottom_field
+				UINT64 num_ref_frames_in_pic_order_cnt_cycle = gb.UExpGolombRead();
+				for(int i = 0; i < num_ref_frames_in_pic_order_cnt_cycle; i++) {
+					gb.SExpGolombRead();    // offset_for_ref_frame[i]
+				}
+			}
+
+			gb.UExpGolombRead(); // num_ref_frames
+			gb.BitRead(1); // gaps_in_frame_num_value_allowed_flag
+
+			UINT64 pic_width_in_mbs_minus1 = gb.UExpGolombRead();
+			UINT64 pic_height_in_map_units_minus1 = gb.UExpGolombRead();
+			BYTE frame_mbs_only_flag = (BYTE)gb.BitRead(1);
+
+			h.width = (pic_width_in_mbs_minus1 + 1) * 16;
+			h.height = (2 - frame_mbs_only_flag) * (pic_height_in_map_units_minus1 + 1) * 16;
+
+			if (h.height == 1088) {
+				h.height = 1080;    // Prevent blur lines
+			}
+
+			if (!frame_mbs_only_flag) {
+				gb.BitRead(1);    // mb_adaptive_frame_field_flag
+			}
+			gb.BitRead(1);								// direct_8x8_inference_flag
+			if (gb.BitRead(1)) {						// frame_cropping_flag
+				gb.UExpGolombRead();					// frame_cropping_rect_left_offset
+				gb.UExpGolombRead();					// frame_cropping_rect_right_offset
+				gb.UExpGolombRead();					// frame_cropping_rect_top_offset
+				gb.UExpGolombRead();					// frame_cropping_rect_bottom_offset
+			}
+
+			if (gb.BitRead(1)) {						// vui_parameters_present_flag
+				if (gb.BitRead(1)) {					// aspect_ratio_info_present_flag
+					if (255==(BYTE)gb.BitRead(8)) {	// aspect_ratio_idc)
+						gb.BitRead(16);				// sar_width
+						gb.BitRead(16);				// sar_height
+					}
+				}
+
+				if (gb.BitRead(1)) {					// overscan_info_present_flag
+					gb.BitRead(1);						// overscan_appropriate_flag
+				}
+
+				if (gb.BitRead(1)) {					// video_signal_type_present_flag
+					gb.BitRead(3);						// video_format
+					gb.BitRead(1);						// video_full_range_flag
+					if(gb.BitRead(1)) {				// colour_description_present_flag
+						gb.BitRead(8);					// colour_primaries
+						gb.BitRead(8);					// transfer_characteristics
+						gb.BitRead(8);					// matrix_coefficients
+					}
+				}
+				if(gb.BitRead(1)) {					// chroma_location_info_present_flag
+					gb.UExpGolombRead();				// chroma_sample_loc_type_top_field
+					gb.UExpGolombRead();				// chroma_sample_loc_type_bottom_field
+				}
+				if (gb.BitRead(1)) {					// timing_info_present_flag
+					num_units_in_tick		= gb.BitRead(32);
+					time_scale				= gb.BitRead(32);
+					fixed_frame_rate_flag	= gb.BitRead(1);
+
+					// Trick for weird parameters (10x to Madshi)!
+					if ((num_units_in_tick < 1000) || (num_units_in_tick > 1001)) {
+						if  ((time_scale % num_units_in_tick != 0) && ((time_scale*1001) % num_units_in_tick == 0)) {
+							time_scale			= (time_scale * 1001) / num_units_in_tick;
+							num_units_in_tick	= 1001;
+						} else {
+							time_scale			= (time_scale * 1000) / num_units_in_tick;
+							num_units_in_tick	= 1000;
+						}
+					}
+					time_scale = time_scale / 2;	// VUI consider fields even for progressive stream : divide by 2!
+
+					if (time_scale) {
+						h.AvgTimePerFrame = (10000000I64*num_units_in_tick)/time_scale;
+					}
+				}
+			}
+
+			Seek(h.spspos+gb.GetPos());
+		} else if((id&0x9f) == 0x08 && (id&0x60) != 0) {
+			h.ppspos = pos;
+		}
+
+		BitByteAlign();
+
+		dwStartCode = BitRead(32, true);
+		while(Pos() < endpos+4 && (dwStartCode != 0x00000001) && (dwStartCode & 0xFFFFFF00) != 0x00000100) {
+			BitRead(8);
+			dwStartCode = BitRead(32, true);
+		}
+
+		if(h.spspos != 0 && h.spslen == 0) {
+			h.spslen = Pos() - h.spspos;
+		} else if(h.ppspos != 0 && h.ppslen == 0) {
+			h.ppslen = Pos() - h.ppspos;
+		}
+
+	}
+
+	if(!h.spspos || !h.spslen || !h.ppspos || !h.ppslen) {
+		return(false);
+	}
+
+	if(!h.AvgTimePerFrame || !(
+				(h.level == 10) || (h.level == 11) || (h.level == 12) || (h.level == 13) ||
+				(h.level == 20) || (h.level == 21) || (h.level == 22) ||
+				(h.level == 30) || (h.level == 31) || (h.level == 32) ||
+				(h.level == 40) || (h.level == 41) || (h.level == 42) ||
+				(h.level == 50) || (h.level == 51))) {
+		return(false);
+	}
+
+	if(!pmt) {
+		return(true);
+	}
+
+	{
+		int extra = 2+h.spslen-4 + 2+h.ppslen-4;
+
+		pmt->majortype = MEDIATYPE_Video;
+		pmt->subtype = FOURCCMap('1CVA');
+		//pmt->subtype = MEDIASUBTYPE_H264;		// TODO : put MEDIASUBTYPE_H264 to support Windows 7 decoder !
+		pmt->formattype = FORMAT_MPEG2_VIDEO;
+		int len = FIELD_OFFSET(MPEG2VIDEOINFO, dwSequenceHeader) + extra;
+		MPEG2VIDEOINFO* vi = (MPEG2VIDEOINFO*)new BYTE[len];
+		memset(vi, 0, len);
+		// vi->hdr.dwBitRate = ;
+		vi->hdr.AvgTimePerFrame = h.AvgTimePerFrame;
+		vi->hdr.dwPictAspectRatioX = h.width;
+		vi->hdr.dwPictAspectRatioY = h.height;
+		vi->hdr.bmiHeader.biSize = sizeof(vi->hdr.bmiHeader);
+		vi->hdr.bmiHeader.biWidth = h.width;
+		vi->hdr.bmiHeader.biHeight = h.height;
+		vi->hdr.bmiHeader.biCompression = '1CVA';
+		vi->dwProfile = h.profile;
+		vi->dwFlags = 4; // ?
+		vi->dwLevel = h.level;
+		vi->cbSequenceHeader = extra;
+		BYTE* p = (BYTE*)&vi->dwSequenceHeader[0];
+		*p++ = (h.spslen-4) >> 8;
+		*p++ = (h.spslen-4) & 0xff;
+		Seek(h.spspos+4);
+		ByteRead(p, h.spslen-4);
+		p += h.spslen-4;
+		*p++ = (h.ppslen-4) >> 8;
+		*p++ = (h.ppslen-4) & 0xff;
+		Seek(h.ppspos+4);
+		ByteRead(p, h.ppslen-4);
+		p += h.ppslen-4;
+		pmt->SetFormat((BYTE*)vi, len);
+		delete [] vi;
+	}
+
+	return(true);
 }
 
 bool CExtradataParser::NextMPEGStartCode(BYTE &code)

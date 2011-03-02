@@ -20,7 +20,7 @@
 #include "stdafx.h"
 #include "dsVideocodec.h"
 #include "ExtradataParser.h"
-
+#include "H264Nalu.h"
 #pragma comment (lib,"Quartz.lib")
 
 DSVideoCodec::DSVideoCodec(const char *cfname, IDSInfoCallback *pCallback, const GUID guid, BITMAPINFOHEADER *bih, unsigned int outfmt, REFERENCE_TIME frametime, const char *sfname) 
@@ -57,9 +57,10 @@ DSVideoCodec::DSVideoCodec(const char *cfname, IDSInfoCallback *pCallback, const
 
 DSVideoCodec::~DSVideoCodec()
 {
-  ReleaseGraph();
   if (m_pEvr)
     m_pEvr->ProcessMessage(MFVP_MESSAGE_ENDOFSTREAM, 0);
+  ReleaseGraph();
+  
   if (m_cfname) 
     delete m_cfname;
   if (m_sfname) 
@@ -76,6 +77,9 @@ void DSVideoCodec::ReleaseGraph()
     m_res = m_pMC->Stop();
   else if (m_pFilter)
     m_res = m_pFilter->Stop();
+  if (m_pEvrFilter)
+    m_pEvrFilter->Stop();
+  
 
   if (m_pGraph)
   {
@@ -205,6 +209,7 @@ BOOL DSVideoCodec::CreateEvr(HWND window)
   mfvideorenderer->Release();
 return TRUE;
 }
+
 BOOL DSVideoCodec::CheckMediaTypes(IPin *pin)
 {
   IEnumMediaTypes *pMedia;
@@ -467,24 +472,35 @@ BOOL DSVideoCodec::SetInputType()
   // probe FORMAT_MPEG2Video
   // this is done before FORMAT_VideoInfo because e.g. coreavc will accept anyway the format
   // but it will decode black frames
-
+  
   int extra = m_bih->biSize - sizeof(BITMAPINFOHEADER);
-  cbFormat = FIELD_OFFSET(MPEG2VIDEOINFO, dwSequenceHeader) + extra - 7;
+  cbFormat = FIELD_OFFSET(MPEG2VIDEOINFO, dwSequenceHeader) + extra;
 
-  MPEG2VIDEOINFO *try_mp2vi = (MPEG2VIDEOINFO *) new BYTE[cbFormat];
-  m_vinfo = (BYTE *) try_mp2vi;
-
-  memset(try_mp2vi, 0, cbFormat);
-  try_mp2vi->hdr.rcSource.left = try_mp2vi->hdr.rcSource.top = 0;
-  try_mp2vi->hdr.rcSource.right = m_bih->biWidth;
-  try_mp2vi->hdr.rcSource.bottom = m_bih->biHeight;
-  try_mp2vi->hdr.rcTarget = try_mp2vi->hdr.rcSource;
-  try_mp2vi->hdr.dwPictAspectRatioX = m_bih->biWidth;
-  try_mp2vi->hdr.dwPictAspectRatioY = m_bih->biHeight;
-  memcpy(&try_mp2vi->hdr.bmiHeader, m_bih, sizeof(BITMAPINFOHEADER));
-  try_mp2vi->hdr.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
-  try_mp2vi->hdr.bmiHeader.biCompression = m_pOurType.subtype.Data1;
-  try_mp2vi->hdr.AvgTimePerFrame = m_frametime;
+  MPEG2VIDEOINFO *try_mp2vi = m_pCallback->GetMPEG2VIDEOINFO();//(MPEG2VIDEOINFO *) new BYTE[cbFormat];
+  if (!try_mp2vi)
+  {
+    cbFormat = FIELD_OFFSET(MPEG2VIDEOINFO, dwSequenceHeader) + extra - 7;
+    try_mp2vi = (MPEG2VIDEOINFO*) new BYTE[cbFormat];
+  
+    m_pOurType.formattype = FORMAT_MPEG2Video;
+  
+    m_pOurType.cbFormat = cbFormat;
+    try_mp2vi->hdr.bmiHeader.biCompression = m_pOurType.subtype.Data1;
+    m_vinfo = (BYTE *) try_mp2vi;
+    
+    memset(try_mp2vi, 0, cbFormat);
+    m_pOurType.pbFormat = m_vinfo;
+    try_mp2vi->hdr.rcSource.left = try_mp2vi->hdr.rcSource.top = 0;
+    try_mp2vi->hdr.rcSource.right = m_bih->biWidth;
+    try_mp2vi->hdr.rcSource.bottom = m_bih->biHeight;
+    try_mp2vi->hdr.rcTarget = try_mp2vi->hdr.rcSource;
+    try_mp2vi->hdr.dwPictAspectRatioX = m_bih->biWidth;
+    try_mp2vi->hdr.dwPictAspectRatioY = m_bih->biHeight;
+    memcpy(&try_mp2vi->hdr.bmiHeader, m_bih, sizeof(BITMAPINFOHEADER));
+    try_mp2vi->hdr.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
+    try_mp2vi->hdr.bmiHeader.biCompression = m_pOurType.subtype.Data1;
+    try_mp2vi->hdr.AvgTimePerFrame = m_frametime;
+  }
 
   /* From MPC-HC */
   int trying = 0;
@@ -756,7 +772,10 @@ BOOL DSVideoCodec::StartGraph()
   return TRUE;
 }
 
-dsnerror_t DSVideoCodec::Decode(const BYTE *src, int size, double pts, double *newpts, DSVideoOutputData *pImage, long *pImageSize, int keyframe)
+
+
+
+dsnerror_t DSVideoCodec::Decode(BYTE *src, int size, double pts, double *newpts, DSVideoOutputData *pImage, long *pImageSize, int keyframe)
 {
   IMediaSample* sample = NULL;
   //the index is calculated on seek
@@ -768,13 +787,88 @@ dsnerror_t DSVideoCodec::Decode(const BYTE *src, int size, double pts, double *n
     start = 0;
   REFERENCE_TIME stoptime = start + m_frametime;
   BYTE *ptr;
+  
   if (m_pEvr)
   {
     if (!m_pEvr->AcceptMoreData())
-      return DSN_DATA_QUEUE_FULL;
+      m_pEvr->FreeFirstBuffer();
   }
+
   DSN_CHECK(m_pMemAllocator->GetBuffer(&sample, 0, 0, 0), DSN_FAIL_DECODESAMPLE);
   HRESULT hr = S_OK;
+  //
+  std::vector<BYTE> packet;
+
+  //ffmpeg m2ts demuxer set h264 tag, good thing its the only one i seen setting it like this
+  if ( m_pCallback->GetOriginalCodecTag() == 0x1b)//if (m_pOurType.subtype == FOURCCMap('1CVA') || m_pOurType.subtype == FOURCCMap('1cva'))
+  {
+    
+    packet.resize(size);
+    memcpy(&packet.at(0), src,packet.size());
+    //fixing 1cva this has to be starting nalus, more can be packed together
+    BYTE* start = src;
+    BYTE* end = start + size;
+    while(start <= end-4 && *(DWORD*)start != 0x01000000)
+      start++;
+
+    
+    while(start <= end-4)
+    {
+      BYTE* next = start+1;
+
+      while(next <= end-4 && *(DWORD*)next != 0x01000000)
+        next++;
+
+      if(next >= end-4)
+        break;
+
+      int nalusize = next - start;
+
+      CH264Nalu Nalu;
+      Nalu.SetBuffer (start, nalusize, 0);
+      
+      std::vector<BYTE> p2;
+
+      while (Nalu.ReadNext())
+      {
+        DWORD  dwNalLength =
+          ((Nalu.GetDataLength() >> 24) & 0x000000ff) |
+          ((Nalu.GetDataLength() >>  8) & 0x0000ff00) |
+          ((Nalu.GetDataLength() <<  8) & 0x00ff0000) |
+          ((Nalu.GetDataLength() << 24) & 0xff000000);
+
+        std::vector<BYTE> p3;
+        //CAutoPtr<Packet> p3(DNew Packet());
+
+        p3.resize(Nalu.GetDataLength()+sizeof(dwNalLength));
+        memcpy (&p3.at(0), &dwNalLength, sizeof(dwNalLength));
+        memcpy (&p3.at(0)+sizeof(dwNalLength), Nalu.GetDataBuffer(), Nalu.GetDataLength());
+
+        if (p2.size() == 0)
+          p2 = p3;
+        else
+        {
+          p2.insert(p2.end(), p3.begin(),p3.end());
+          //p2->Append(*p3);
+        }
+      }
+      packet.insert(packet.end(), p2.begin(),p2.end());
+      start = next;
+
+    }
+    if (start > src)
+    {
+      std::vector<BYTE>::iterator it = packet.begin();
+      for (it ;it !=packet.end(); it++)
+      {
+        
+        if (*it == start[0])
+          break;
+      }
+      packet.erase(packet.begin(),it);
+    }
+  }
+  
   if (size > sample->GetSize())
   {
     DSN_CHECK(sample->Release(),DSN_FAIL_DECODESAMPLE);
@@ -784,9 +878,16 @@ dsnerror_t DSVideoCodec::Decode(const BYTE *src, int size, double pts, double *n
     DSN_CHECK(m_pMemAllocator->GetBuffer(&sample, 0, 0, 0), DSN_FAIL_DECODESAMPLE);
   }
 
-  DSN_CHECK(sample->SetActualDataLength(size), DSN_FAIL_DECODESAMPLE);
+  if ( packet.size() > 0 )
+    DSN_CHECK(sample->SetActualDataLength(packet.size()), DSN_FAIL_DECODESAMPLE);
+  else
+    DSN_CHECK(sample->SetActualDataLength(size), DSN_FAIL_DECODESAMPLE);
   DSN_CHECK(sample->GetPointer(&ptr), DSN_FAIL_DECODESAMPLE);
-  memcpy(ptr, src, size);
+  
+  if ( packet.size() > 0 )
+    memcpy(ptr, &packet.at(0), packet.size());
+  else
+    memcpy(ptr, src, size);
   DSN_CHECK(sample->SetTime(&start, &stoptime), DSN_FAIL_DECODESAMPLE);
   DSN_CHECK(sample->SetSyncPoint(keyframe), DSN_FAIL_DECODESAMPLE);
   DSN_CHECK(sample->SetPreroll(pImage ? 0 : 1), DSN_FAIL_DECODESAMPLE);
@@ -899,7 +1000,7 @@ dsnerror_t DSVideoCodec::Resync(REFERENCE_TIME pts)
 class CMyPropertyPageSite : public IPropertyPageSite, CUnknown
 {
 public:
-	CMyPropertyPageSite(void) 
+  CMyPropertyPageSite(void) 
   : CUnknown(NAME("CMyPropertyPageSite"),NULL)
   {
   }
@@ -923,9 +1024,9 @@ BOOL DSVideoCodec::ShowPropertyPage()
     return FALSE;
   IPropertyPageSite *pSite = NULL;
   IUnknown *pUnk = NULL;
-	IPropertyPage *pPage = NULL;
-	RECT rect = { 0, 0, 1, 1, };
-	HWND hDlg = NULL, hButton = NULL;
+  IPropertyPage *pPage = NULL;
+  RECT rect = { 0, 0, 1, 1, };
+  HWND hDlg = NULL, hButton = NULL;
   
   
   ISpecifyPropertyPages *pProp;
@@ -948,13 +1049,13 @@ BOOL DSVideoCodec::ShowPropertyPage()
   HWND hWnd = CreateWindowW(L"", L"", WS_EX_NOACTIVATE ,1 ,1 ,1 ,1 , (HWND) NULL ,(HMENU) NULL , (HINSTANCE) NULL ,NULL);
   
   m_pFilter->QueryInterface(IID_IUnknown, (void **) &pUnk);
-	
-	pSite = (IPropertyPageSite *)new CMyPropertyPageSite();
-	pPage->SetPageSite(pSite);
-	pPage->SetObjects(1,&pUnk);
+  
+  pSite = (IPropertyPageSite *)new CMyPropertyPageSite();
+  pPage->SetPageSite(pSite);
+  pPage->SetObjects(1,&pUnk);
   
   
-	pPage->Activate(hWnd,&rect,FALSE);
+  pPage->Activate(hWnd,&rect,FALSE);
   struct prop_control
   {
     HWND hwnd;
@@ -966,14 +1067,14 @@ BOOL DSVideoCodec::ShowPropertyPage()
   std::vector<prop_control*> statictext32;
   std::vector<prop_control*> button32;
   std::vector<prop_control*> edit32;
-	
+  
   prop_control* pctrl;
   pctrl = (prop_control*)malloc(sizeof(prop_control*));
   while(hDlg = FindWindowExA(hWnd, hDlg, NULL, NULL))
   {
     
     if(hButton = FindWindowExA(hDlg,NULL,"SysTreeView32",NULL))
-		{
+    {
       pctrl->hwnd = hButton;
       pctrl->control_id = GetDlgCtrlID(hButton);
       CStdStringW pstringw;
@@ -983,9 +1084,9 @@ BOOL DSVideoCodec::ShowPropertyPage()
         pctrl->text = pstringw;
       systreeview32.push_back(pctrl);
 
-		}
+    }
     if(hButton = FindWindowExA(hDlg,NULL,"Button",NULL))
-		{
+    {
       pctrl->hwnd = hButton;
       pctrl->control_id = GetDlgCtrlID(hButton);
       CStdStringW pstringw;
@@ -995,9 +1096,9 @@ BOOL DSVideoCodec::ShowPropertyPage()
         pctrl->text = pstringw;
 
       button32.push_back(pctrl);
-		}
+    }
     if(hButton = FindWindowExA(hDlg,NULL,"Static",NULL))
-		{
+    {
       pctrl->hwnd = hButton;
       pctrl->control_id = GetDlgCtrlID(hButton);
       CStdStringW pstringw;
@@ -1006,9 +1107,9 @@ BOOL DSVideoCodec::ShowPropertyPage()
       if (ctrlsize>0)
         pctrl->text = pstringw;
       statictext32.push_back(pctrl);
-		}
+    }
     if(hButton = FindWindowExA(hDlg,NULL,"Edit",NULL))
-		{
+    {
       pctrl->hwnd = hButton;
       pctrl->control_id = GetDlgCtrlID(hButton);
       CStdStringW pstringw;
@@ -1018,7 +1119,7 @@ BOOL DSVideoCodec::ShowPropertyPage()
         pctrl->text = pstringw;
       edit32.push_back(pctrl);
       
-		}
+    }
     /* GUICONTROL_UNKNOWN,
     GUICONTROL_BUTTON,
     GUICONTROL_CHECKMARK,
@@ -1056,17 +1157,17 @@ BOOL DSVideoCodec::ShowPropertyPage()
     GUICONTAINER_FIXEDLIST,
     GUICONTAINER_PANEL
     */
-		
-	}
+    
+  }
 
-	pPage->Apply();
+  pPage->Apply();
 
-	pPage->Deactivate();
-	pPage->SetObjects(0,NULL);
-	pPage->SetPageSite(NULL);
-	pUnk->Release();
-	pPage->Release();
-	pSite->Release();
+  pPage->Deactivate();
+  pPage->SetObjects(0,NULL);
+  pPage->SetPageSite(NULL);
+  pUnk->Release();
+  pPage->Release();
+  pSite->Release();
   return 1;
 #if 0
   ISpecifyPropertyPages *pProp;

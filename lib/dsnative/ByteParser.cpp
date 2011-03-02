@@ -67,6 +67,14 @@ uint32_t CByteParser::BitRead(uint8_t numBits, bool peek)
   return ret;
 }
 
+HRESULT CByteParser::ByteRead(BYTE* pData, __int64 len)
+{
+	Seek(Pos());
+
+	pData = (BYTE*)BitRead(len);//thisRead(pData, len);
+  return S_OK;
+}
+
 // Exponential Golomb Coding (with k = 0)
 // As used in H.264/MPEG-4 AVC
 // http://en.wikipedia.org/wiki/Exponential-Golomb_coding

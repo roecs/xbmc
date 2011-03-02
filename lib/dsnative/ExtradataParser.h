@@ -23,6 +23,9 @@
 
 #include "byteparser.h"
 #include <vector>
+
+#define MAX_SPS			256			// Max size for a SPS packet
+
 class CExtradataParser :
   protected CByteParser
 {
@@ -30,10 +33,38 @@ public:
   CExtradataParser(BYTE *pExtradata, uint32_t extra_len,int profile, int level);
   ~CExtradataParser();
 
+  struct avchdr 
+  {
+    BYTE profile, level;
+    unsigned int width, height;
+    __int64 spspos, spslen;
+    __int64 ppspos, ppslen;
+    __int64 AvgTimePerFrame;
+
+    avchdr() {
+      spspos = 0;
+      spslen = 0;
+      ppspos = 0;
+      ppslen = 0;
+      AvgTimePerFrame = 0;
+    }
+  };
+  void RemoveMpegEscapeCode(BYTE* dst, BYTE* src, int length);
+  bool Read(avchdr& h, int len, CMediaType* pmt = NULL);
+
   uint8_t ParseMPEGSequenceHeader(BYTE *pTarget);
+
   std::vector<BYTE> getextradata(){return result;}
+  avchdr GetAvchdr() 
+  {
+    CMediaType pmt;
+    pmt.InitMediaType();
+    Read(avch,m_dwLen, &pmt);
+
+    return avch;
+  }
 protected:
-  
+  avchdr avch;
   std::vector<BYTE> result;
   int sps_count;
   int pps_count;

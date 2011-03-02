@@ -35,6 +35,7 @@
 #include <uuids.h>
 
 #include <streams.h>
+#include <xutility>//min max
 //#include <initguid.h>
 //#include <strsafe.h>
 

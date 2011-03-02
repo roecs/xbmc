@@ -68,7 +68,7 @@ extern "C" void WINAPI DSCloseVideoCodec(DSVideoCodec *vcodec)
     delete vcodec;
 }
 
-extern "C" dsnerror_t WINAPI DSVideoDecode(DSVideoCodec *vcodec, const BYTE *src, int size, double pts, double *newpts, DSVideoOutputData *pImage, long *pImageSize, int keyframe)
+extern "C" dsnerror_t WINAPI DSVideoDecode(DSVideoCodec *vcodec, BYTE *src, int size, double pts, double *newpts, DSVideoOutputData *pImage, long *pImageSize, int keyframe)
 {
     return vcodec->Decode(src, size, pts, newpts, pImage, pImageSize, keyframe);
 }

@@ -359,6 +359,8 @@
     <ClCompile Include="DSVideoCodec.cpp" />
     <ClCompile Include="dump.cpp" />
     <ClCompile Include="ExtradataParser.cpp" />
+    <ClCompile Include="GolombBuffer.cpp" />
+    <ClCompile Include="H264Nalu.cpp" />
     <ClCompile Include="stdafx.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Create</PrecompiledHeader>
@@ -414,6 +416,8 @@
     <ClInclude Include="dump.h" />
     <ClInclude Include="dumpuids.h" />
     <ClInclude Include="ExtradataParser.h" />
+    <ClInclude Include="GolombBuffer.h" />
+    <ClInclude Include="H264Nalu.h" />
     <ClInclude Include="IPaintCallback.h" />
     <ClInclude Include="resource.h" />
     <ClInclude Include="SmartList.h" />

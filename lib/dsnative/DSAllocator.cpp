@@ -33,6 +33,7 @@
 #include "StdString.h"
 #include "SmartPtr.h"
 #include <map>
+#include <xutility>
 #include "utils\TimeUtils.h"
 #include "threads\Thread.h"
 // === Helper functions
@@ -229,13 +230,13 @@ class CEvrMixerThread : public CThread
 public:
   CEvrMixerThread(IMFTransform* mixer, IMediaEventSink* sink);
   virtual ~CEvrMixerThread();
-
+  void                FreeFirstBuffer();
   unsigned int        GetReadyCount(void);
   unsigned int        GetFreeCount(void);
   IMFSample*          ReadyListPop(void);
   void                FreeListPush(IMFSample* pBuffer);
   bool                WaitOutput(unsigned int msec);
-
+  void                OutputReady();
 protected:
   bool                ProcessOutput(void);
   virtual void        Process(void);
@@ -262,6 +263,7 @@ protected:
   int                 m_aspectratio_x;
   int                 m_aspectratio_y;
   CEvent              m_ready_event;
+  CEvent              m_stop_event;
   double              m_pSleepTimePerFrame;
 };
 
@@ -281,13 +283,19 @@ CEvrMixerThread::CEvrMixerThread(IMFTransform* mixer, IMediaEventSink* sink) :
 
 CEvrMixerThread::~CEvrMixerThread()
 {
-
+  CLog::Log(LOGINFO, "%s: CEvrMixerThread Closing...", __FUNCTION__);
+  m_stop_event.Set();
   while(m_ReadyList.Count())
     m_ReadyList.Pop()->Release();
   while(m_FreeList.Count())
     m_FreeList.Pop()->Release();
   m_pMixer = NULL;
   m_pSink = NULL;
+}
+
+void CEvrMixerThread::FreeFirstBuffer()
+{
+  FreeListPush(m_ReadyList.Pop());
 }
 
 unsigned int CEvrMixerThread::GetReadyCount(void)
@@ -310,6 +318,11 @@ void CEvrMixerThread::FreeListPush(IMFSample* pBuffer)
 {
   m_FreeList.Push(pBuffer);
   pBuffer->AddRef();
+}
+
+void CEvrMixerThread::OutputReady()
+{
+  m_ready_event.Set();
 }
 
 bool CEvrMixerThread::WaitOutput(unsigned int msec)
@@ -352,7 +365,7 @@ bool CEvrMixerThread::ProcessOutput(void)
     LONGLONG sample_duration = 0;
     if (SUCCEEDED(pSample->GetSampleDuration(&sample_duration)))
     {
-      sample_duration = sample_duration-llMixerLatency;
+      sample_duration = (LONGLONG)(sample_duration - std::min(std::max((LONGLONG)0,llMixerLatency),(LONGLONG)(sample_duration/2)));
       m_pSleepTimePerFrame = DS_TIME_TO_MSEC(sample_duration);
     }
   }
@@ -377,11 +390,12 @@ void CEvrMixerThread::Process(void)
   CLog::Log(LOGINFO, "%s: CEvrMixerThread Started...", __FUNCTION__);
   while (!m_bStop)
   {
-
+    
     if (SUCCEEDED(m_pMixer->GetOutputStatus(&res)&&(res & MFT_OUTPUT_STATUS_SAMPLE_READY)))
       ProcessOutput();
    
-    Sleep(m_pSleepTimePerFrame);
+     
+    m_ready_event.WaitMSec(m_pSleepTimePerFrame);
 
   }
 }
@@ -390,8 +404,6 @@ DsAllocator::DsAllocator(IDSInfoCallback *pCallback)
   : m_pCallback(pCallback),
     m_pMixerThread(NULL)
 {
-  
-  
   HMODULE hlib=NULL;
   hlib = LoadLibrary(L"evr.dll");
   ptrMFCreateVideoSampleFromSurface = (FCT_MFCreateVideoSampleFromSurface)GetProcAddress(hlib,"MFCreateVideoSampleFromSurface");
@@ -415,46 +427,18 @@ DsAllocator::DsAllocator(IDSInfoCallback *pCallback)
   m_pMediaType=NULL;
   endofstream=false;
   ResetSyncOffsets();
-  
-  m_mutex = new CMutex();
   ResetStats();
   m_nRenderState        = Shutdown;
-  //m_fUseInternalTimer      = false;
-  m_LastSetOutputRange    = -1;
-  m_bPendingRenegotiate    = false;
-  m_bPendingMediaFinished    = false;
-  m_bWaitingSample      = false;
-  m_pCurrentDisplaydSample  = NULL;
+
   m_nStepCount        = 0;
-  m_nUsedBuffer = 0;
-  m_iLastSampleTime = 0;
-  m_ClockTimeChangeHistoryPos = 0;
-  m_ModeratedTimeSpeed = 0;
-  m_ModeratedTimeSpeedPrim = 0;
-	m_ModeratedTimeSpeedDiff = 0;
-  m_OrderedPaint = 0;
   m_PaintTime = 0;
   m_PaintTimeMin = 0;
   m_PaintTimeMax = 0;
-  //m_dwVideoAspectRatioMode  = MFVideoARMode_PreservePicture;
-  //m_dwVideoRenderPrefs    = (MFVideoRenderPrefs)0;
-  //m_BorderColor        = RGB (0,0,0);
-  m_bSignaledStarvation    = false;
-  m_StarvationClock      = 0;
-  //m_pOuterEVR          = NULL;
-  m_LastScheduledSampleTime  = -1;
-  m_LastScheduledUncorrectedSampleTime = -1;
-  m_MaxSampleDuration      = 0;
-  m_LastSampleOffset      = 0;
-  ZeroMemory(m_VSyncOffsetHistory, sizeof(m_VSyncOffsetHistory));
-  m_VSyncOffsetHistoryPos = 0;
-  m_bLastSampleOffsetValid  = false;
 }
 
 DsAllocator::~DsAllocator() 
 {
   CleanupSurfaces();
-  SAFE_RELEASE(m_mutex);
 }
 
 void DsAllocator::ResetStats()
@@ -468,13 +452,13 @@ void DsAllocator::ResetStats()
 
 void DsAllocator::CleanupSurfaces() 
 {
-  Lock();
+  CAutoSingleLock lock(m_section);
   for (size_t i=0;i<m_pSurfaces.size();i++) 
   {
     SAFE_RELEASE(m_pTextures[i]);
     SAFE_RELEASE(m_pSurfaces[i]);
   }
-  Unlock();
+  ////lock.Unlock();
 }
 
 HRESULT STDMETHODCALLTYPE DsAllocator::InitializeDevice(DWORD_PTR userid,VMR9AllocationInfo* allocinf,DWORD*numbuf)
@@ -483,12 +467,12 @@ HRESULT STDMETHODCALLTYPE DsAllocator::InitializeDevice(DWORD_PTR userid,VMR9All
     return S_FALSE;
   
   CleanupSurfaces();
-  Lock();
+  CAutoSingleLock lock(m_section);
   m_pSurfaces.resize(*numbuf);
   HRESULT hr= surfallocnotify->AllocateSurfaceHelper(allocinf,numbuf,&m_pSurfaces.at(0));
   vheight=allocinf->dwHeight;
   vwidth=allocinf->dwWidth;
-  Unlock();
+  //lock.Unlock();
   return hr;
 }
 
@@ -496,10 +480,10 @@ void DsAllocator::LostDevice(IDirect3DDevice9 *d3ddev, IDirect3D9* d3d)
   {
   if (!surfallocnotify) return ;
   CleanupSurfaces();
-  Lock();
+  CAutoSingleLock lock(m_section);
   HMONITOR hmon=d3d->GetAdapterMonitor(D3DADAPTER_DEFAULT);
   surfallocnotify->ChangeD3DDevice(d3ddev,hmon);
-  Unlock();
+  //lock.Unlock();
 
 }
 
@@ -514,15 +498,15 @@ HRESULT STDMETHODCALLTYPE DsAllocator::GetSurface(DWORD_PTR userid,DWORD surfind
   if (surfindex>=m_pSurfaces.size()) return E_FAIL;
   if (surf==NULL) return E_POINTER;
 
-  Lock();
+  CAutoSingleLock lock(m_section);
   m_pSurfaces[surfindex]->AddRef();
   *surf=m_pSurfaces[surfindex];
-  Unlock();
+  //lock.Unlock();
   return S_OK;
 }
 HRESULT STDMETHODCALLTYPE DsAllocator::AdviseNotify(IVMRSurfaceAllocatorNotify9* allnoty)
 {
-  Lock();
+  CAutoSingleLock lock(m_section);
   surfallocnotify=allnoty;
   IDirect3D9 *d3d;
   IDirect3DDevice9 *d3ddev = m_pCallback->GetD3DDev();
@@ -531,7 +515,7 @@ HRESULT STDMETHODCALLTYPE DsAllocator::AdviseNotify(IVMRSurfaceAllocatorNotify9*
   d3ddev->GetDirect3D(&d3d);
   HMONITOR hmon = (d3d->GetAdapterMonitor(D3DADAPTER_DEFAULT));
   HRESULT hr = surfallocnotify->SetD3DDevice(d3ddev,hmon);
-  Unlock();
+  //lock.Unlock();
   return S_OK;//hr
 }
 
@@ -652,7 +636,7 @@ HRESULT STDMETHODCALLTYPE DsAllocator::InitServicePointers(IMFTopologyServiceLoo
 
 HRESULT STDMETHODCALLTYPE DsAllocator::ReleaseServicePointers()
 {
-  Lock();
+  CAutoSingleLock lock(m_section);
   inevrmode=false;
   /* TODO Set RenderState , sample type etc.*/
 
@@ -667,7 +651,7 @@ HRESULT STDMETHODCALLTYPE DsAllocator::ReleaseServicePointers()
   //if (m_pMixer) m_pMixer->Release();
   //if (m_pClock) m_pClock->Release();
   //if (m_pMediaType) m_pMediaType->Release();
-  Unlock();
+  //lock.Unlock();
   return S_OK;
 }
 
@@ -706,10 +690,20 @@ HRESULT STDMETHODCALLTYPE DsAllocator::ProcessMessage(MFVP_MESSAGE_TYPE mess,ULO
       
     break;
     case MFVP_MESSAGE_INVALIDATEMEDIATYPE: 
-      m_bPendingRenegotiate = true;
       RenegotiateEVRMediaType();
     break;
-    case MFVP_MESSAGE_PROCESSINPUTNOTIFY: 
+    case MFVP_MESSAGE_PROCESSINPUTNOTIFY:
+      if (m_pMixerThread)
+      {
+        if (!m_pMixerThread->ThreadHandle())
+        {
+          m_pMixerThread->Create();
+          while (!m_pMixerThread->ThreadHandle())
+            Sleep(2);
+        }
+        
+        m_pMixerThread->OutputReady();
+      }
     break;
     case MFVP_MESSAGE_BEGINSTREAMING:
     {
@@ -724,31 +718,22 @@ HRESULT STDMETHODCALLTYPE DsAllocator::ProcessMessage(MFVP_MESSAGE_TYPE mess,ULO
         while(m_BusyList.Count())
           m_pMixerThread->FreeListPush( m_BusyList.Pop() );
 
-        m_pMixerThread->StopThread();
+        m_pMixerThread->StopThread(true);
         delete m_pMixerThread;
         m_pMixerThread = NULL;
       }
       break;
-    case MFVP_MESSAGE_ENDOFSTREAM: 
-    {
-     CLog::DebugLog("EVR Message MFVP_MESSAGE_ENDOFSTREAM received");
-
-      m_bPendingMediaFinished = true;
+    case MFVP_MESSAGE_ENDOFSTREAM:
+      CLog::DebugLog("EVR Message MFVP_MESSAGE_ENDOFSTREAM received");
       endofstream=true;
-    } 
     break;
     case MFVP_MESSAGE_STEP:
-    {
       // Request frame step the param is the number of frame to step
       CLog::Log(LOGINFO, "EVR Message MFVP_MESSAGE_STEP %i", mess_para);
       m_nStepCount = mess_para;
-    } 
     break;
     case MFVP_MESSAGE_CANCELSTEP:
-    {
       CLog::Log(LOGINFO, "EVR Message MFVP_MESSAGE_CANCELSTEP received");
-      //???
-    } 
     break;
     default:
       CLog::Log(LOGINFO, "DsAllocator::ProcessMessage unhandled");
@@ -761,9 +746,6 @@ STDMETHODIMP DsAllocator::OnClockStart(MFTIME hnsSystemTime,  int64_t llClockSta
   m_nRenderState    = Started;
 
   CLog::DebugLog("EVR: OnClockStart  hnsSystemTime = %I64d,   llClockStartOffset = %I64d", hnsSystemTime, llClockStartOffset);
-  m_ModeratedTimeLast = -1;
-  m_ModeratedClockLast = -1;
-
   return S_OK;
 }
 
@@ -771,29 +753,19 @@ STDMETHODIMP DsAllocator::OnClockStop(MFTIME hnsSystemTime)
 {
   CLog::DebugLog("EVR: OnClockStop  hnsSystemTime = %I64d", hnsSystemTime);
   m_nRenderState    = Stopped;
-
-  m_ModeratedClockLast = -1;
-  m_ModeratedTimeLast = -1;
+  m_pMixerThread->StopThread();
   return S_OK;
 }
 
 STDMETHODIMP DsAllocator::OnClockPause(MFTIME hnsSystemTime)
 {
   CLog::DebugLog("EVR: OnClockPause  hnsSystemTime = %I64d", hnsSystemTime);
-  if (!m_bSignaledStarvation)
-    m_nRenderState    = Paused;
-
-  m_ModeratedTimeLast = -1;
-  m_ModeratedClockLast = -1;
   return S_OK;
 }
 
 STDMETHODIMP DsAllocator::OnClockRestart(MFTIME hnsSystemTime)
 {
   m_nRenderState  = Started;
-
-  m_ModeratedTimeLast = -1;
-  m_ModeratedClockLast = -1;
   CLog::DebugLog("EVR: OnClockRestart  hnsSystemTime = %I64d", hnsSystemTime);
 
   return S_OK;
@@ -802,7 +774,6 @@ STDMETHODIMP DsAllocator::OnClockRestart(MFTIME hnsSystemTime)
 
 STDMETHODIMP DsAllocator::OnClockSetRate(MFTIME hnsSystemTime, float flRate)
 {
-  ASSERT (FALSE);
   return E_NOTIMPL;
 }
 
@@ -813,98 +784,10 @@ void ModerateFloat(double& Value, double Target, double& ValuePrim, double Chang
   Value += ValuePrim;
 }
 
-int64_t DsAllocator::GetClockTime(int64_t PerformanceCounter)
-{
-  int64_t       llClockTime;
-  MFTIME        nsCurrentTime;
-  if (! m_pClock)
-    return 0;
-
-  m_pClock->GetCorrelatedTime(0, &llClockTime, &nsCurrentTime);
-  DWORD Characteristics = 0;
-  m_pClock->GetClockCharacteristics(&Characteristics);
-  MFCLOCK_STATE State;
-  m_pClock->GetState(0, &State);
-
-  if (!(Characteristics & MFCLOCK_CHARACTERISTICS_FLAG_FREQUENCY_10MHZ))
-  {
-    MFCLOCK_PROPERTIES Props;
-    if (m_pClock->GetProperties(&Props) == S_OK)
-      llClockTime = (llClockTime * 10000000) / Props.qwClockFrequency; // Make 10 MHz
-
-  }
-  int64_t llPerf = PerformanceCounter;
-//  return llClockTime + (llPerf - nsCurrentTime);
-  double Target = llClockTime + (llPerf - nsCurrentTime) * m_ModeratedTimeSpeed;
-
-  bool bReset = false;
-  if (m_ModeratedTimeLast < 0 || State != m_LastClockState || m_ModeratedClockLast < 0)
-  {
-    bReset = true;
-    m_ModeratedTimeLast = llPerf;
-    m_ModeratedClockLast = llClockTime;
-  }
-
-  m_LastClockState = State;
-
-  double TimeChange = (double) llPerf - m_ModeratedTimeLast;
-  double ClockChange = (double) llClockTime - m_ModeratedClockLast;
-
-  m_ModeratedTimeLast = llPerf;
-  m_ModeratedClockLast = llClockTime;
-
-  if (bReset)
-  {
-    m_ModeratedTimeSpeed = 1.0;
-    m_ModeratedTimeSpeedPrim = 0.0;
-    ZeroMemory(m_TimeChangeHistory, sizeof(m_TimeChangeHistory));
-    ZeroMemory(m_ClockChangeHistory, sizeof(m_ClockChangeHistory));
-    m_ClockTimeChangeHistoryPos = 0;
-  }
-  if (TimeChange)
-  {
-    int Pos = m_ClockTimeChangeHistoryPos % 100;
-    int nHistory = std::min(m_ClockTimeChangeHistoryPos, 100);
-    ++m_ClockTimeChangeHistoryPos;
-    if (nHistory > 50)
-    {
-      int iLastPos = (Pos - (nHistory)) % 100;
-      if (iLastPos < 0)
-        iLastPos += 100;
-
-      double TimeChange = llPerf - m_TimeChangeHistory[iLastPos];
-      double ClockChange = llClockTime - m_ClockChangeHistory[iLastPos];
-
-      double ClockSpeedTarget = ClockChange / TimeChange;
-      double ChangeSpeed = 0.1;
-      if (ClockSpeedTarget > m_ModeratedTimeSpeed)
-      {
-        if (ClockSpeedTarget / m_ModeratedTimeSpeed > 0.1)
-          ChangeSpeed = 0.1;
-        else
-          ChangeSpeed = 0.01;
-      }
-      else 
-      {
-        if (m_ModeratedTimeSpeed / ClockSpeedTarget > 0.1)
-          ChangeSpeed = 0.1;
-        else
-          ChangeSpeed = 0.01;
-      }
-      ModerateFloat(m_ModeratedTimeSpeed, ClockSpeedTarget, m_ModeratedTimeSpeedPrim, ChangeSpeed);
-//      m_ModeratedTimeSpeed = TimeChange / ClockChange;
-    }
-    m_TimeChangeHistory[Pos] = (double) llPerf;
-    m_ClockChangeHistory[Pos] = (double) llClockTime;
-  }
-
-  return (int64_t) Target;
-}
-
 // IBaseFilter delegate
 bool DsAllocator::GetState( DWORD dwMilliSecsTimeout, FILTER_STATE *State, HRESULT &_ReturnValue)
 {
-
+#if 0
   if (m_bSignaledStarvation)
   {
     
@@ -917,6 +800,7 @@ bool DsAllocator::GetState( DWORD dwMilliSecsTimeout, FILTER_STATE *State, HRESU
     }
     m_bSignaledStarvation = false;
   }
+#endif
   return false;
 }
 
@@ -1096,15 +980,15 @@ HRESULT STDMETHODCALLTYPE DsAllocator::GetCurrentMediaType(IMFVideoMediaType **m
   OutputDebugString(L"mediatype\n");
   if (!mtype) 
     return E_POINTER;
-  Lock();
+  CAutoSingleLock lock(m_section);
   if (!m_pMediaType)
   {
-    Unlock();
+    //lock.Unlock();
     *mtype=NULL;
     return MF_E_NOT_INITIALIZED;
   }
   HRESULT hr=m_pMediaType->QueryInterface(IID_IMFVideoMediaType,(void**)mtype);
-  Unlock();
+  //lock.Unlock();
   return hr;
 }
 
@@ -1163,13 +1047,13 @@ void DsAllocator::RenegotiateEVRMediaType()
 
     gotcha=true;
 
-    Lock();
+    CAutoSingleLock lock(m_section);
     //if (m_pMediaType) m_pMediaType->Release();
     m_pMediaType=NULL;
 
     m_pMediaType=mixtype;
     AllocateEVRSurfaces();
-    Unlock();
+    //lock.Unlock();
 
     hr=m_pMixer->SetOutputType(0,mixtype,0);
 
@@ -1177,12 +1061,12 @@ void DsAllocator::RenegotiateEVRMediaType()
 
     if (hr!=S_OK) 
     {
-      Lock();
+      CAutoSingleLock lock(m_section);
       //if (m_pMediaType) m_pMediaType->Release();
       m_pMediaType=NULL;
       gotcha=false;
 
-      Unlock();
+      //lock.Unlock();
     }
 
 
@@ -1192,8 +1076,8 @@ void DsAllocator::RenegotiateEVRMediaType()
     OutputDebugString(L"No suitable output type!");
   
   
-  
-  m_pMixerThread->Create();
+  //done on first inputnotify
+  //m_pMixerThread->Create();
 
 
 }
@@ -1424,11 +1308,11 @@ void DsAllocator::Render(const RECT& dst, IDirect3DSurface9* target, int index)
     hr = pDevice->StretchRect(m_pSurfaces[index], NULL, target, NULL, D3DTEXF_NONE);
     //OutputDebugStringA("DSAllocator Failed to Render Target with EVR");
   }
-  //Lock();
+  //CAutoSingleLock lock(m_section);
   /*if (fullevrsamples.size()==0)
   {
     waittime=0;
-    Unlock();
+    //lock.Unlock();
     return;
   }*/
   }
@@ -1442,15 +1326,32 @@ bool DsAllocator::GetPicture(DVDVideoPicture *pDvdVideoPicture)
     return false;
   int nSamplesLeft = 0;
   int surf_index = 0;
-  LONGLONG sample_time;
+  LONGLONG sample_time, sample_duration;
   CAutoSingleLock lock(m_section);
   HRESULT hr = pMFSample->GetUINT32(GUID_SURFACE_INDEX, (UINT32 *)&surf_index);
   pDvdVideoPicture->pts = DVD_NOPTS_VALUE;
   pDvdVideoPicture->dts = DVD_NOPTS_VALUE;
   if (SUCCEEDED(pMFSample->GetSampleTime(&sample_time)))
     pDvdVideoPicture->pts = sample_time / 10;
-  
+  if (SUCCEEDED(pMFSample->GetSampleDuration(&sample_duration)))
+    pDvdVideoPicture->iDuration = sample_duration / 10;
   UINT32 width, height;
+  
+  if ((m_pMediaType) && (SUCCEEDED(MFGetAttributeSize(m_pMediaType, MF_MT_FRAME_SIZE, &width, &height))))
+  {
+    pDvdVideoPicture->iWidth = width;
+    pDvdVideoPicture->iHeight = height;
+    pDvdVideoPicture->iDisplayWidth = width;
+    pDvdVideoPicture->iDisplayHeight = height;
+  }
+  else
+  {
+   pDvdVideoPicture->iWidth = vwidth;
+    pDvdVideoPicture->iHeight = vheight;
+    pDvdVideoPicture->iDisplayWidth = vwidth;
+    pDvdVideoPicture->iDisplayHeight = vheight;
+  }
+  //Not the best way to do it
   /*if (SUCCEEDED(MFGetAttributeSize(pMFSample, MF_MT_FRAME_SIZE, &width, &height)))
   {
     pDvdVideoPicture->iWidth = width;
@@ -1474,6 +1375,12 @@ bool DsAllocator::AcceptMoreData()
   return (m_pMixerThread->GetFreeCount()>0);
 }
 
+void DsAllocator::FreeFirstBuffer()
+{
+  if (m_pMixerThread)
+    m_pMixerThread->FreeFirstBuffer();
+}
+
 void DsAllocator::RemoveAllSamples()
 {
   if (m_pMixerThread)
@@ -1485,6 +1392,5 @@ void DsAllocator::RemoveAllSamples()
     delete m_pMixerThread;
     m_pMixerThread = NULL;
   }
-  m_nUsedBuffer = 0;
 }
 
