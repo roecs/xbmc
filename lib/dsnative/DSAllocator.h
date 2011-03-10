@@ -45,7 +45,7 @@ using namespace std;
 #include "..\..\xbmc\threads\mutex.h"
 #include "threads/Event.h"
 
-
+#define NB_JITTER          126
 #ifndef EXECUTE_ASSERT
 #define EXECUTE_ASSERT(_x_) ASSERT(_x_)
 #endif
@@ -64,6 +64,28 @@ using namespace std;
 #define SEC_TO_DS_TIME(x)     ((__int64)(x * DS_TIME_BASE))
 #define MSEC_TO_DS_TIME(x)    ((__int64)(x * DS_TIME_BASE / 1000))
 #define SEC_TO_MSEC(x)        ((double)(x * 1E3))
+
+#define MAXULONG64  ((ULONG64)~((ULONG64)0))
+#define MAXLONG64   ((LONG64)(MAXULONG64 >> 1))
+#define MINLONG64   ((LONG64)~MAXLONG64)
+
+static int64_t GetPerfCounter()
+{
+  LARGE_INTEGER i64Ticks100ns;
+  LARGE_INTEGER llPerfFrequency;
+
+  QueryPerformanceFrequency (&llPerfFrequency);
+  if (llPerfFrequency.QuadPart != 0)
+  {
+    QueryPerformanceCounter (&i64Ticks100ns);
+    return llMulDiv(i64Ticks100ns.QuadPart, 10000000, llPerfFrequency.QuadPart, 0);
+  }
+  else
+  {
+    // ms to 100ns units
+    return timeGetTime() * 10000; 
+  }
+}
 
 typedef Com::ComPtrList<IMFSample> VideoSampleList;
 class CEvrMixerThread;
@@ -127,6 +149,7 @@ public:
   virtual HRESULT STDMETHODCALLTYPE get_DevSyncOffset(int *val);
   virtual HRESULT STDMETHODCALLTYPE get_FramesDroppedInRenderer(int *val);
   
+  void CalculateJitter(int64_t PerfCounter);
   // IMFRateSupport
   STDMETHODIMP GetSlowestRate(MFRATE_DIRECTION eDirection, BOOL fThin, float *pflRate);
   STDMETHODIMP GetFastestRate(MFRATE_DIRECTION eDirection, BOOL fThin, float *pflRate);
@@ -146,7 +169,6 @@ public:
   
   bool AcceptMoreData();
   void FreeFirstBuffer();
-  bool SurfaceReady();
 
   //IPaintCallback
   virtual void Render(const RECT& dst, IDirect3DSurface9* target, int index);
@@ -223,12 +245,13 @@ private:
   
 
   int64_t                  m_rtTimePerFrame;
+  int64_t                  m_llLastPerf;
+  int64_t                  m_JitterStdDev;
+  int64_t                  m_MaxJitter;
+  int64_t                  m_MinJitter;
+  int                      m_nNextJitter;
+  int64_t                  m_pllJitter [NB_JITTER];        // Jitter buffer for stats
 
-  
-  //CCritSec                 m_SampleQueueLock;
-  //CCritSec                 m_ImageProcessingLock;
-  //CCritSec                 m_DisplaydSampleQueueLock;
-  
   int                      m_nCurSurface;
   int                      m_nStepCount;
   UINT                     m_pcFrames;

@@ -299,6 +299,7 @@
     <ClCompile Include="..\..\xbmc\Autorun.cpp" />
     <ClCompile Include="..\..\xbmc\AutoSwitch.cpp" />
     <ClCompile Include="..\..\xbmc\BackgroundInfoLoader.cpp" />
+    <ClCompile Include="..\..\xbmc\cores\AudioRenderers\Win32DirectShowAudioRenderer.cpp" />
     <ClCompile Include="..\..\xbmc\cores\dvdplayer\DVDCodecs\Audio\DVDAudioCodecDirectshow.cpp" />
     <ClCompile Include="..\..\xbmc\cores\dvdplayer\DVDCodecs\Video\CrystalHD.cpp" />
     <ClCompile Include="..\..\xbmc\cores\dvdplayer\DVDCodecs\Video\DVDVideoCodecDirectshow.cpp" />
@@ -1108,6 +1109,7 @@
     <ClInclude Include="..\..\xbmc\Autorun.h" />
     <ClInclude Include="..\..\xbmc\AutoSwitch.h" />
     <ClInclude Include="..\..\xbmc\BackgroundInfoLoader.h" />
+    <ClInclude Include="..\..\xbmc\cores\AudioRenderers\Win32DirectShowAudioRenderer.h" />
     <ClInclude Include="..\..\xbmc\cores\dvdplayer\DVDCodecs\Audio\DVDAudioCodecDirectshow.h" />
     <ClInclude Include="..\..\xbmc\cores\dvdplayer\DVDCodecs\Video\CrystalHD.h" />
     <ClInclude Include="..\..\xbmc\cores\dvdplayer\DVDCodecs\Video\DllDSNative.h" />

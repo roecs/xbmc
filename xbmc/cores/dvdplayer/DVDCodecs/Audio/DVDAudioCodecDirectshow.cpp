@@ -68,17 +68,18 @@ bool CDVDAudioCodecDirectshow::Open(CDVDStreamInfo &hints, CDVDCodecOptions &opt
   // special cases
   switch(hints.codec)
   {
+  case CODEC_ID_AAC_LATM:
   case CODEC_ID_AC3:
-    mediaType.subtype = MEDIASUBTYPE_DOLBY_AC3;
+    mediaType.subtype = MEDIASUBTYPE_WAVE_DOLBY_AC3;
     break;
   case CODEC_ID_AAC:
     mediaType.subtype = MEDIASUBTYPE_AAC;
     codecTag = WAVE_FORMAT_AAC;
     break;
-  case CODEC_ID_AAC_LATM:
+  /*case CODEC_ID_AAC_LATM:
     mediaType.subtype = MEDIASUBTYPE_LATM_AAC;
     codecTag = WAVE_FORMAT_LATM_AAC;
-    break;
+    break;*/
   case CODEC_ID_DTS:
     mediaType.subtype = MEDIASUBTYPE_DTS;
     codecTag = WAVE_FORMAT_DTS;
@@ -110,8 +111,10 @@ bool CDVDAudioCodecDirectshow::Open(CDVDStreamInfo &hints, CDVDCodecOptions &opt
   }
   WAVEFORMATEX *wvfmt = (WAVEFORMATEX *)CoTaskMemAlloc(sizeof(WAVEFORMATEX) + hints.extrasize);
   memset(wvfmt, 0, sizeof(WAVEFORMATEX));
-
-  wvfmt->wFormatTag = codecTag;
+  if (mediaType.subtype == FOURCCMap(codecTag))
+    wvfmt->wFormatTag = codecTag;
+  else
+    wvfmt->wFormatTag = mediaType.Subtype()->Data1;
 
   wvfmt->nChannels = hints.channels;
   wvfmt->nSamplesPerSec = hints.samplerate;
@@ -191,10 +194,12 @@ int CDVDAudioCodecDirectshow::Decode(BYTE* pData, int iSize)
   int iBytesUsed=0;
   int err;
 
-  
+      // Zero out the frame data if we are supposed to silence the audio
+    
+    
   err = DSAudioDecode(codec, pData, iSize, &iBytesUsed);
-
-  m_iBuffered += iBytesUsed;
+  
+  m_iBuffered = iBytesUsed;
   
   if (err != 0)
     return 0;
@@ -213,7 +218,7 @@ int CDVDAudioCodecDirectshow::GetBufferSize()
 {
   if (codec)
     return DSAudioSampleSize(codec);
-  return 0;
+  //return m_iBuffered;
 }
 
 int CDVDAudioCodecDirectshow::GetData(BYTE** dst)
@@ -232,7 +237,7 @@ int CDVDAudioCodecDirectshow::GetData(BYTE** dst)
 
      }
   }
-    
+
   return sizesample;
 }
 

@@ -56,23 +56,7 @@ PTR_AvRevertMmThreadCharacteristics     pfAvRevertMmThreadCharacteristics;
 // Guid to tag IMFSample with DirectX surface index
 static const GUID GUID_SURFACE_INDEX = { 0x30c8e9f6, 0x415, 0x4b81, { 0xa3, 0x15, 0x1, 0xa, 0xc6, 0xa9, 0xda, 0x19 } };
 
-static int64_t GetPerfCounter()
-{
-  LARGE_INTEGER i64Ticks100ns;
-  LARGE_INTEGER llPerfFrequency;
 
-  QueryPerformanceFrequency (&llPerfFrequency);
-  if (llPerfFrequency.QuadPart != 0)
-  {
-    QueryPerformanceCounter (&i64Ticks100ns);
-    return llMulDiv(i64Ticks100ns.QuadPart, 10000000, llPerfFrequency.QuadPart, 0);
-  }
-  else
-  {
-    // ms to 100ns units
-    return timeGetTime() * 10000; 
-  }
-}
 
 void DebugPrint(const wchar_t *format, ... )
 {
@@ -434,6 +418,10 @@ DsAllocator::DsAllocator(IDSInfoCallback *pCallback)
   m_PaintTime = 0;
   m_PaintTimeMin = 0;
   m_PaintTimeMax = 0;
+  m_llLastPerf    = 0;
+  m_fJitterStdDev    = 0.0;
+  memset (m_pllJitter, 0, sizeof(m_pllJitter));
+  m_nNextJitter    = 0;
 }
 
 DsAllocator::~DsAllocator() 
@@ -802,6 +790,48 @@ bool DsAllocator::GetState( DWORD dwMilliSecsTimeout, FILTER_STATE *State, HRESU
   }
 #endif
   return false;
+}
+
+void DsAllocator::CalculateJitter(int64_t PerfCounter)
+{
+  // Calculate the jitter!
+  int64_t  llPerf = PerfCounter;
+  if ((m_rtTimePerFrame != 0) && (labs ((long)(llPerf - m_llLastPerf)) < m_rtTimePerFrame*3) )
+  {
+    m_nNextJitter = (m_nNextJitter+1) % NB_JITTER;
+    m_pllJitter[m_nNextJitter] = llPerf - m_llLastPerf;
+
+    m_MaxJitter = MINLONG64;
+    m_MinJitter = MAXLONG64;
+
+    // Calculate the real FPS
+    int64_t    llJitterSum = 0;
+    int64_t    llJitterSumAvg = 0;
+    for (int i=0; i<NB_JITTER; i++)
+    {
+      int64_t Jitter = m_pllJitter[i];
+      llJitterSum += Jitter;
+      llJitterSumAvg += Jitter;
+    }
+    double FrameTimeMean = double(llJitterSumAvg)/NB_JITTER;
+    m_fJitterMean = FrameTimeMean;
+    double DeviationSum = 0;
+    for (int i=0; i<NB_JITTER; i++)
+    {
+      __int64 DevInt = (__int64)(m_pllJitter[i] - FrameTimeMean);
+      double Deviation = (double) DevInt;
+      DeviationSum += Deviation*Deviation;
+      m_MaxJitter = std::max(m_MaxJitter, DevInt);
+      m_MinJitter = std::min(m_MinJitter, DevInt);
+    }
+    double StdDev = sqrt(DeviationSum/NB_JITTER);
+
+    m_fJitterStdDev = StdDev;
+
+    m_fAvrFps = 10000000.0/(double(llJitterSum)/NB_JITTER);
+  }
+
+  m_llLastPerf = llPerf;
 }
 
 // IQualProp
@@ -1216,20 +1246,6 @@ IPaintCallback* DsAllocator::AcquireCallback()
   
 }
 
-
-bool DsAllocator::SurfaceReady()
-{
-  DWORD status;
-  if (S_OK == m_pMixer->GetOutputStatus(&status))
-  {
-    if (status & MFT_OUTPUT_STATUS_SAMPLE_READY)
-      return true;
-    
-  }
-  
-    return false;
-}
-
 bool DsAllocator::WaitOutput(unsigned int msec)
 {
   return m_ready_event.WaitMSec(msec);
@@ -1299,7 +1315,7 @@ void DsAllocator::Render(const RECT& dst, IDirect3DSurface9* target, int index)
   AdjustQuad(vv, 1.0, 1.0);
   hr = pDevice->SetTexture(0,m_pTextures[index]);
   hr = TextureBlt(pDevice, vv, D3DTEXF_POINT);
-    
+
     //vheight
     //vwidth
     
@@ -1308,6 +1324,12 @@ void DsAllocator::Render(const RECT& dst, IDirect3DSurface9* target, int index)
     hr = pDevice->StretchRect(m_pSurfaces[index], NULL, target, NULL, D3DTEXF_NONE);
     //OutputDebugStringA("DSAllocator Failed to Render Target with EVR");
   }
+  if (SUCCEEDED(hr))
+  {
+    int64_t currentTime = GetPerfCounter();
+    CalculateJitter(currentTime);
+  }
+  m_pcFramesDrawn++;
   //CAutoSingleLock lock(m_section);
   /*if (fullevrsamples.size()==0)
   {

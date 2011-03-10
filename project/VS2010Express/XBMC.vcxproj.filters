@@ -2477,6 +2477,9 @@
     <ClCompile Include="..\..\xbmc\settings\AudioSettings.cpp">
       <Filter>settings</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\xbmc\cores\AudioRenderers\Win32DirectShowAudioRenderer.cpp">
+      <Filter>cores\AudioRenderers</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\xbmc\win32\pch.h">
@@ -4913,6 +4916,9 @@
     </ClInclude>
     <ClInclude Include="..\..\xbmc\settings\AudioSettings.h">
       <Filter>settings</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\xbmc\cores\AudioRenderers\Win32DirectShowAudioRenderer.h">
+      <Filter>cores\AudioRenderers</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

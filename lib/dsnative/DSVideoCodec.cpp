@@ -773,8 +773,6 @@ BOOL DSVideoCodec::StartGraph()
 }
 
 
-
-
 dsnerror_t DSVideoCodec::Decode(BYTE *src, int size, double pts, double *newpts, DSVideoOutputData *pImage, long *pImageSize, int keyframe)
 {
   IMediaSample* sample = NULL;
@@ -798,24 +796,27 @@ dsnerror_t DSVideoCodec::Decode(BYTE *src, int size, double pts, double *newpts,
   HRESULT hr = S_OK;
   //
   std::vector<BYTE> packet;
-
+  
+  int64_t startperf = GetPerfCounter();
   //ffmpeg m2ts demuxer set h264 tag, good thing its the only one i seen setting it like this
   if ( m_pCallback->GetOriginalCodecTag() == 0x1b)//if (m_pOurType.subtype == FOURCCMap('1CVA') || m_pOurType.subtype == FOURCCMap('1cva'))
   {
     
-    packet.resize(size);
-    memcpy(&packet.at(0), src,packet.size());
+    DSN_CHECK(sample->SetActualDataLength(size), DSN_FAIL_DECODESAMPLE);
+    DSN_CHECK(sample->GetPointer(&ptr), DSN_FAIL_DECODESAMPLE);
+    memcpy(ptr , src , size);
+    
+#if 0
     //fixing 1cva this has to be starting nalus, more can be packed together
     BYTE* start = src;
     BYTE* end = start + size;
+
     while(start <= end-4 && *(DWORD*)start != 0x01000000)
       start++;
-
     
     while(start <= end-4)
     {
       BYTE* next = start+1;
-
       while(next <= end-4 && *(DWORD*)next != 0x01000000)
         next++;
 
@@ -823,12 +824,13 @@ dsnerror_t DSVideoCodec::Decode(BYTE *src, int size, double pts, double *newpts,
         break;
 
       int nalusize = next - start;
-
+      int current_pos = start - src;
+      
       CH264Nalu Nalu;
       Nalu.SetBuffer (start, nalusize, 0);
       
-      std::vector<BYTE> p2;
 
+      
       while (Nalu.ReadNext())
       {
         DWORD  dwNalLength =
@@ -836,58 +838,130 @@ dsnerror_t DSVideoCodec::Decode(BYTE *src, int size, double pts, double *newpts,
           ((Nalu.GetDataLength() >>  8) & 0x0000ff00) |
           ((Nalu.GetDataLength() <<  8) & 0x00ff0000) |
           ((Nalu.GetDataLength() << 24) & 0xff000000);
-
-        std::vector<BYTE> p3;
-        //CAutoPtr<Packet> p3(DNew Packet());
-
-        p3.resize(Nalu.GetDataLength()+sizeof(dwNalLength));
-        memcpy (&p3.at(0), &dwNalLength, sizeof(dwNalLength));
-        memcpy (&p3.at(0)+sizeof(dwNalLength), Nalu.GetDataBuffer(), Nalu.GetDataLength());
-
-        if (p2.size() == 0)
-          p2 = p3;
-        else
-        {
-          p2.insert(p2.end(), p3.begin(),p3.end());
-          //p2->Append(*p3);
-        }
+        //ptr[current_pos++] = (Nalu.GetDataLength() >> 24) & 0x000000ff;
+        //ptr[current_pos++] = (Nalu.GetDataLength() >>  8) & 0x0000ff00;
+        //ptr[current_pos++] = (Nalu.GetDataLength() <<  8) & 0x00ff0000;
+        //ptr[current_pos++] = (Nalu.GetDataLength() << 24) & 0xff000000;
+        memcpy (ptr + current_pos , &dwNalLength, sizeof(dwNalLength));
+        //memcpy (ptr + current_pos + sizeof(dwNalLength), Nalu.GetDataBuffer(), Nalu.GetDataLength());
+        
       }
-      packet.insert(packet.end(), p2.begin(),p2.end());
       start = next;
 
-    }
-    if (start > src)
-    {
-      std::vector<BYTE>::iterator it = packet.begin();
-      for (it ;it !=packet.end(); it++)
-      {
-        
-        if (*it == start[0])
-          break;
-      }
-      packet.erase(packet.begin(),it);
-    }
-  }
-  
-  if (size > sample->GetSize())
-  {
-    DSN_CHECK(sample->Release(),DSN_FAIL_DECODESAMPLE);
-    dsnerror_t res = ResizeAllocatorProperties(size);
-    hr = m_pFilter->Run(0);
-    
-    DSN_CHECK(m_pMemAllocator->GetBuffer(&sample, 0, 0, 0), DSN_FAIL_DECODESAMPLE);
-  }
 
-  if ( packet.size() > 0 )
-    DSN_CHECK(sample->SetActualDataLength(packet.size()), DSN_FAIL_DECODESAMPLE);
+    }
+
+    
+
+    int current_pos = start - src;
+    int nalsize = size-current_pos-4;
+    CH264Nalu Nalu;
+    Nalu.SetBuffer (start, nalsize, 0);
+    if (Nalu.ReadNext())
+    {
+      DWORD  dwNalLength =
+          ((Nalu.GetDataLength() >> 24) & 0x000000ff) |
+          ((Nalu.GetDataLength() >>  8) & 0x0000ff00) |
+          ((Nalu.GetDataLength() <<  8) & 0x00ff0000) |
+          ((Nalu.GetDataLength() << 24) & 0xff000000);
+    memcpy(ptr+current_pos, &dwNalLength, sizeof(dwNalLength));
+     memcpy (ptr + current_pos + sizeof(dwNalLength), Nalu.GetDataBuffer(), Nalu.GetDataLength());
+    
+    }
+    else
+    {
+    DWORD  dwNalLength =
+          ((nalsize >> 24) & 0x000000ff) |
+          ((nalsize >>  8) & 0x0000ff00) |
+          ((nalsize <<  8) & 0x00ff0000) |
+          ((nalsize << 24) & 0xff000000);
+    memcpy(ptr+current_pos, &dwNalLength, sizeof(dwNalLength));
+    
+    }
+    CStdStringA dbg;
+    CH264Nalu nalu;
+    nalu.SetBuffer (src, size, 0);
+    while (nalu.ReadNext()) {
+    
+    	switch (nalu.GetType())
+	    {
+	      case NALU_TYPE_SLICE:
+		        dbg.AppendFormat("SliceType: NALU_TYPE_SLICE %i ",nalu.GetLength());
+				break;
+	      case NALU_TYPE_DPA:
+		        dbg.AppendFormat("SliceType: NALU_TYPE_DPA %i ",nalu.GetLength());
+		        break;
+	      case NALU_TYPE_DPB:
+		        dbg.AppendFormat("SliceType: NALU_TYPE_DPB %i ",nalu.GetLength());
+		        break;
+	      case NALU_TYPE_DPC:
+		        dbg.AppendFormat("SliceType: NALU_TYPE_DPC %i ",nalu.GetLength());
+		        break;
+	      case NALU_TYPE_IDR:
+		        dbg.AppendFormat("SliceType: NALU_TYPE_IDR %i ",nalu.GetLength());
+		        break;
+	      case NALU_TYPE_SEI:
+		        dbg.AppendFormat("SliceType: NALU_TYPE_SEI %i ",nalu.GetLength());
+		        break;
+	      case NALU_TYPE_SPS:
+		        dbg.AppendFormat("SliceType: NALU_TYPE_SPS %i ",nalu.GetLength());
+		        break;
+	      case NALU_TYPE_PPS:
+		        dbg.AppendFormat("SliceType: NALU_TYPE_PPS %i ",nalu.GetLength());
+		        break;
+	      case NALU_TYPE_AUD:
+		        dbg.AppendFormat("SliceType: NALU_TYPE_AUD %i ",nalu.GetLength());
+		        break;
+	      case NALU_TYPE_EOSEQ:
+		        dbg.AppendFormat("SliceType: NALU_TYPE_EOSEQ %i ",nalu.GetLength());
+		        break;
+	      case NALU_TYPE_EOSTREAM:
+		        dbg.AppendFormat("SliceType: NALU_TYPE_EOSTREAM %i ",nalu.GetLength());
+		        break;
+	      case NALU_TYPE_FILL:
+		        dbg.AppendFormat("SliceType: NALU_TYPE_FILL %i ",nalu.GetLength());
+		        break;
+      }
+    }
+    /*CLog::Log(LOGINFO,"without modif %i",size);
+    CStdStringA xtravectstring1;
+    for (int i = 0;i < size ;i++)
+      xtravectstring1.AppendFormat("%02X ",src[i]);
+    CLog::Log(LOGINFO,"%s",xtravectstring1.c_str());*/
+
+    /*CStdStringA xtravectstring;
+    for (int i = 0; i < size ; i++)
+      xtravectstring.AppendFormat("%02X ",ptr[i]);
+    CLog::Log(LOGINFO,"%s",xtravectstring.c_str());*/
+    CLog::DebugLog("DXVADECODERH264:%i",size);
+    CLog::DebugLog("%s",dbg.c_str());
+    
+#endif
+      
+      
+  }
   else
+  {
+    if (size > sample->GetSize())
+    {
+      DSN_CHECK(sample->Release(),DSN_FAIL_DECODESAMPLE);
+      dsnerror_t res = ResizeAllocatorProperties(size);
+      hr = m_pFilter->Run(0);
+    
+      DSN_CHECK(m_pMemAllocator->GetBuffer(&sample, 0, 0, 0), DSN_FAIL_DECODESAMPLE);
+    }
     DSN_CHECK(sample->SetActualDataLength(size), DSN_FAIL_DECODESAMPLE);
-  DSN_CHECK(sample->GetPointer(&ptr), DSN_FAIL_DECODESAMPLE);
-  
-  if ( packet.size() > 0 )
-    memcpy(ptr, &packet.at(0), packet.size());
-  else
+    DSN_CHECK(sample->GetPointer(&ptr), DSN_FAIL_DECODESAMPLE);
     memcpy(ptr, src, size);
+  }
+  //m2ts due to the requirements of many codecs that need starting nalu at end the fastest is around 36 and 12 without!
+  int64_t endperf = GetPerfCounter();
+  int64_t resultperf = endperf-startperf;
+  if (resultperf < m_perfTest.fastest)
+    m_perfTest.fastest = resultperf;
+  if (resultperf > m_perfTest.longest)
+    m_perfTest.longest = resultperf;
+
   DSN_CHECK(sample->SetTime(&start, &stoptime), DSN_FAIL_DECODESAMPLE);
   DSN_CHECK(sample->SetSyncPoint(keyframe), DSN_FAIL_DECODESAMPLE);
   DSN_CHECK(sample->SetPreroll(pImage ? 0 : 1), DSN_FAIL_DECODESAMPLE);
@@ -957,9 +1031,6 @@ dsnerror_t DSVideoCodec::Decode(BYTE *src, int size, double pts, double *newpts,
   /*at least with the evr we can call imftransform on the mixer to see if the input is full before sending it*/
   if (!m_pEvr->AcceptMoreData())
     return DSN_DATA_QUEUE_FULL;
-  
-  if (m_pEvr->SurfaceReady())
-    return DSN_OK;//DSN_SUCCEEDED_BUT_NOSURFACE;
   
 }
 IPaintCallback* DSVideoCodec::GetEvrCallback()

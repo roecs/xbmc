@@ -86,4 +86,19 @@ private:
   BYTE *m_vinfo;
   VIDEOINFOHEADER m_vi;
   VIDEOINFOHEADER2 m_vi2;
+  struct PerformanceTimer
+  {
+    int64_t fastest;
+    int64_t longest;
+    PerformanceTimer()
+    {
+      fastest = 99999;
+      longest = 0;
+    }
+    ~PerformanceTimer()
+    {
+    }
+  };
+  PerformanceTimer m_perfTest;
+
 };

@@ -71,8 +71,8 @@ private:
   IMediaControl *m_pMC;
   
   
-  
-
+  //threaded output queue
+  COutputQueue *m_pOutputQueue;
   //Our fake source filter
   CSenderFilter *m_pSFilter;
   CSenderPin *m_pOurInput;
@@ -80,12 +80,13 @@ private:
   IBaseFilter *m_pFilter;
   IPin *m_pInputPin;
   IPin *m_pOutputPin;
-
-  
+  IBaseFilter *m_pDirectSoundRenderer;
+  IPin *m_pDirectSoundRendererInputPin;
+  IReferenceClock *m_pClock;
   //CRendererInputPin *m_pNullRendererPin;
+  CTee *m_pDupFilter;
   CNullRenderer *m_pNullRenderer;
-  //IPin *m_pNullRendererPin;
-  CNullRendererInputPin *m_pNullRendererInputPin;
+  //CNullRendererInputPin *m_pNullRendererInputPin;
 
 
   IMemInputPin *m_pMemInputPin;
