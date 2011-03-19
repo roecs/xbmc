@@ -28,6 +28,7 @@
 #include "dsnative/dumpuids.h"
 #include "mfapi.h"
 #include "settings/Settings.h"
+#include "settings/GUISettings.h"
 //#include <streams.h>
 
 #include "DllAvFormat.h"
@@ -52,7 +53,17 @@ CDVDAudioCodecDirectshow::~CDVDAudioCodecDirectshow()
 bool CDVDAudioCodecDirectshow::Open(CDVDStreamInfo &hints, CDVDCodecOptions &options)
 { 
   CStdString ffdshow = CStdString("C:\\Program Files (x86)\\ffdshow\\ffdshow.ax");
- 
+ /*audiodev example directshow:{E30629D1-27E5-11CE-875D-00608CB78066}*/
+  CStdString audiodev = g_guiSettings.GetString("audiooutput.audiodevice");
+  CStdStringW strAudioRendererGuid;
+  GUID guidAudioRenderer = GUID_NULL;
+  if (audiodev.Replace("directshow:","")>0)
+  {
+    
+    g_charsetConverter.toW(audiodev,strAudioRendererGuid,"UTF-8");
+    CLSIDFromString((LPCOLESTR)strAudioRendererGuid.c_str(),&guidAudioRenderer);
+  }
+  
   dsnerror_t err;
   unsigned int codecTag;
   DllAvFormat dllAvFormat;
@@ -157,7 +168,8 @@ bool CDVDAudioCodecDirectshow::Open(CDVDStreamInfo &hints, CDVDCodecOptions &opt
   
   
   wfmtTypeOut = new CMediaType();
-  codec = DSOpenAudioCodec(""/*ffdshow.c_str()*/ ,CLSID_FFDShow_Audio_Decoder , &mediaType, curfile.c_str(),wfmtTypeOut , &err);
+  //audiorendererguid
+  codec = DSOpenAudioCodec(""/*ffdshow.c_str()*/ ,CLSID_FFDShow_Audio_Decoder , &mediaType, curfile.c_str(), guidAudioRenderer, wfmtTypeOut , &err);
   SetOutputWaveFormat((WAVEFORMATEX *) wfmtTypeOut->Format());
 
   int index = 0;

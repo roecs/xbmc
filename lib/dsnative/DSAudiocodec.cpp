@@ -22,14 +22,17 @@
 
 #include "stdafx.h"
 #include "dsaudiocodec.h"
+#include "log.h"
+#include "SmartPtr.h"
+#include "FGFilter.h"
 
-DSAudioCodec::DSAudioCodec(const char *cfname, const GUID guid, CMediaType *wvfmt, const char *sfname) 
-  :  m_guid(guid), m_wvfmt(wvfmt), m_hDll(NULL), m_outfmt(NULL), 
-     m_frametime(0), m_discontinuity(1), m_pFrameDurationDivision(0),
+DSAudioCodec::DSAudioCodec(const char *cfname, const GUID guid, const GUID rendererGuid, CMediaType *wvfmt, const char *sfname) 
+  :  m_guid(guid), m_renderer_guid(rendererGuid), m_wvfmt(wvfmt), m_hDll(NULL), m_outfmt(NULL), 
+     m_frametime(0), m_discontinuity(1), m_pFrameDurationDivision(0), m_currentTime(0),
      m_pFilter(NULL), m_pInputPin(NULL), m_pOutputPin(NULL), m_pOutputQueue(NULL),
      m_pOurInput(NULL), m_pClock(NULL), m_pNullRenderer(NULL),
      m_pMemInputPin(NULL), m_pMemAllocator(NULL), m_pSFilter(NULL),
-     m_pDirectSoundRenderer(NULL), m_pDirectSoundRendererInputPin(NULL), m_pGraph(NULL), m_pMC(NULL),
+     m_pAudioRenderer(NULL), m_pAudioRendererInputPin(NULL), m_pGraph(NULL), m_pMC(NULL),
      m_cfname(NULL), m_sfname(NULL),m_newmediatype(1)
 {
   int len;
@@ -81,7 +84,7 @@ void DSAudioCodec::ReleaseGraph()
     {
       SAFE_REMOVE_FILTER(m_pGraph, m_pFilter);
       SAFE_REMOVE_FILTER(m_pGraph, m_pSFilter);
-      SAFE_REMOVE_FILTER(m_pGraph, m_pDirectSoundRenderer);
+      SAFE_REMOVE_FILTER(m_pGraph, m_pAudioRenderer);
     }
     RemoveFromRot(m_dwRegister);
   }
@@ -90,9 +93,9 @@ void DSAudioCodec::ReleaseGraph()
     if (m_pInputPin) m_res = m_pInputPin->Disconnect();
     if (m_pOutputPin) m_res = m_pOutputPin->Disconnect();
     if (m_pFilter) m_res = m_pFilter->JoinFilterGraph(NULL, NULL);
-    if (m_pDirectSoundRenderer) m_res = m_pDirectSoundRenderer->JoinFilterGraph(NULL, NULL);
+    if (m_pAudioRenderer) m_res = m_pAudioRenderer->JoinFilterGraph(NULL, NULL);
 
-    if (m_pDirectSoundRendererInputPin) m_res = m_pDirectSoundRendererInputPin->Disconnect();
+    if (m_pAudioRendererInputPin) m_res = m_pAudioRendererInputPin->Disconnect();
     if (m_pOurInput) m_res = m_pOurInput->Disconnect();
     
   }
@@ -100,7 +103,7 @@ void DSAudioCodec::ReleaseGraph()
   if (m_pMemInputPin) m_pMemInputPin->Release();
   if (m_pFilter) m_res = m_pFilter->Release();
   if (m_pSFilter) m_res = m_pSFilter->Release();
-  if (m_pDirectSoundRenderer) m_res = m_pDirectSoundRenderer->Release();
+  if (m_pAudioRenderer) m_res = m_pAudioRenderer->Release();
   }
 
 BOOL DSAudioCodec::LoadLibrary()
@@ -135,8 +138,10 @@ BOOL DSAudioCodec::LoadLibrary()
      break;
    }
 
-   if (hKey) RegCloseKey(hKey);
-     return (m_hDll != NULL);
+   if (hKey) 
+     RegCloseKey(hKey);
+
+   return (m_hDll != NULL);
 }
 
 BOOL DSAudioCodec::CreateFilter()
@@ -160,6 +165,36 @@ BOOL DSAudioCodec::CreateFilter()
   m_res = object->QueryInterface(IID_IBaseFilter, (LPVOID *) &m_pFilter);
   object->Release();
 
+   //No point to load the audio renderer if the codec failed
+   if (m_res == S_OK)
+   {
+     
+     CFGFilterRegistry* pAudioRenderer = new CFGFilterRegistry(m_renderer_guid);
+     HRESULT hr = pAudioRenderer->Create(&m_pAudioRenderer);
+     if (SUCCEEDED(hr))
+     {
+       CLog::Log(LOGINFO,"DSAudioCodec::CreateFilter() succeed with audio renderer");
+     }
+     //CoCreateInstance(m_renderer_guid, NULL, CLSCTX_ALL, IID_IBaseFilter, (void**)&);
+
+#if 0 //this way is not working for a lot of renderer
+     Com::SmartPtr<IMoniker> pMoniker;
+   Com::SmartPtr<IPropertyBag> pPropertyBag;
+   Com::SmartPtr<IBindCtx> pBindCtx;
+   VARIANT var;
+   CreateBindCtx(0, &pBindCtx);
+   if (SUCCEEDED(CoCreateInstance(m_renderer_guid, NULL, CLSCTX_ALL, IID_IBaseFilter, (void**)&m_pAudioRenderer))
+     && SUCCEEDED(CreateClassMoniker(m_renderer_guid,&pMoniker))
+     && SUCCEEDED(pMoniker->BindToStorage(pBindCtx, 0, IID_IPropertyBag, (void**)&pPropertyBag))
+     && SUCCEEDED(pPropertyBag->Read(LPCOLESTR(L"FriendlyName"), &var, NULL)))
+   {
+     
+     m_strRendererName = var.bstrVal;
+     
+     
+   }
+#endif
+   }
   return (m_res == S_OK);
 }
 
@@ -214,106 +249,6 @@ BOOL DSAudioCodec::SetInputType()
   
   //Sample size of audio input should be the same value as the waveformat->nBlockAlign
   return TRUE;
-#if 0
-  m_pOurType.majortype = MEDIATYPE_Video;
-  m_pOurType.subtype = MEDIATYPE_Video;
-  m_pOurType.bFixedSizeSamples = FALSE;
-  m_pOurType.bTemporalCompression = TRUE;
-  m_pOurType.lSampleSize = 1;
-  m_pOurType.pUnk = NULL;
-
-  /* ffdshow (and others ?) needs AVC1 as fourcc for avc video */
-  
-  m_pOurType.subtype.Data1 = m_bih->biCompression;
-
-  // probe FORMAT_MPEG2Video
-  // this is done before FORMAT_VideoInfo because e.g. coreavc will accept anyway the format
-  // but it will decode black frames
-
-  int extra = m_bih->biSize - sizeof(BITMAPINFOHEADER);
-  cbFormat = FIELD_OFFSET(MPEG2VIDEOINFO, dwSequenceHeader) + extra - 7;
-
-  MPEG2VIDEOINFO *try_mp2vi = (MPEG2VIDEOINFO *) new BYTE[cbFormat];
-  m_vinfo = (BYTE *) try_mp2vi;
-
-  memset(try_mp2vi, 0, cbFormat);
-  try_mp2vi->hdr.rcSource.left = try_mp2vi->hdr.rcSource.top = 0;
-  try_mp2vi->hdr.rcSource.right = m_bih->biWidth;
-  try_mp2vi->hdr.rcSource.bottom = m_bih->biHeight;
-  try_mp2vi->hdr.rcTarget = try_mp2vi->hdr.rcSource;
-  try_mp2vi->hdr.dwPictAspectRatioX = m_bih->biWidth;
-  try_mp2vi->hdr.dwPictAspectRatioY = m_bih->biHeight;
-  memcpy(&try_mp2vi->hdr.bmiHeader, m_bih, sizeof(BITMAPINFOHEADER));
-  try_mp2vi->hdr.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
-  try_mp2vi->hdr.bmiHeader.biCompression = m_pOurType.subtype.Data1;
-  try_mp2vi->hdr.AvgTimePerFrame = m_frametime;
-
-  /* From MPC-HC */
-  if (extra > 0)
-  {
-    BYTE *extradata = (BYTE *) m_bih + sizeof(BITMAPINFOHEADER);
-    try_mp2vi->dwProfile = extradata[1];
-    try_mp2vi->dwLevel = extradata[3];
-    if(!m_mpegts)
-      try_mp2vi->dwFlags = (extradata[4] & 3) + 1;
-
-    try_mp2vi->cbSequenceHeader = 0;
-
-    BYTE* src = (BYTE *) extradata + 5;
-    BYTE* dst = (BYTE *) try_mp2vi->dwSequenceHeader;
-
-    BYTE* src_end = (BYTE *) extradata + extra;
-    BYTE* dst_end = (BYTE *) try_mp2vi->dwSequenceHeader + extra;
-
-    for (int i = 0; i < 2; i++)
-    {
-      for (int n = *src++ & 0x1f; n > 0; n--)
-      {
-        int len = ((src[0] << 8) | src[1]) + 2;
-        if(src + len > src_end || dst + len > dst_end) { ASSERT(0); break; }
-        memcpy(dst, src, len);
-        src += len;
-        dst += len;
-        try_mp2vi->cbSequenceHeader += len;
-      }
-    }
-  }
-
-  m_pOurType.formattype = FORMAT_MPEG2Video;
-  m_pOurType.pbFormat = m_vinfo;
-  m_pOurType.cbFormat = cbFormat;
-
-  if ((m_res = m_pInputPin->QueryAccept(&m_pOurType)) == S_OK)
-    return TRUE;
-
-  delete m_vinfo;
-  m_vinfo = NULL;
-
-  // probe FORMAT_VideoInfo
-        cbFormat = sizeof(VIDEOINFOHEADER) + m_bih->biSize;
-  VIDEOINFOHEADER *try_vi = (VIDEOINFOHEADER *) new BYTE[cbFormat];
-  m_vinfo = (BYTE *) try_vi;
-
-  memset(try_vi, 0, cbFormat);
-  memcpy(&try_vi->bmiHeader, m_bih, m_bih->biSize);
-
-  try_vi->rcSource.left = try_vi->rcSource.top = 0;
-  try_vi->rcSource.right = m_bih->biWidth;
-  try_vi->rcSource.bottom = m_bih->biHeight;
-  try_vi->rcTarget = try_vi->rcSource;
-  try_vi->AvgTimePerFrame = m_frametime;
-
-  m_pOurType.formattype = FORMAT_VideoInfo;
-  m_pOurType.pbFormat = m_vinfo;
-  m_pOurType.cbFormat = cbFormat;
-
-  if ((m_res = m_pInputPin->QueryAccept(&m_pOurType)) == S_OK)
-    return TRUE;
-
-  delete m_vinfo;
-  m_vinfo = NULL;
-  return FALSE;
-#endif
 }
 
 BOOL DSAudioCodec::EnumPins()
@@ -354,7 +289,7 @@ BOOL DSAudioCodec::EnumPins()
   
   /* End audio codec */
   /* Begin audio renderer */
-  if (m_pDirectSoundRenderer->EnumPins(&enumpins) != S_OK)
+  if (m_pAudioRenderer->EnumPins(&enumpins) != S_OK)
     return FALSE;
 
   enumpins->Reset();
@@ -368,12 +303,12 @@ BOOL DSAudioCodec::EnumPins()
   {
     pin->QueryPinInfo(&pInfo);
     /* wprintf(L"Pin: %s - %s\n", pInfo.achName, (pInfo.dir == PINDIR_INPUT) ? L"Input" : L"Output"); */
-    if (!m_pDirectSoundRendererInputPin && (pInfo.dir == PINDIR_INPUT))
-      m_pDirectSoundRendererInputPin = pin;
+    if (!m_pAudioRendererInputPin && (pInfo.dir == PINDIR_INPUT))
+      m_pAudioRendererInputPin = pin;
     
 
     pin->Release();
-    m_pDirectSoundRenderer->Release();
+    m_pAudioRenderer->Release();
   }
 
   enumpins->Release();
@@ -383,12 +318,6 @@ BOOL DSAudioCodec::EnumPins()
 
 dsnerror_t DSAudioCodec::SetupAllocator()
 {
-  /*if (!m_pOutputQueue)
-  {
-    HRESULT hr = S_OK;
-    m_pOutputQueue = new COutputQueue(m_pInputPin, &hr, TRUE, FALSE);
-  }*/
-
   DSN_CHECK(m_pMemInputPin->GetAllocator(&m_pMemAllocator), DSN_FAIL_ALLOCATOR);
   ALLOCATOR_PROPERTIES props, props1;
   props.cBuffers = 1;
@@ -406,135 +335,120 @@ dsnerror_t DSAudioCodec::SetupAllocator()
 
 HRESULT IsPinConnected(IPin *pPin, BOOL *pResult)
 {
-    IPin *pTmp = NULL;
-    HRESULT hr = pPin->ConnectedTo(&pTmp);
-    if (SUCCEEDED(hr))
-    {
-        *pResult = TRUE;
-    }
-    else if (hr == VFW_E_NOT_CONNECTED)
-    {
-        // The pin is not connected. This is not an error for our purposes.
-        *pResult = FALSE;
-        hr = S_OK;
-    }
-    
-    SAFE_RELEASE(pTmp);
-    return hr;
+  IPin *pTmp = NULL;
+  HRESULT hr = pPin->ConnectedTo(&pTmp);
+  if (SUCCEEDED(hr))
+  {
+    *pResult = TRUE;
+  }
+  else if (hr == VFW_E_NOT_CONNECTED)
+  {
+    // The pin is not connected. This is not an error for our purposes.
+    *pResult = FALSE;
+    hr = S_OK;
+  }
+  
+  SAFE_RELEASE(pTmp);
+  return hr;
 }
 
 
 // Query whether a pin has a specified direction (input / output)
 HRESULT IsPinDirection(IPin *pPin, PIN_DIRECTION dir, BOOL *pResult)
 {
-    PIN_DIRECTION pinDir;
-    HRESULT hr = pPin->QueryDirection(&pinDir);
-    if (SUCCEEDED(hr))
-    {
-        *pResult = (pinDir == dir);
-    }
-    return hr;
+  PIN_DIRECTION pinDir;
+  HRESULT hr = pPin->QueryDirection(&pinDir);
+  if (SUCCEEDED(hr))
+    *pResult = (pinDir == dir);
+  return hr;
 }
 
 HRESULT MatchPin(IPin *pPin, PIN_DIRECTION direction, BOOL bShouldBeConnected, BOOL *pResult)
 {
-    assert(pResult != NULL);
+  assert(pResult != NULL);
 
-    BOOL bMatch = FALSE;
-    BOOL bIsConnected = FALSE;
+  BOOL bMatch = FALSE;
+  BOOL bIsConnected = FALSE;
 
-    HRESULT hr = IsPinConnected(pPin, &bIsConnected);
-    if (SUCCEEDED(hr))
-    {
-        if (bIsConnected == bShouldBeConnected)
-        {
-            hr = IsPinDirection(pPin, direction, &bMatch);
-        }
-    }
+  HRESULT hr = IsPinConnected(pPin, &bIsConnected);
+  if (SUCCEEDED(hr))
+  {
+    if (bIsConnected == bShouldBeConnected)
+      hr = IsPinDirection(pPin, direction, &bMatch);
+  }
 
-    if (SUCCEEDED(hr))
-    {
-        *pResult = bMatch;
-    }
-    return hr;
+  if (SUCCEEDED(hr))
+    *pResult = bMatch;
+  return hr;
 }
 
 // Return the first unconnected input pin or output pin.
 HRESULT FindUnconnectedPin(IBaseFilter *pFilter, PIN_DIRECTION PinDir, IPin **ppPin)
 {
-    IEnumPins *pEnum = NULL;
-    IPin *pPin = NULL;
-    BOOL bFound = FALSE;
+  IEnumPins *pEnum = NULL;
+  IPin *pPin = NULL;
+  BOOL bFound = FALSE;
 
-    HRESULT hr = pFilter->EnumPins(&pEnum);
+  HRESULT hr = pFilter->EnumPins(&pEnum);
+  if (FAILED(hr))
+    goto done;
+
+  while (S_OK == pEnum->Next(1, &pPin, NULL))
+  {
+    hr = MatchPin(pPin, PinDir, FALSE, &bFound);
     if (FAILED(hr))
-    {
-        goto done;
-    }
+      goto done;
 
-    while (S_OK == pEnum->Next(1, &pPin, NULL))
+    if (bFound)
     {
-        hr = MatchPin(pPin, PinDir, FALSE, &bFound);
-        if (FAILED(hr))
-        {
-            goto done;
-        }
-        if (bFound)
-        {
-            *ppPin = pPin;
-            (*ppPin)->AddRef();
-            break;
-        }
-        SAFE_RELEASE(pPin);
+      *ppPin = pPin;
+      (*ppPin)->AddRef();
+      break;
     }
+    SAFE_RELEASE(pPin);
+  }
 
-    if (!bFound)
-    {
-        hr = VFW_E_NOT_FOUND;
-    }
+  if (!bFound)
+    hr = VFW_E_NOT_FOUND;
 
 done:
-    SAFE_RELEASE(pPin);
-    SAFE_RELEASE(pEnum);
-    return hr;
+  SAFE_RELEASE(pPin);
+  SAFE_RELEASE(pEnum);
+  return hr;
 }
 
-HRESULT ConnectFilters(
-    IGraphBuilder *pGraph, // Filter Graph Manager.
-    IPin *pOut,            // Output pin on the upstream filter.
-    IBaseFilter *pDest)    // Downstream filter.
+HRESULT ConnectFilters(IGraphBuilder *pGraph, IPin *pOut, IBaseFilter *pDest)
 {
-    IPin *pIn = NULL;
-        
-    // Find an input pin on the downstream filter.
-    HRESULT hr = FindUnconnectedPin(pDest, PINDIR_INPUT, &pIn);
-    if (SUCCEEDED(hr))
-    {
-        // Try to connect them.
-        hr = pGraph->Connect(pOut, pIn);
-        pIn->Release();
-    }
-    return hr;
+  IPin *pIn = NULL;
+  // Find an input pin on the downstream filter.
+  HRESULT hr = FindUnconnectedPin(pDest, PINDIR_INPUT, &pIn);
+  if (SUCCEEDED(hr))
+  {
+    // Try to connect them.
+    hr = pGraph->Connect(pOut, pIn);
+    pIn->Release();
+  }
+  return hr;
 }
 
 HRESULT ConnectFilters(IGraphBuilder *pGraph, IBaseFilter *pSrc, IBaseFilter *pDest)
 {
-    IPin *pOut = NULL;
+  IPin *pOut = NULL;
 
-    // Find an output pin on the first filter.
-    HRESULT hr = FindUnconnectedPin(pSrc, PINDIR_OUTPUT, &pOut);
-    if (SUCCEEDED(hr))
-    {
-        hr = ConnectFilters(pGraph, pOut, pDest);
-        pOut->Release();
-    }
-    return hr;
+  // Find an output pin on the first filter.
+  HRESULT hr = FindUnconnectedPin(pSrc, PINDIR_OUTPUT, &pOut);
+  if (SUCCEEDED(hr))
+  {
+    hr = ConnectFilters(pGraph, pOut, pDest);
+    pOut->Release();
+  }
+  return hr;
 }
 
 dsnerror_t DSAudioCodec::CreateGraph(bool buildgraph)
 {
   HRESULT hr = S_OK;
-  hr = CoCreateInstance ( CLSID_DSoundRender, NULL, CLSCTX_INPROC_SERVER, IID_IBaseFilter, reinterpret_cast < void** > ( &m_pDirectSoundRenderer ) );
+
   if (!EnumPins())
     return DSN_FAIL_ENUM;
 
@@ -552,19 +466,20 @@ dsnerror_t DSAudioCodec::CreateGraph(bool buildgraph)
 
   if (buildgraph)
   {
-    DSN_CHECK(CoCreateInstance(CLSID_FilterGraph, NULL, CLSCTX_INPROC_SERVER, IID_IGraphBuilder, (void **) &m_pGraph), DSN_FAIL_GRAPH);
+    DSN_CHECK(CoCreateInstance(CLSID_FilterGraph, NULL, CLSCTX_ALL, IID_IGraphBuilder, (void **) &m_pGraph), DSN_FAIL_GRAPH);
 
     DSN_CHECK(DSAudioCodec::AddToRot(m_pGraph, &m_dwRegister), DSN_FAIL_GRAPH);
     DSN_CHECK(m_pGraph->QueryInterface(IID_IMediaControl, (void **) &m_pMC), DSN_FAIL_GRAPH);
 
     m_pGraph->SetLogFile((DWORD_PTR) GetStdHandle(STD_OUTPUT_HANDLE));
-    DSN_CHECK(m_pGraph->AddFilter(m_pFilter, L"Binary Codec"), (m_pInputPin = m_pOutputPin = NULL, DSN_FAIL_GRAPH));
+    DSN_CHECK(m_pGraph->AddFilter(m_pFilter, m_sfname), (m_pInputPin = m_pOutputPin = NULL, DSN_FAIL_GRAPH));
     DSN_CHECK(m_pGraph->AddFilter(m_pSFilter, L"DS Sender"), DSN_FAIL_GRAPH);
-    DSN_CHECK(m_pGraph->AddFilter(m_pDirectSoundRenderer, L"DirectSound Renderer"), DSN_FAIL_GRAPH);
+    DSN_CHECK(m_pGraph->AddFilter(m_pAudioRenderer, L"AudioRenderer"), DSN_FAIL_GRAPH);
     DSN_CHECK(m_pGraph->AddFilter(m_pNullRenderer, L"NULL Renderer"), DSN_FAIL_GRAPH);
     DSN_CHECK(m_pGraph->AddFilter(m_pDupFilter, L"Tee"), DSN_FAIL_GRAPH);
 
     // Connect our output pin to codec input pin otherwise QueryAccept on the codec output pin will fail
+    //DSN_CHECK(ConnectFilters(m_pGraph, m_pSFilter, m_pFilter), DSN_OUTPUT_CONNFAILED);
     hr = m_pGraph->ConnectDirect(m_pOurInput, m_pInputPin, &m_pOurType);
     DSN_CHECK(hr, DSN_INPUT_CONNFAILED);
   }
@@ -577,11 +492,13 @@ dsnerror_t DSAudioCodec::CreateGraph(bool buildgraph)
 
   SetOutputType();
   
-  DSN_CHECK(ConnectFilters(m_pGraph, m_pOutputPin, m_pDupFilter), DSN_OUTPUT_CONNFAILED);
-  DSN_CHECK(ConnectFilters(m_pGraph, m_pDupFilter, m_pDirectSoundRenderer), DSN_OUTPUT_CONNFAILED);
+  //DSN_CHECK(ConnectFilters(m_pGraph, m_pOutputPin, m_pDupFilter), DSN_OUTPUT_CONNFAILED);
+  
+  DSN_CHECK(ConnectFilters(m_pGraph, m_pFilter, m_pDupFilter), DSN_OUTPUT_CONNFAILED);
+  DSN_CHECK(ConnectFilters(m_pGraph, m_pDupFilter, m_pAudioRenderer), DSN_OUTPUT_CONNFAILED);
   DSN_CHECK(ConnectFilters(m_pGraph, m_pDupFilter, m_pNullRenderer), DSN_OUTPUT_CONNFAILED);
   
-  //DSN_CHECK(m_pGraph->ConnectDirect(m_pOutputPin, m_pDirectSoundRendererInputPin, NULL), DSN_OUTPUT_CONNFAILED);
+  //DSN_CHECK(m_pGraph->ConnectDirect(m_pOutputPin, m_pAudioRendererInputPin, NULL), DSN_OUTPUT_CONNFAILED);
   
   
   return DSN_OK;
@@ -629,7 +546,7 @@ BOOL DSAudioCodec::StartGraph()
   else
   {
     m_pFilter->Run(0);
-    m_pDirectSoundRenderer->Run(0);
+    m_pAudioRenderer->Run(0);
   }
   Resync(0); // NewSegment + discontinuity /* e.g. ffdshow will not init byte count */
   return TRUE;
@@ -644,14 +561,21 @@ dsnerror_t DSAudioCodec::Decode(const BYTE *src, int size, int *usedByte)
   HRESULT hr = S_OK;
   
   DSN_CHECK(m_pMemAllocator->GetBuffer(&sample, 0, 0, 0), DSN_FAIL_DECODESAMPLE);
-  CRefTime time;
+  
   if (!m_pClock)
   {
+    
     m_pNullRenderer->QueryInterface(IID_IReferenceClock,(void**)&m_pClock);
-    m_pDirectSoundRenderer->SetSyncSource(m_pClock);
-
+    Com::SmartPtr<IMediaFilter> pMF;
+    hr = m_pGraph->QueryInterface(IID_IMediaFilter,(void**)&pMF);
+    pMF->SetSyncSource(m_pClock);
+    m_pNullRenderer->SetSyncSource(m_pClock);
+    m_pAudioRenderer->SetSyncSource(m_pClock);
+    CRefTime time;
+    m_pClock->GetTime((REFERENCE_TIME*)&time);
+    m_currentTime = time;
   }
-  hr = m_pClock->GetTime((REFERENCE_TIME*)&time);
+  
   
   hr = sample->SetActualDataLength(size);
   DSN_CHECK(sample->GetPointer(&ptr), DSN_FAIL_DECODESAMPLE);
@@ -674,8 +598,12 @@ dsnerror_t DSAudioCodec::Decode(const BYTE *src, int size, int *usedByte)
   {
     
     WAVEFORMATEX* wfmt = (WAVEFORMATEX*)mt.pbFormat;
-    m_pFrameDurationDivision = (wfmt->nChannels * wfmt->wBitsPerSample * wfmt->nSamplesPerSec)>>3;
-    dur = MulDiv(size,1000000,m_pFrameDurationDivision);//((double)size * 1000000) / m_pFrameDurationDivision;
+    //dur =  MulDiv(size , wfmt->wBitsPerSample, 1000);
+    
+    dur = wfmt->nAvgBytesPerSec / (wfmt->nChannels * wfmt->nBlockAlign);
+    dur = dur*10;
+
+    //dur = MulDiv(size,1000000,m_pFrameDurationDivision);//((double)size * 1000000) / m_pFrameDurationDivision;
     //DeleteMediaType(mt);
     //pmt = NULL;
   }  
@@ -692,12 +620,13 @@ dsnerror_t DSAudioCodec::Decode(const BYTE *src, int size, int *usedByte)
     pFrameDuration = ((double)size * 1000000) / m_pFrameDurationDivision;
     pFrameDuration = m_pFrameDurationDivision*10;
   }*/
-  REFERENCE_TIME start = time;
-  REFERENCE_TIME stop = time + dur;
+  REFERENCE_TIME start = m_currentTime;
+  REFERENCE_TIME stop = m_currentTime + dur;
+  m_currentTime = stop;
   DSN_CHECK(sample->SetTime(&start, &stop), DSN_FAIL_DECODESAMPLE);
   DSN_CHECK(sample->SetMediaTime(0, 0), DSN_FAIL_DECODESAMPLE);
 
-  DSN_CHECK(sample->SetSyncPoint(0), DSN_FAIL_DECODESAMPLE);
+  DSN_CHECK(sample->SetSyncPoint(1), DSN_FAIL_DECODESAMPLE);
   DSN_CHECK(sample->SetPreroll(FALSE), DSN_FAIL_DECODESAMPLE);
   DSN_CHECK(sample->SetDiscontinuity(m_discontinuity), DSN_FAIL_DECODESAMPLE);
 
@@ -711,7 +640,7 @@ dsnerror_t DSAudioCodec::Decode(const BYTE *src, int size, int *usedByte)
   else
     *usedByte = 0;
   sample->Release();
-  *usedByte = size;
+
   //*pImageSize = m_pOurOutput->GetPointerSize();
   //*newpts = RT2PTS(m_pOurOutput->GetPTS());
   return DSN_OK;
@@ -721,7 +650,7 @@ dsnerror_t DSAudioCodec::Resync(REFERENCE_TIME pts)
 {
   m_res = m_pInputPin->NewSegment(pts, pts + m_frametime, 1.0);
   //m_pOutputQueue->NewSegment(pts, pts + m_frametime, 1.0);
-  m_res = m_pDirectSoundRendererInputPin->NewSegment(pts, pts + m_frametime, 1.0);
+  m_res = m_pAudioRendererInputPin->NewSegment(pts, pts + m_frametime, 1.0);
 
   
   m_discontinuity = 1;
@@ -775,7 +704,7 @@ CMediaType DSAudioCodec::GetOutputMediaType()
 {
   CMediaType mt;
 
-  m_pDirectSoundRendererInputPin->ConnectionMediaType(&mt);
+  m_pAudioRendererInputPin->ConnectionMediaType(&mt);
   return mt;
 
 }

@@ -94,10 +94,13 @@ extern "C" dsnerror_t WINAPI DSVideoResync(DSVideoCodec *vcodec, double pts)
 }
 
 extern "C" DSAudioCodec * WINAPI DSOpenAudioCodec(const char *dll, const GUID guid, CMediaType* wvfmt,
-                                                  const char *filename, CMediaType* pDestType,dsnerror_t *err)
+                                                  const char *filename, const GUID rendererGuid, CMediaType* pDestType,dsnerror_t *err)
 {
-    DSAudioCodec *acodec = new DSAudioCodec(dll, guid, wvfmt, filename);
+    DSAudioCodec *acodec = new DSAudioCodec(dll, guid, rendererGuid, wvfmt, filename);
     dsnerror_t res = DSN_OK;
+    int len;
+
+
 
     if (!acodec->LoadLibrary())
         res = DSN_LOADLIBRARY;
@@ -114,6 +117,7 @@ extern "C" DSAudioCodec * WINAPI DSOpenAudioCodec(const char *dll, const GUID gu
         
         return acodec;
     }
+
     delete acodec;
     if (*err) 
       *err = res;

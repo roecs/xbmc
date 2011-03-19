@@ -136,6 +136,8 @@
     <ClCompile Include="H264Nalu.cpp">
       <Filter>Video</Filter>
     </ClCompile>
+    <ClCompile Include="FGFilter.cpp" />
+    <ClCompile Include="DSUtil.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="BaseClasses\amextra.h">
@@ -280,5 +282,7 @@
     <ClInclude Include="H264Nalu.h">
       <Filter>Video</Filter>
     </ClInclude>
+    <ClInclude Include="FGFilter.h" />
+    <ClInclude Include="DSUtil.h" />
   </ItemGroup>
 </Project>

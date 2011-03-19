@@ -25,7 +25,7 @@
 class DSAudioCodec
 {
 public:
-  DSAudioCodec(const char *cfname, const GUID guid, CMediaType *wvfmt, const char *sfname);
+  DSAudioCodec(const char *cfname, const GUID guid,const GUID rendererGuid, CMediaType *wvfmt, const char *sfname);
   ~DSAudioCodec();
   void ReleaseGraph();
   BOOL LoadLibrary();
@@ -54,6 +54,7 @@ public:
 private:
   HMODULE m_hDll;
   GUID m_guid;
+  CLSID m_renderer_guid;
   wchar_t *m_cfname, *m_sfname;
   unsigned int m_outfmt;
   int m_discontinuity;
@@ -62,6 +63,7 @@ private:
   int m_pFrameDurationDivision;
   HRESULT m_res;
   REFERENCE_TIME m_frametime;
+  REFERENCE_TIME m_currentTime;
   CMediaType *m_wvfmt;
   
   
@@ -80,13 +82,16 @@ private:
   IBaseFilter *m_pFilter;
   IPin *m_pInputPin;
   IPin *m_pOutputPin;
-  IBaseFilter *m_pDirectSoundRenderer;
-  IPin *m_pDirectSoundRendererInputPin;
+  //audio renderer
+  wchar_t *m_strRendererName;
+  IBaseFilter *m_pAudioRenderer;
+  IPin *m_pAudioRendererInputPin;
+
   IReferenceClock *m_pClock;
   //CRendererInputPin *m_pNullRendererPin;
   CTee *m_pDupFilter;
   CNullRenderer *m_pNullRenderer;
-  //CNullRendererInputPin *m_pNullRendererInputPin;
+  
 
 
   IMemInputPin *m_pMemInputPin;

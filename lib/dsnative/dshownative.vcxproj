@@ -356,9 +356,11 @@
     <ClCompile Include="DSNative.cpp" />
     <ClCompile Include="dsnerror.cpp" />
     <ClCompile Include="dsnpins.cpp" />
+    <ClCompile Include="DSUtil.cpp" />
     <ClCompile Include="DSVideoCodec.cpp" />
     <ClCompile Include="dump.cpp" />
     <ClCompile Include="ExtradataParser.cpp" />
+    <ClCompile Include="FGFilter.cpp" />
     <ClCompile Include="GolombBuffer.cpp" />
     <ClCompile Include="H264Nalu.cpp" />
     <ClCompile Include="stdafx.cpp">
@@ -412,10 +414,12 @@
     <ClInclude Include="DSNative.h" />
     <ClInclude Include="dsnerror.h" />
     <ClInclude Include="dsnpins.h" />
+    <ClInclude Include="DSUtil.h" />
     <ClInclude Include="DSVideoCodec.h" />
     <ClInclude Include="dump.h" />
     <ClInclude Include="dumpuids.h" />
     <ClInclude Include="ExtradataParser.h" />
+    <ClInclude Include="FGFilter.h" />
     <ClInclude Include="GolombBuffer.h" />
     <ClInclude Include="H264Nalu.h" />
     <ClInclude Include="IPaintCallback.h" />

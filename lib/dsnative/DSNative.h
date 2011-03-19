@@ -99,7 +99,7 @@ extern "C" dsnerror_t WINAPI DSVideoGetMediaBuffer(DSVideoCodec *vcodec, DsAlloc
 extern "C" IPaintCallback* WINAPI DSVideoGetEvrCallback(DSVideoCodec *vcodec);
 extern "C" dsnerror_t WINAPI DSVideoResync(DSVideoCodec *vcodec, double pts);
 /*Audio*/
-extern "C" DSAudioCodec * WINAPI DSOpenAudioCodec(const char *dll, const GUID guid, CMediaType* wvfmt, const char *filename, CMediaType* pDestType, dsnerror_t *err);
+extern "C" DSAudioCodec * WINAPI DSOpenAudioCodec(const char *dll, const GUID guid, CMediaType* wvfmt, const char *filename, const GUID rendererGuid, CMediaType* pDestType, dsnerror_t *err);
 extern "C" dsnerror_t WINAPI DSAudioGetMediaType(DSAudioCodec *acodec, CMediaType* pType);
 extern "C" void WINAPI DSCloseAudioCodec(DSAudioCodec *vcodec);
 extern "C" dsnerror_t WINAPI DSAudioDecode(DSAudioCodec *acodec, const BYTE *src, int size, int *usedByte);
