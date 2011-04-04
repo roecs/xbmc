@@ -59,7 +59,7 @@ namespace VIDEO
 
 // these defines are based on how many columns we have and which column certain data is going to be in
 // when we do GetDetailsForMovie()
-#define VIDEODB_MAX_COLUMNS 22
+#define VIDEODB_MAX_COLUMNS 23
 #define VIDEODB_DETAILS_FILEID			1
 #define VIDEODB_DETAILS_FILE			VIDEODB_MAX_COLUMNS + 2
 #define VIDEODB_DETAILS_PATH			VIDEODB_MAX_COLUMNS + 3
@@ -74,6 +74,7 @@ namespace VIDEO
 #define VIDEODB_DETAILS_TVSHOW_PATH		VIDEODB_MAX_COLUMNS + 1
 #define VIDEODB_DETAILS_TVSHOW_NUM_EPISODES	VIDEODB_MAX_COLUMNS + 2
 #define VIDEODB_DETAILS_TVSHOW_NUM_WATCHED	VIDEODB_MAX_COLUMNS + 3
+#define VIDEODB_DETAILS_TVSHOW_NUM_SEASONS	VIDEODB_MAX_COLUMNS + 4
 
 
 #define VIDEODB_TYPE_STRING 1
@@ -116,6 +117,7 @@ typedef enum // this enum MUST match the offset struct further down!! and make s
   VIDEODB_ID_TRAILER = 19,
   VIDEODB_ID_FANART = 20,
   VIDEODB_ID_COUNTRY = 21,
+  VIDEODB_ID_BASEPATH = 22,
   VIDEODB_ID_MAX
 } VIDEODB_IDS;
 
@@ -146,7 +148,8 @@ const struct SDbTableOffsets
   { VIDEODB_TYPE_STRING, my_offsetof(CVideoInfoTag,m_strStudio) },
   { VIDEODB_TYPE_STRING, my_offsetof(CVideoInfoTag,m_strTrailer) },
   { VIDEODB_TYPE_STRING, my_offsetof(CVideoInfoTag,m_fanart.m_xml) },
-  { VIDEODB_TYPE_STRING, my_offsetof(CVideoInfoTag,m_strCountry) }
+  { VIDEODB_TYPE_STRING, my_offsetof(CVideoInfoTag,m_strCountry) },
+  { VIDEODB_TYPE_STRING, my_offsetof(CVideoInfoTag,m_basePath) }
 };
 
 typedef enum // this enum MUST match the offset struct further down!! and make sure to keep min and max at -1 and sizeof(offsets)
@@ -168,6 +171,7 @@ typedef enum // this enum MUST match the offset struct further down!! and make s
   VIDEODB_ID_TV_MPAA = 13,
   VIDEODB_ID_TV_STUDIOS = 14,
   VIDEODB_ID_TV_SORTTITLE = 15,
+  VIDEODB_ID_TV_BASEPATH = 16,
   VIDEODB_ID_TV_MAX
 } VIDEODB_TV_IDS;
 
@@ -188,7 +192,8 @@ const struct SDbTableOffsets DbTvShowOffsets[] =
   { VIDEODB_TYPE_STRING, my_offsetof(CVideoInfoTag,m_strIMDBNumber)},
   { VIDEODB_TYPE_STRING, my_offsetof(CVideoInfoTag,m_strMPAARating)},
   { VIDEODB_TYPE_STRING, my_offsetof(CVideoInfoTag,m_strStudio)},
-  { VIDEODB_TYPE_STRING, my_offsetof(CVideoInfoTag,m_strSortTitle)}
+  { VIDEODB_TYPE_STRING, my_offsetof(CVideoInfoTag,m_strSortTitle)},
+  { VIDEODB_TYPE_STRING, my_offsetof(CVideoInfoTag,m_basePath) }
 };
 
 typedef enum // this enum MUST match the offset struct further down!! and make sure to keep min and max at -1 and sizeof(offsets)
@@ -212,6 +217,7 @@ typedef enum // this enum MUST match the offset struct further down!! and make s
   VIDEODB_ID_EPISODE_SORTSEASON = 15,
   VIDEODB_ID_EPISODE_SORTEPISODE = 16,
   VIDEODB_ID_EPISODE_BOOKMARK = 17,
+  VIDEODB_ID_EPISODE_BASEPATH = 18,
   VIDEODB_ID_EPISODE_MAX
 } VIDEODB_EPISODE_IDS;
 
@@ -235,6 +241,7 @@ const struct SDbTableOffsets DbEpisodeOffsets[] =
   { VIDEODB_TYPE_INT, my_offsetof(CVideoInfoTag,m_iSpecialSortSeason) },
   { VIDEODB_TYPE_INT, my_offsetof(CVideoInfoTag,m_iSpecialSortEpisode) },
   { VIDEODB_TYPE_INT, my_offsetof(CVideoInfoTag,m_iBookmarkId) },
+  { VIDEODB_TYPE_STRING, my_offsetof(CVideoInfoTag,m_basePath) }
 };
 
 typedef enum // this enum MUST match the offset struct further down!! and make sure to keep min and max at -1 and sizeof(offsets)
@@ -253,6 +260,7 @@ typedef enum // this enum MUST match the offset struct further down!! and make s
   VIDEODB_ID_MUSICVIDEO_ARTIST = 10,
   VIDEODB_ID_MUSICVIDEO_GENRE = 11,
   VIDEODB_ID_MUSICVIDEO_TRACK = 12,
+  VIDEODB_ID_MUSICVIDEO_BASEPATH = 13,
   VIDEODB_ID_MUSICVIDEO_MAX
 } VIDEODB_MUSICVIDEO_IDS;
 
@@ -270,7 +278,8 @@ const struct SDbTableOffsets DbMusicVideoOffsets[] =
   { VIDEODB_TYPE_STRING, my_offsetof(CVideoInfoTag,m_strAlbum) },
   { VIDEODB_TYPE_STRING, my_offsetof(CVideoInfoTag,m_strArtist) },
   { VIDEODB_TYPE_STRING, my_offsetof(CVideoInfoTag,m_strGenre) },
-  { VIDEODB_TYPE_INT, my_offsetof(CVideoInfoTag,m_iTrack) }
+  { VIDEODB_TYPE_INT, my_offsetof(CVideoInfoTag,m_iTrack) },
+  { VIDEODB_TYPE_STRING, my_offsetof(CVideoInfoTag,m_basePath) }
 };
 
 #define COMPARE_PERCENTAGE     0.90f // 90%
@@ -345,9 +354,13 @@ public:
   bool HasMusicVideoInfo(const CStdString& strFilenameAndPath);
 
   void GetFilePathById(int idMovie, CStdString &filePath, VIDEODB_CONTENT_TYPE iType);
-  bool GetGenreById(int idGenre, CStdString& strGenre);
-  bool GetCountryById(int idCountry, CStdString& strCountry);
-  bool GetSetById(int idSet, CStdString& strSet);
+  CStdString GetGenreById(int id);
+  CStdString GetCountryById(int id);
+  CStdString GetSetById(int id);
+  CStdString GetPersonById(int id);
+  CStdString GetStudioById(int id);
+  CStdString GetTvShowTitleById(int id);
+  CStdString GetMusicVideoAlbumById(int id);
   int GetTvShowForEpisode(int idEpisode);
 
   void GetMovieInfo(const CStdString& strFilenameAndPath, CVideoInfoTag& details, int idMovie = -1);
@@ -411,8 +424,25 @@ public:
            scraper or no scraper is found.
    */
   ADDON::ScraperPtr GetScraperForPath(const CStdString& strPath, VIDEO::SScanSettings& settings, bool& foundDirectly);
-  CONTENT_TYPE GetContentForPath(const CStdString& strPath);
-  
+
+  /*! \brief Retrieve the content type of videos in the given path
+   If content is set on the folder, we return the given content type, except in the case of tvshows,
+   where we first check for whether we have episodes directly in the path (thus return episodes) or whether
+   we've found a scraper directly (shows).  Any folders inbetween are treated as seasons (regardless of whether
+   they actually are seasons). Note that any subfolders in movies will be treated as movies.
+   \param strPath path to start searching in.
+   \return A content type string for the current path.
+   */
+  CStdString GetContentForPath(const CStdString& strPath);
+
+  /*! \brief Get a video of the given content type from the given path, if it exists
+   \param content the content type to fetch.
+   \param path the path to fetch a video from.
+   \param item the returned item.
+   \return true if an item is found, false otherwise.
+   */
+  bool GetItemForPath(const CStdString &content, const CStdString &path, CFileItem &item);
+
   /*! \brief Check whether a given scraper is in use.
    \param scraperID the scraper to check for.
    \return true if the scraper is in use, false otherwise.
@@ -424,6 +454,13 @@ public:
   bool GetPathHash(const CStdString &path, CStdString &hash);
   bool GetPaths(std::set<CStdString> &paths);
   bool GetPathsForTvShow(int idShow, std::vector<int>& paths);
+
+  /*! \brief retrieve subpaths of a given path.  Assumes a heirarchical folder structure
+   \param basepath the root path to retrieve subpaths for
+   \param subpaths the returned subpaths
+   \return true if we successfully retrieve subpaths (may be zero), false on error
+   */
+  bool GetSubPaths(const CStdString& basepath, std::vector<int>& subpaths);
 
   // for music + musicvideo linkups - if no album and title given it will return the artist id, else the id of the matching video
   int GetMatchingMusicVideo(const CStdString& strArtist, const CStdString& strAlbum = "", const CStdString& strTitle = "");
@@ -622,8 +659,26 @@ protected:
 private:
   virtual bool CreateTables();
   virtual bool UpdateOldVersion(int version);
-  virtual int GetMinVersion() const { return 43; };
-  const char *GetDefaultDBName() const { return "MyVideos34.db"; };
+
+  /*! \brief Run a query on the main dataset and return the number of rows
+   If no rows are found we close the dataset and return 0.
+   \param sql the sql query to run
+   \return the number of rows, -1 for an error.
+   */
+  int RunQuery(const CStdString &sql);
+
+  /*! \brief Update routine for base path of videos
+   Only required for videodb version < 44
+   \param table the table to update
+   \param id the primary id in the given table
+   \param column the basepath column to update
+   \param shows whether we're fetching shows (defaults to false)
+   */
+  void UpdateBasePath(const char *table, const char *id, int column, bool shows = false);
+
+  virtual int GetMinVersion() const { return 48; };
+  virtual int GetExportVersion() const { return 1; };
+  const char *GetBaseDBName() const { return "MyVideos"; };
 
   void ConstructPath(CStdString& strDest, const CStdString& strPath, const CStdString& strFileName);
   void SplitPath(const CStdString& strFileNameAndPath, CStdString& strPath, CStdString& strFileName);

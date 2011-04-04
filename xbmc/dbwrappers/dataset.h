@@ -70,7 +70,8 @@ protected:
   bool active;
   std::string error, // Error description
     host, port, db, login, passwd, //Login info
-    sequence_table; //Sequence table for nextid
+    sequence_table, //Sequence table for nextid
+    default_charset; //Default character set
 
 public:
 /* constructor */
@@ -104,7 +105,8 @@ public:
   void setSequenceTable(const char *new_seq_table) { sequence_table = new_seq_table; };
 /* Get name of sequence table */
   const char *getSequenceTable(void) { return sequence_table.c_str(); }
-
+/* Get the default character set */
+  const char *getDefaultCharset(void) { return default_charset.c_str(); }
 
 /* virtual methods that must be overloaded in derived classes */
 
@@ -113,7 +115,7 @@ public:
   virtual int setErr(int err_code, const char *qry)=0;
   virtual const char *getErrorMsg(void) { return error.c_str(); }
 	
-  virtual int connect(void) { return DB_COMMAND_OK; }
+  virtual int connect(bool create) { return DB_COMMAND_OK; }
   virtual int connectFull( const char *newDb, const char *newHost=NULL,
                       const char *newLogin=NULL, const char *newPasswd=NULL,const char *newPort=NULL);
   virtual void disconnect(void) { active = false; }

@@ -142,7 +142,7 @@ void CGUIDialogAddonInfo::UpdateControls()
 void CGUIDialogAddonInfo::OnUpdate()
 {
   CStdString referer;
-  referer.Format("Referer=%s-%s.zip",m_localAddon->ID().c_str(),m_localAddon->Version().str.c_str());
+  referer.Format("Referer=%s-%s.zip",m_localAddon->ID().c_str(),m_localAddon->Version().c_str());
   CAddonInstaller::Get().Install(m_addon->ID(), true, referer); // force install
   Close();
 }
@@ -166,7 +166,7 @@ void CGUIDialogAddonInfo::OnUninstall()
   CFileItemList list;
   list.Add(CFileItemPtr(new CFileItem(m_localAddon->Path(),true)));
   list[0]->Select(true);
-  CJobManager::GetInstance().AddJob(new CFileOperationJob(CFileOperationJob::ActionDelete,list,""),NULL);
+  CJobManager::GetInstance().AddJob(new CFileOperationJob(CFileOperationJob::ActionDelete,list,""), &CAddonInstaller::Get());
   CAddonMgr::Get().RemoveAddon(m_localAddon->ID());
   Close();
 }
@@ -197,7 +197,13 @@ void CGUIDialogAddonInfo::OnChangeLog()
   {
     pDlgInfo->SetText(g_localizeStrings.Get(13413));
     CFileItemList items;
-    items.Add(CFileItemPtr(new CFileItem(m_addon->ChangeLog(),false)));
+    if (m_localAddon && 
+        !m_item->GetProperty("Addon.UpdateAvail").Equals("true"))
+    {
+      items.Add(CFileItemPtr(new CFileItem(m_localAddon->ChangeLog(),false)));
+    }
+    else
+      items.Add(CFileItemPtr(new CFileItem(m_addon->ChangeLog(),false)));
     items[0]->Select(true);
     m_jobid = CJobManager::GetInstance().AddJob(
       new CFileOperationJob(CFileOperationJob::ActionCopy,items,

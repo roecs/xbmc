@@ -29,7 +29,6 @@
 #include "../../Util.h"
 #include "TextureManager.h"
 #include "../ffmpeg/DllSwScale.h"
-#include "../ffmpeg/DllAvCodec.h"
 
 // http://www.martinreddy.net/gfx/faqs/colorconv.faq
 
@@ -86,8 +85,6 @@ CLinuxRenderer::CLinuxRenderer()
 
   m_image.flags = 0;
 
-  m_dllAvUtil = new DllAvUtil;
-  m_dllAvCodec = new DllAvCodec;
   m_dllSwScale = new DllSwScale;
 }
 
@@ -95,8 +92,6 @@ CLinuxRenderer::~CLinuxRenderer()
 {
   UnInit();
   delete m_dllSwScale;
-  delete m_dllAvCodec;
-  delete m_dllAvUtil;
 }
 
 //********************************************************************************************************
@@ -588,14 +583,8 @@ unsigned int CLinuxRenderer::PreInit()
   // setup the background colour
   m_clearColour = (g_advancedSettings.m_videoBlackBarColour & 0xff) * 0x010101;
 
-  if (!m_dllAvUtil->Load() || !m_dllAvCodec->Load() || !m_dllSwScale->Load())
+  if (!m_dllSwScale->Load())
         CLog::Log(LOGERROR,"CLinuxRendererGL::PreInit - failed to load rescale libraries!");
-
-  #if (! defined USE_EXTERNAL_FFMPEG)
-    m_dllSwScale->sws_rgb2rgb_init(SWS_CPU_CAPS_MMX2);
-  #elif (defined HAVE_LIBSWSCALE_RGB2RGB_H) || (defined HAVE_FFMPEG_RGB2RGB_H)
-    m_dllSwScale->sws_rgb2rgb_init(SWS_CPU_CAPS_MMX2);
-  #endif
 
   return 0;
 }

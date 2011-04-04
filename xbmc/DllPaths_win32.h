@@ -33,7 +33,6 @@
 #define DLL_PATH_LIBMICROHTTP  "special://xbmcbin/system/webserver/libmicrohttpd-5.dll"
 
 /* paplayer */
-#define DLL_PATH_AC3_CODEC     "special://xbmcbin/system/players/paplayer/ac3codec.dll"
 #define DLL_PATH_ADPCM_CODEC   "special://xbmcbin/system/players/paplayer/adpcm.dll"
 #define DLL_PATH_ADPLUG_CODEC  "special://xbmcbin/system/players/paplayer/adplug.dll"
 #define DLL_PATH_APE_CODEC     "special://xbmcbin/system/players/paplayer/MACDll.dll"
@@ -55,11 +54,8 @@
 
 /* dvdplayer */
 #define DLL_PATH_LIBASS        "special://xbmcbin/system/players/dvdplayer/libass.dll"
-#define DLL_PATH_LIBA52        "special://xbmcbin/system/players/dvdplayer/liba52.dll"
-#define DLL_PATH_LIBDTS        "special://xbmcbin/system/players/dvdplayer/libdts.dll"
-#define DLL_PATH_LIBFAAD       "special://xbmcbin/system/players/dvdplayer/libfaad.dll"
 #define DLL_PATH_LIBMAD        "special://xbmcbin/system/players/dvdplayer/libmad.dll"
-#define DLL_PATH_LIBMPEG2      "special://xbmcbin/system/players/dvdplayer/libmpeg2.dll"
+#define DLL_PATH_LIBMPEG2      "special://xbmcbin/system/players/dvdplayer/libmpeg2-0.dll"
 #define DLL_PATH_LIBDVDNAV     "special://xbmcbin/system/players/dvdplayer/libdvdnav.dll"
 #define DLL_PATH_LIBCRYSTALHD  "special://xbmcbin/system/players/dvdplayer/bcmDIL.dll"
 #define DLL_PATH_LIBRTMP       "special://xbmcbin/system/players/dvdplayer/librtmp.dll"
@@ -67,6 +63,7 @@
 
 /* ffmpeg */
 #define DLL_PATH_LIBAVCODEC    "special://xbmcbin/system/players/dvdplayer/avcodec-52.dll"
+#define DLL_PATH_LIBAVCORE     "special://xbmcbin/system/players/dvdplayer/avcore-0.dll"
 #define DLL_PATH_LIBAVFORMAT   "special://xbmcbin/system/players/dvdplayer/avformat-52.dll"
 #define DLL_PATH_LIBAVUTIL     "special://xbmcbin/system/players/dvdplayer/avutil-50.dll"
 #define DLL_PATH_LIBPOSTPROC   "special://xbmcbin/system/players/dvdplayer/postproc-51.dll"

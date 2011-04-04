@@ -19,7 +19,7 @@
  *
  */
 
-#ifdef __APPLE__
+#if defined(__APPLE__) && !defined(__arm__)
 
 //hack around problem with xbmc's typedef int BOOL
 // and obj-c's typedef unsigned char BOOL
@@ -32,6 +32,8 @@
 #include "XBMCHelper.h"
 #include "utils/SystemInfo.h"
 #undef BOOL
+
+#include <SDL/SDL_events.h>
 
 #import <Cocoa/Cocoa.h>
 #import <QuartzCore/QuartzCore.h>
@@ -630,6 +632,8 @@ void* Cocoa_GL_CreateContext(void* pixFmt, void* shareCtx)
 
 void* CWinSystemOSX::CreateWindowedContext(void* shareCtx)
 {
+  NSOpenGLContext* newContext = NULL;
+
   NSOpenGLPixelFormatAttribute wattrs[] =
   {
     NSOpenGLPFADoubleBuffer,
@@ -639,9 +643,14 @@ void* CWinSystemOSX::CreateWindowedContext(void* shareCtx)
     NSOpenGLPFADepthSize, (NSOpenGLPixelFormatAttribute)8,
     (NSOpenGLPixelFormatAttribute)0
   };
-  
+
   NSOpenGLPixelFormat* pixFmt = [[NSOpenGLPixelFormat alloc] initWithAttributes:wattrs];
-  if (!pixFmt)
+  
+  newContext = [[NSOpenGLContext alloc] initWithFormat:(NSOpenGLPixelFormat*)pixFmt
+    shareContext:(NSOpenGLContext*)shareCtx];
+  [pixFmt release];
+
+  if (!newContext)
   {
     // bah, try again for non-accelerated renderer
     NSOpenGLPixelFormatAttribute wattrs2[] =
@@ -653,13 +662,11 @@ void* CWinSystemOSX::CreateWindowedContext(void* shareCtx)
       (NSOpenGLPixelFormatAttribute)0
     };
     NSOpenGLPixelFormat* pixFmt = [[NSOpenGLPixelFormat alloc] initWithAttributes:wattrs2];
-    if (!pixFmt)
-      return nil;
+
+    newContext = [[NSOpenGLContext alloc] initWithFormat:(NSOpenGLPixelFormat*)pixFmt
+      shareContext:(NSOpenGLContext*)shareCtx];
+    [pixFmt release];
   }
-    
-  NSOpenGLContext* newContext = [[NSOpenGLContext alloc] initWithFormat:(NSOpenGLPixelFormat*)pixFmt
-    shareContext:(NSOpenGLContext*)shareCtx];
-  [pixFmt release];
 
   return newContext;
 }

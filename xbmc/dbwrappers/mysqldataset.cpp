@@ -52,6 +52,7 @@ MysqlDatabase::MysqlDatabase() {
   login = "root";
   passwd = "null";
   conn = NULL;
+  default_charset = "";
 }
 
 MysqlDatabase::~MysqlDatabase() {
@@ -103,7 +104,7 @@ const char *MysqlDatabase::getErrorMsg() {
    return error.c_str();
 }
 
-int MysqlDatabase::connect() {
+int MysqlDatabase::connect(bool create_new) {
   try
   {
     // don't reconnect if ping is ok
@@ -121,12 +122,26 @@ int MysqlDatabase::connect() {
     // TODO block to avoid multiple connect on db
     if (mysql_real_connect(conn,host.c_str(),login.c_str(),passwd.c_str(),db.c_str(),atoi(port.c_str()),NULL,0) != NULL)
     {
+      default_charset = mysql_character_set_name(conn);
+      if(mysql_set_character_set(conn, "utf8")) // returns 0 on success
+      {
+        CLog::Log(LOGERROR, "Unable to set utf8 charset: %s [%d](%s)",
+                  db.c_str(), mysql_errno(conn), mysql_error(conn));
+      }
+
       active = true;
       return DB_CONNECTION_OK;
     }
     // Database doesn't exists
     if (mysql_errno(conn) == 1049)
     {
+      default_charset = mysql_character_set_name(conn);
+      if (mysql_set_character_set(conn, "utf8")) // returns 0 on success
+      {
+        CLog::Log(LOGERROR, "Unable to set utf8 charset: %s [%d](%s)",
+                  db.c_str(), mysql_errno(conn), mysql_error(conn));
+      }
+
       if (create() == MYSQL_OK)
       {
         active = true;
@@ -206,7 +221,7 @@ int MysqlDatabase::query_with_reconnect(const char* query) {
   {
     CLog::Log(LOGINFO,"MYSQL server has gone. Will try %d more attempt(s) to reconnect.", attempts);
     active = false;
-    connect();
+    connect(true);
   }
 
   // grab the latest error if not ok
@@ -284,7 +299,7 @@ void MysqlDatabase::rollback_transaction() {
 
 bool MysqlDatabase::exists() {
   // Uncorrect name, check if tables are present inside the db
-  connect();
+  connect(true);
   if (active && conn != NULL)
   {
     MYSQL_RES* res = mysql_list_dbs(conn, db.c_str());
@@ -778,11 +793,11 @@ void MysqlDatabase::mysqlVXPrintf(
           while( realvalue<1.0 ){ realvalue *= 10.0; exp--; }
           if( exp>350 ){
             if( prefix=='-' ){
-              bufpt = "-Inf";
+              bufpt = (char *)"-Inf";
             }else if( prefix=='+' ){
-              bufpt = "+Inf";
+              bufpt = (char *)"+Inf";
             }else{
-              bufpt = "Inf";
+              bufpt = (char *)"Inf";
             }
             length = strlen(bufpt);
             break;
@@ -914,7 +929,7 @@ void MysqlDatabase::mysqlVXPrintf(
       case etDYNSTRING:
         bufpt = va_arg(ap,char*);
         if( bufpt==0 ){
-          bufpt = "";
+          bufpt = (char *)"";
         }else if( xtype==etDYNSTRING ){
           zExtra = bufpt;
         }
@@ -1296,6 +1311,7 @@ bool MysqlDataset::query(const char *query) {
       {
       case MYSQL_TYPE_LONGLONG:
       case MYSQL_TYPE_DECIMAL:
+      case MYSQL_TYPE_NEWDECIMAL:
       case MYSQL_TYPE_TINY:
       case MYSQL_TYPE_SHORT:
       case MYSQL_TYPE_INT24:

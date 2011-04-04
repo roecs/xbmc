@@ -28,9 +28,10 @@
 #include "settings/AdvancedSettings.h"
 #include "RenderSystemGL.h"
 #include "utils/log.h"
+#include "utils/GLUtils.h"
 #include "utils/TimeUtils.h"
 #include "utils/SystemInfo.h"
-
+#include "utils/MathUtils.h"
 
 CRenderSystemGL::CRenderSystemGL() : CRenderSystemBase()
 {
@@ -260,13 +261,6 @@ bool CRenderSystemGL::IsExtSupported(const char* extension)
   return m_RenderExtensions.find(name) != std::string::npos;;
 }
 
-static int64_t abs(int64_t a)
-{
-  if(a < 0)
-    return -a;
-  return a;
-}
-
 bool CRenderSystemGL::PresentRender()
 {
   if (!m_bRenderCreated)
@@ -304,7 +298,7 @@ bool CRenderSystemGL::PresentRender()
     diff = curr - m_iSwapStamp;
     m_iSwapStamp = curr;
 
-    if (abs(diff - m_iSwapRate) < abs(diff))
+    if (MathUtils::abs(diff - m_iSwapRate) < MathUtils::abs(diff))
       CLog::Log(LOGDEBUG, "%s - missed requested swap",__FUNCTION__);
   }
 

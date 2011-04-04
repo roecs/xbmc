@@ -34,8 +34,12 @@
 #include "Win32DirectSound.h"
 #include "Win32DirectShowAudioRenderer.h"
 #endif
-#ifdef __APPLE__
-#include "CoreAudioRenderer.h"
+#if defined(__APPLE__)
+#if defined(__arm__)
+  #include "IOSAudioRenderer.h"
+#else
+  #include "CoreAudioRenderer.h"
+#endif
 #elif defined(_LINUX)
 #include "ALSADirectSound.h"
 #endif
@@ -142,8 +146,12 @@ IAudioRenderer* CAudioRendererFactory::Create(IAudioCallback* pCallback, int iCh
 #ifdef WIN32
   CreateAndReturnOnValidInitialize(CWin32DirectSound);
 #endif
-#ifdef __APPLE__
-  CreateAndReturnOnValidInitialize(CCoreAudioRenderer);
+#if defined(__APPLE__)
+  #if defined(__arm__)
+    CreateAndReturnOnValidInitialize(CIOSAudioRenderer);
+  #else
+    CreateAndReturnOnValidInitialize(CCoreAudioRenderer);
+  #endif
 #elif defined(_LINUX)
   CreateAndReturnOnValidInitialize(CALSADirectSound);
 #endif
@@ -166,8 +174,10 @@ void CAudioRendererFactory::EnumerateAudioSinks(AudioSinkList& vAudioSinks, bool
   CWin32DirectShowAudioRenderer::EnumerateAudioSinks(vAudioSinks, passthrough);
 #endif
 
-#ifdef __APPLE__
-  CCoreAudioRenderer::EnumerateAudioSinks(vAudioSinks, passthrough);
+#if defined(__APPLE__)
+  #if !defined(__arm__)
+    CCoreAudioRenderer::EnumerateAudioSinks(vAudioSinks, passthrough);
+  #endif
 #elif defined(_LINUX)
   CALSADirectSound::EnumerateAudioSinks(vAudioSinks, passthrough);
 #endif
@@ -189,9 +199,14 @@ IAudioRenderer *CAudioRendererFactory::CreateFromUri(const CStdString &soundsyst
     ReturnNewRenderer(CWin32DirectShowAudioRenderer);
 #endif
 
-#ifdef __APPLE__
-  if (soundsystem.Equals("coreaudio"))
-    ReturnNewRenderer(CCoreAudioRenderer);
+#if defined(__APPLE__)
+  #if defined(__arm__)
+    if (soundsystem.Equals("ioscoreaudio"))
+      ReturnNewRenderer(CIOSAudioRenderer);
+  #else
+    if (soundsystem.Equals("coreaudio"))
+      ReturnNewRenderer(CCoreAudioRenderer);
+  #endif
 #elif defined(_LINUX)
   if (soundsystem.Equals("alsa"))
     ReturnNewRenderer(CALSADirectSound);

@@ -232,6 +232,13 @@ public:
   // Gets the correct movie title
   CStdString GetMovieName(bool bUseFolderNames = false) const;
 
+  /*! \brief Find the base movie path (eg the folder if using "use foldernames for lookups")
+   Takes care of VIDEO_TS, BDMV, and rar:// listings
+   \param useFolderNames whether we're using foldernames for lookups
+   \return the base movie folder
+   */
+  CStdString GetBaseMoviePath(bool useFolderNames) const;
+
   // Gets the user thumb, if it exists
   CStdString GetUserVideoThumb() const;
   CStdString GetUserMusicThumb(bool alwaysCheckRemote = false) const;
@@ -254,6 +261,15 @@ public:
   /* general extra info about the contents of the item, not for display */
   void SetExtraInfo(const CStdString& info) { m_extrainfo = info; };
   const CStdString& GetExtraInfo() const { return m_extrainfo; };
+
+  /*! \brief Update an item with information from another item
+   We take metadata information from the given item and supplement the current item
+   with that info.  If tags exist in the new item we use the entire tag information.
+   Properties are appended, and labels, thumbnail and icon are updated if non-empty
+   in the given item.
+   \param item the item used to supplement information
+   */
+  void UpdateInfo(const CFileItem &item);
 
   bool IsSamePath(const CFileItem *item) const;
 

@@ -191,7 +191,7 @@ bool CGUIWindowAddonBrowser::OnContextButton(int itemNumber,
   if (button == CONTEXT_BUTTON_SCAN)
   {
     RepositoryPtr repo = boost::dynamic_pointer_cast<CRepository>(addon);
-    CJobManager::GetInstance().AddJob(new CRepositoryUpdateJob(repo,false),this);
+    CAddonInstaller::Get().UpdateRepos(true);
     return true;
   }
 
@@ -330,12 +330,25 @@ int CGUIWindowAddonBrowser::SelectAddonID(TYPE type, CStdString &addonID, bool s
 
   int selectedIdx = 0;
   ADDON::VECADDONS addons;
-  CAddonMgr::Get().GetAddons(type, addons);
+  if (type == ADDON_AUDIO)
+    CAddonsDirectory::GetScriptsAndPlugins("audio",addons);
+  else if (type == ADDON_EXECUTABLE)
+    CAddonsDirectory::GetScriptsAndPlugins("executable",addons);
+  else if (type == ADDON_IMAGE)
+    CAddonsDirectory::GetScriptsAndPlugins("image",addons);
+  else if (type == ADDON_VIDEO)
+    CAddonsDirectory::GetScriptsAndPlugins("video",addons);
+  else
+    CAddonMgr::Get().GetAddons(type, addons);
+
+  CFileItemList items;
+  for (ADDON::IVECADDONS i = addons.begin(); i != addons.end(); ++i)
+    items.Add(CAddonsDirectory::FileItemFromAddon(*i, ""));
+
   dialog->SetHeading(TranslateType(type, true));
   dialog->Reset();
   dialog->SetUseDetails(true);
   dialog->EnableButton(true, 21452);
-  CFileItemList items;
   if (showNone)
   {
     CFileItemPtr item(new CFileItem("", false));
@@ -345,8 +358,6 @@ int CGUIWindowAddonBrowser::SelectAddonID(TYPE type, CStdString &addonID, bool s
     item->SetSpecialSort(SORT_ON_TOP);
     items.Add(item);
   }
-  for (ADDON::IVECADDONS i = addons.begin(); i != addons.end(); ++i)
-    items.Add(CAddonsDirectory::FileItemFromAddon(*i, ""));
   items.Sort(SORT_METHOD_LABEL, SORT_ORDER_ASC);
   for (int i = 0; i < items.Size(); ++i)
   {
@@ -377,13 +388,4 @@ CStdString CGUIWindowAddonBrowser::GetStartFolder(const CStdString &dir)
   if (dir.Left(9).Equals("addons://"))
     return dir;
   return CGUIMediaWindow::GetStartFolder(dir);
-}
-
-void CGUIWindowAddonBrowser::OnJobComplete(unsigned int jobID, bool success, CJob* job)
-{
-  if (success)
-  { // repository update is finished - refresh listing
-    CGUIMessage msg(GUI_MSG_NOTIFY_ALL, 0, 0, GUI_MSG_UPDATE);
-    g_windowManager.SendThreadMessage(msg);    
-  }
 }

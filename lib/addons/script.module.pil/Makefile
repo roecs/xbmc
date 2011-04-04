@@ -10,9 +10,10 @@ RETRIEVE_TOOL_FLAGS=-Ls --output $(ARCHIVE)
 ARCHIVE_TOOL=tar
 ARCHIVE_TOOL_FLAGS=xf
 
-PYTHONDIR=$(abs_top_srcdir)/xbmc/lib/libPython/Python
+PYTHONDIR=$(abs_top_srcdir)/lib/python
 ifeq ($(OSTYPE),Darwin)
-PYTHON=$(PYTHONDIR)/python.exe
+include ../../../tools/osx/osx-depends/config.mk
+PYTHON=$(prefix_path)/bin/python
 else
 PYTHON=$(PYTHONDIR)/python
 endif

@@ -63,7 +63,6 @@
 #define HAS_FILESYSTEM_SAP
 #define HAS_FILESYSTEM_VTP
 #define HAS_FILESYSTEM_HTSP
-#define HAS_FILESYSTEM_MMS
 
 /**********************
  * Non-free Components
@@ -102,12 +101,16 @@
  *****************/
 
 #ifdef __APPLE__
-#define HAS_ZEROCONF
-#define HAS_GL
-#define HAS_LINUX_NETWORK
-#define HAS_SDL_AUDIO
-#define HAS_SDL_OPENGL
-#define HAS_SDL_WIN_EVENTS
+  #if defined(__arm__)
+    #undef HAS_SDL
+  #else
+    #define HAS_GL
+    #define HAS_SDL_AUDIO
+    #define HAS_SDL_OPENGL
+    #define HAS_SDL_WIN_EVENTS
+  #endif
+  #define HAS_ZEROCONF
+  #define HAS_LINUX_NETWORK
 #endif
 
 /*****************
@@ -235,24 +238,22 @@
 #endif
 
 #if HAS_GLES == 2
-#ifdef _ARMEL	// PowerVR SGX Header
-// not sure about this one tg2 (arm) does not have gl2extimg.h
-//#include <GLES2/gl2extimg.h>
-#include <GLES2/gl2.h>
-#include <GLES2/gl2ext.h>
-#else
-#include <GLES2/gl2.h>
-#include <GLES2/gl2ext.h>
-#endif
+  #if defined(__APPLE__)
+    #include <OpenGLES/ES2/gl.h>
+    #include <OpenGLES/ES2/glext.h>
+  #else
+    #include <GLES2/gl2.h>
+    #include <GLES2/gl2ext.h>
+  #endif
 #endif
 
 #ifdef HAS_DVD_DRIVE
 #define HAS_CDDA_RIPPER
 #endif
 
-#define SAFE_DELETE(p)       { delete (p);     (p)=NULL; }
-#define SAFE_DELETE_ARRAY(p) { delete[] (p);   (p)=NULL; }
-#define SAFE_RELEASE(p)      { if(p) { (p)->Release(); (p)=NULL; } }
+#define SAFE_DELETE(p)       do { delete (p);     (p)=NULL; } while (0)
+#define SAFE_DELETE_ARRAY(p) do { delete[] (p);   (p)=NULL; } while (0)
+#define SAFE_RELEASE(p)      do { if(p) { (p)->Release(); (p)=NULL; } } while (0)
 
 // Useful pixel colour manipulation macros
 #define GET_A(color)            ((color >> 24) & 0xFF)

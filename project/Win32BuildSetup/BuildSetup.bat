@@ -1,7 +1,6 @@
 @ECHO OFF
 rem ----Usage----
-rem BuildSetup [vs2008|vs2010] [gl|dx] [clean|noclean]
-rem vs2008 for compiling with visual studio 2008 (default)
+rem BuildSetup [gl|dx] [clean|noclean]
 rem vs2010 for compiling with visual studio 2010
 rem gl for opengl build (default)
 rem dx for directx build
@@ -22,27 +21,21 @@ SET comp=vs2010
 SET target=dx
 SET buildmode=ask
 SET promptlevel=prompt
+SET buildmingwlibs=true
+SET exitcode=0
 FOR %%b in (%1, %2, %3, %4, %5) DO (
-  IF %%b==vs2008 SET comp=vs2008
-  IF %%b==vs2010 SET comp=vs2010
+	IF %%b==vs2010 SET comp=vs2010
 	IF %%b==dx SET target=dx
 	IF %%b==gl SET target=gl
 	IF %%b==clean SET buildmode=clean
 	IF %%b==noclean SET buildmode=noclean
 	IF %%b==noprompt SET promptlevel=noprompt
+	IF %%b==nomingwlibs SET buildmingwlibs=false
 )
 SET buildconfig=Release (OpenGL)
 IF %target%==dx SET buildconfig=Release (DirectX)
 
-IF %comp%==vs2008 (
-	IF "%VS90COMNTOOLS%"=="" (
-		set NET="%ProgramFiles%\Microsoft Visual Studio 9.0 Express\Common7\IDE\VCExpress.exe"
-	) ELSE IF EXIST "%VS90COMNTOOLS%\..\IDE\VCExpress.exe" (
-		set NET="%VS90COMNTOOLS%\..\IDE\VCExpress.exe"
-	) ELSE IF EXIST "%VS90COMNTOOLS%\..\IDE\devenv.exe" (
-		set NET="%VS90COMNTOOLS%\..\IDE\devenv.exe"
-	)
-) ELSE IF %comp%==vs2010 (
+IF %comp%==vs2010 (
   IF "%VS100COMNTOOLS%"=="" (
 		set NET="%ProgramFiles%\Microsoft Visual Studio 10.0\Common7\IDE\VCExpress.exe"
 	) ELSE IF EXIST "%VS100COMNTOOLS%\..\IDE\VCExpress.exe" (
@@ -53,23 +46,13 @@ IF %comp%==vs2008 (
 )
 
   IF NOT EXIST %NET% (
-    IF %comp%==vs2008 (
-      set DIETEXT=Visual Studio .NET 2008 Express was not found.
-    ELSE IF %comp%==vs2010 (
-      set DIETEXT=Visual Studio .NET 2010 Express was not found.
-    )
-	  goto DIE
+     set DIETEXT=Visual Studio .NET 2010 Express was not found.
+	 goto DIE
   )
   
-  IF %comp%==vs2008 (
-    set OPTS_EXE="..\VS2008Express\XBMC for Windows.sln" /build "%buildconfig%"
-    set CLEAN_EXE="..\VS2008Express\XBMC for Windows.sln" /clean "%buildconfig%"
-    set EXE= "..\VS2008Express\XBMC\%buildconfig%\XBMC.exe"
-  ) ELSE (
-    set OPTS_EXE="..\VS2010Express\XBMC for Windows.sln" /build "%buildconfig%"
-    set CLEAN_EXE="..\VS2010Express\XBMC for Windows.sln" /clean "%buildconfig%"
-    set EXE= "..\VS2010Express\XBMC\%buildconfig%\XBMC.exe"
-  )
+  set OPTS_EXE="..\VS2010Express\XBMC for Windows.sln" /build "%buildconfig%"
+  set CLEAN_EXE="..\VS2010Express\XBMC for Windows.sln" /clean "%buildconfig%"
+  set EXE= "..\VS2010Express\XBMC\%buildconfig%\XBMC.exe"
 	
   rem	CONFIG END
   rem -------------------------------------------------------------
@@ -96,11 +79,12 @@ IF %comp%==vs2008 (
   goto EXE_COMPILE
 
 :EXE_COMPILE
+  IF EXIST buildlog.html del buildlog.html /q
   IF %buildmode%==clean goto COMPILE_EXE
+  IF %buildmode%==noclean goto COMPILE_NO_CLEAN_EXE
   rem ---------------------------------------------
   rem	check for existing exe
   rem ---------------------------------------------
-  IF EXIST buildlog.html del buildlog.html /q
   
   IF EXIST %EXE% (
     goto EXE_EXIST
@@ -108,7 +92,7 @@ IF %comp%==vs2008 (
   goto COMPILE_EXE
 
 :EXE_EXIST
-  IF %buildmode%==noclean goto COMPILE_NO_CLEAN_EXE
+  IF %promptlevel%==noprompt goto COMPILE_EXE
   ECHO ------------------------------------------------------------
   ECHO Found a previous Compiled WIN32 EXE!
   ECHO [1] a NEW EXE will be compiled for the BUILD_WIN32
@@ -126,7 +110,7 @@ IF %comp%==vs2008 (
   ECHO Compiling XBMC...
   %NET% %OPTS_EXE%
   IF NOT EXIST %EXE% (
-  	set DIETEXT="XBMC.EXE failed to build!  See ..\vs2008express\XBMC\%buildconfig%\BuildLog.htm for details."
+  	set DIETEXT="XBMC.EXE failed to build!  See ..\vs2010express\XBMC\%buildconfig%\BuildLog.htm for details."
   	goto DIE
   )
   ECHO Done!
@@ -139,7 +123,7 @@ IF %comp%==vs2008 (
   ECHO Compiling Solution...
   %NET% %OPTS_EXE%
   IF NOT EXIST %EXE% (
-  	set DIETEXT="XBMC.EXE failed to build!  See ..\vs2008express\XBMC\%buildconfig%\BuildLog\BuildLog.htm for details."
+  	set DIETEXT="XBMC.EXE failed to build!  See ..\vs2010express\XBMC\%buildconfig%\BuildLog\BuildLog.htm for details."
   	goto DIE
   )
   ECHO Done!
@@ -147,6 +131,17 @@ IF %comp%==vs2008 (
   GOTO MAKE_BUILD_EXE
 
 :MAKE_BUILD_EXE
+  IF %buildmingwlibs%==true (
+    ECHO Compiling mingw libs
+    ECHO bla>noprompt
+    IF EXIST errormingw del errormingw > NUL
+    call buildmingwlibs.bat
+    IF EXIST errormingw (
+    	set DIETEXT="failed to build mingw libs"
+    	goto DIE
+    )
+  )
+  
   ECHO Copying files...
   IF EXIST BUILD_WIN32 rmdir BUILD_WIN32 /S /Q
 
@@ -186,11 +181,7 @@ IF %comp%==vs2008 (
   copy ..\..\LICENSE.GPL BUILD_WIN32\Xbmc > NUL
   copy ..\..\known_issues.txt BUILD_WIN32\Xbmc > NUL
   xcopy dependencies\*.* BUILD_WIN32\Xbmc /Q /I /Y /EXCLUDE:exclude.txt  > NUL
-  IF %comp%==vs2008 (
-    xcopy vs_redistributable\vs2008\vcredist_x86.exe BUILD_WIN32\Xbmc /Q /I /Y /EXCLUDE:exclude.txt  > NUL
-  ) ELSE (
-    xcopy vs_redistributable\vs2010\vcredist_x86.exe BUILD_WIN32\Xbmc /Q /I /Y /EXCLUDE:exclude.txt  > NUL
-  )
+  xcopy vs_redistributable\vs2010\vcredist_x86.exe BUILD_WIN32\Xbmc /Q /I /Y /EXCLUDE:exclude.txt  > NUL
   copy sources.xml BUILD_WIN32\Xbmc\userdata > NUL
   
   xcopy ..\..\language BUILD_WIN32\Xbmc\language /E /Q /I /Y /EXCLUDE:exclude.txt  > NUL
@@ -220,9 +211,8 @@ IF %comp%==vs2008 (
   ECHO Generating installer includes...
   call genNsisIncludes.bat
   ECHO ------------------------------------------------------------
-  CALL extract_git_rev.bat
-  SET GIT_REV=#%GIT_REV%
-  SET XBMC_SETUPFILE=XBMCSetup-Rev%GIT_REV%-%target%.exe
+  CALL extract_git_rev.bat > NUL
+  SET XBMC_SETUPFILE=XBMCSetup-%GIT_REV%-%target%.exe
   ECHO Creating installer %XBMC_SETUPFILE%...
   IF EXIST %XBMC_SETUPFILE% del %XBMC_SETUPFILE% > NUL
   rem get path to makensis.exe from registry, first try tab delim
@@ -263,7 +253,7 @@ IF %comp%==vs2008 (
   SET NSISExe=%NSISExePath%\makensis.exe
   "%NSISExe%" /V1 /X"SetCompressor /FINAL lzma" /Dxbmc_root="%CD%\BUILD_WIN32" /Dxbmc_revision="%GIT_REV%" /Dxbmc_target="%target%" "XBMC for Windows.nsi"
   IF NOT EXIST "%XBMC_SETUPFILE%" (
-	  set DIETEXT=Failed to create %XBMC_SETUPFILE%.
+	  set DIETEXT=Failed to create %XBMC_SETUPFILE%. NSIS installed?
 	  goto DIE
   )
   ECHO ------------------------------------------------------------
@@ -279,29 +269,23 @@ IF %comp%==vs2008 (
   ECHO !-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-
   set DIETEXT=ERROR: %DIETEXT%
   echo %DIETEXT%
+  SET exitcode=1
   ECHO ------------------------------------------------------------
 
 :VIEWLOG_EXE
-  IF %promptlevel%==noprompt (
-  goto END
-  )
-  IF %comp%==vs2008 (
-    SET log="%CD%\..\vs2008express\XBMC\%buildconfig%\objs\BuildLog.htm"
-  ) ELSE (
-    SET log="%CD%\..\vs2010express\XBMC\%buildconfig%\objs\BuildLog.htm"
-  )
+  SET log="%CD%\..\vs2010express\XBMC\%buildconfig%\objs\XBMC.log"
   IF NOT EXIST %log% goto END
   
   copy %log% ./buildlog.html > NUL
-  
+
+  IF %promptlevel%==noprompt (
+  goto END
+  )
+
   set /P XBMC_BUILD_ANSWER=View the build log in your HTML browser? [y/n]
   if /I %XBMC_BUILD_ANSWER% NEQ y goto END
   
-  IF %comp%==vs2008 (
-    SET log="%CD%\..\vs2008express\XBMC\%buildconfig%\objs\" BuildLog.htm
-  ) ELSE (
-    SET log="%CD%\..\vs2010express\XBMC\%buildconfig%\objs\" BuildLog.htm
-  )
+  SET log="%CD%\..\vs2010express\XBMC\%buildconfig%\objs\" XBMC.log
   
   start /D%log%
   goto END
@@ -311,3 +295,4 @@ IF %comp%==vs2008 (
   ECHO Press any key to exit...
   pause > NUL
   )
+  EXIT /B %exitcode%

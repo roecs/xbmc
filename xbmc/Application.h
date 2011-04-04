@@ -69,8 +69,13 @@ namespace ADDON
 #include "network/WebServer.h"
 #endif
 
+#if (defined(__APPLE__) && defined(__arm__))
+#include "threads/XBMC_cond.h"
+#include "threads/XBMC_mutex.h"
+#else
 #ifdef HAS_SDL
 #include <SDL/SDL_mutex.h>
+#endif
 #endif
 
 class CKaraokeLyricsManager;
@@ -126,7 +131,7 @@ public:
   bool IsCurrentThread() const;
   void Stop();
   void RestartApp();
-  void UnloadSkin();
+  void UnloadSkin(bool forReload = false);
   bool LoadUserWindows();
   void ReloadSkin();
   const CStdString& CurrentFile();
@@ -187,6 +192,10 @@ public:
   double GetTotalTime() const;
   double GetTime() const;
   float GetPercentage() const;
+
+  // Get the percentage of data currently cached/buffered (aq/vq + FileCache) from the input stream if applicable.
+  float GetCachePercentage() const;
+
   void SeekPercentage(float percent);
   void SeekTime( double dTime = 0.0 );
   void ResetPlayTime();
@@ -298,7 +307,12 @@ protected:
   bool LoadSkin(const CStdString& skinID);
   void LoadSkin(const boost::shared_ptr<ADDON::CSkinInfo>& skin);
 
+  bool m_skinReloading; // if true we disallow LoadSkin until ReloadSkin is called
+
   friend class CApplicationMessenger;
+#if defined(__APPLE__) && defined(__arm__)
+  friend class CWinEventsIOS;
+#endif
   // screensaver
   bool m_bScreenSave;
   ADDON::AddonPtr m_screenSaver;
@@ -348,7 +362,7 @@ protected:
   
   CGUITextLayout *m_debugLayout;
 
-#ifdef HAS_SDL
+#if defined(HAS_SDL) || (defined(__APPLE__) && defined(__arm__))
   int        m_frameCount;
   SDL_mutex* m_frameMutex;
   SDL_cond*  m_frameCond;

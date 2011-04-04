@@ -10,13 +10,6 @@ FLAC_LIB=$(FLAC_SYSDIR)/$(FLAC_SO)
 
 all: $(FLAC_LIB)
 
-ifeq ($(findstring osx,$(ARCH)), osx)
-$(FLAC_LIB): flac-1.2.1/src/libFLAC/.libs/libFLAC.a
-	$(CC) -bundle -flat_namespace -undefined suppress -shared -fPIC \
-	-mmacosx-version-min=10.4 -o $@ flac-1.2.1/src/libFLAC/.libs/*.o
-	@abs_top_srcdir@/tools/Mach5/wrapper.rb $@;mv output.so $@
-	chmod +x $@
-else
 ifneq (@USE_EXTERNAL_LIBFLAC@,1)
 $(FLAC_LIB): flac-1.2.1/src/libFLAC/.libs/libFLAC.a
 	$(CC) $(CFLAGS) -shared -fpic -o $@ -rdynamic \
@@ -26,7 +19,6 @@ else
 $(FLAC_LIB):
 	$(CC) $(CFLAGS) -shared -fpic -o $@ -rdynamic -lFLAC \
 	`cat @abs_top_srcdir@/xbmc/cores/DllLoader/exports/wrapper.def` @abs_top_srcdir@/xbmc/cores/DllLoader/exports/wrapper.o
-endif
 endif
 
 flac-1.2.1/src/libFLAC/.libs/libFLAC.a: compile

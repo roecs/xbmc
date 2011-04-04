@@ -36,6 +36,13 @@ namespace DXVA { class CProcessor; }
 namespace VAAPI { struct CHolder; }
 class CVDPAU;
 class IPaintCallback;
+class COpenMax;
+class COpenMaxVideo;
+struct OpenMaxVideoBuffer;
+#ifdef HAVE_VIDEOTOOLBOXDECODER
+  class CDVDVideoCodecVideoToolBox;
+  struct __CVBuffer;
+#endif
 
 // should be entirely filled by all codecs
 struct DVDVideoPicture
@@ -63,6 +70,12 @@ struct DVDVideoPicture
       IPaintCallback* pAlloc;
       int             pSurfaceIndex;
     };
+#ifdef HAVE_VIDEOTOOLBOXDECODER
+    struct {
+      CDVDVideoCodecVideoToolBox *vtb;
+      struct __CVBuffer *cvBufferRef;
+    };
+#endif
   };
 
   unsigned int iFlags;
@@ -92,6 +105,8 @@ struct DVDVideoPicture
     FMT_DXVA,
     FMT_VAAPI,
     FMT_DSHOW,
+    FMT_OMXEGL,
+    FMT_CVBREF,
   } format;
 };
 
@@ -160,6 +175,17 @@ public:
    * the data is valid until the next Decode call
    */
   virtual bool GetPicture(DVDVideoPicture* pDvdVideoPicture) = 0;
+
+
+  /*
+   * returns true if successfull
+   * the data is cleared to zero
+   */ 
+  virtual bool ClearPicture(DVDVideoPicture* pDvdVideoPicture)
+  {
+    memset(pDvdVideoPicture, 0, sizeof(DVDVideoPicture));
+    return true;
+  }
 
   /*
    * returns true if successfull

@@ -174,9 +174,9 @@ public:
   bool GetAlbumThumb(int idAlbum, CStdString &thumb);
   bool GetArtistPath(int idArtist, CStdString &path);
 
-  bool GetGenreById(int idGenre, CStdString& strGenre);
-  bool GetArtistById(int idArtist, CStdString& strArtist);
-  bool GetAlbumById(int idAlbum, CStdString& strAlbum);
+  CStdString GetGenreById(int id);
+  CStdString GetArtistById(int id);
+  CStdString GetAlbumById(int id);
 
   int GetArtistByName(const CStdString& strArtist);
   int GetAlbumByName(const CStdString& strAlbum, const CStdString& strArtist="");
@@ -214,8 +214,8 @@ protected:
   std::map<CStdString, CAlbumCache> m_albumCache;
 
   virtual bool CreateTables();
-  virtual int GetMinVersion() const { return 15; };
-  const char *GetDefaultDBName() const { return "MyMusic7"; };
+  virtual int GetMinVersion() const { return 16; };
+  const char *GetBaseDBName() const { return "MyMusic"; };
 
   int AddAlbum(const CStdString& strAlbum1, int idArtist, const CStdString &extraArtists, const CStdString &strArtist1, int idThumb, int idGenre, const CStdString &extraGenres, int year);
   int AddGenre(const CStdString& strGenre);

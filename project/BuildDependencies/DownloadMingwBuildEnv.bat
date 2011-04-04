@@ -41,6 +41,10 @@ SET FSTAB=%MINGW_INSTALL_PATH%
 SET FSTAB=%FSTAB:\=/%
 SET FSTAB=%FSTAB:"=%
 ECHO %FSTAB% /mingw>>"%MSYS_INSTALL_PATH%\etc\fstab"
+SET FSTAB=%XBMC_PATH%
+SET FSTAB=%FSTAB:\=/%
+SET FSTAB=%FSTAB:"=%
+ECHO %FSTAB% /xbmc>>"%MSYS_INSTALL_PATH%\etc\fstab"
 
 rem patch mingw headers to compile ffmpeg
 xcopy mingw_support\postinstall\* "%MSYS_INSTALL_PATH%\postinstall\" /E /Q /I /Y
@@ -64,5 +68,3 @@ TYPE msys.bat_dist>>msys.bat
 cd %CUR_PATH%
 
 IF EXIST %TMP_PATH% rmdir %TMP_PATH% /S /Q
-
-pause

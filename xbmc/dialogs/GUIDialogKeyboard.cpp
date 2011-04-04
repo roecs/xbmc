@@ -534,7 +534,6 @@ bool CGUIDialogKeyboard::ShowAndGetInput(CStdString& aTextString, const CVariant
 
   // setup keyboard
   pKeyboard->Initialize();
-  pKeyboard->CenterWindow();
   pKeyboard->SetHeading(heading);
   pKeyboard->SetHiddenInput(hiddenInput);
   pKeyboard->SetText(aTextString);
@@ -736,7 +735,7 @@ void CGUIDialogKeyboard::ResetShiftAndSymbols()
   m_lastRemoteClickTime = 0;
 }
 
-const char* CGUIDialogKeyboard::s_charsSeries[10] = { " !@#$%^&*()[]{}<>/\\|0", ".,;:\'\"-+_=?`~1", "ABC2", "DEF3", "GHI4", "JKL5", "MNO6", "PQRS7", "TUV8", "WXYZ9" };
+const char* CGUIDialogKeyboard::s_charsSeries[10] = { " 0!@#$%^&*()[]{}<>/\\|", ".,1;:\'\"-+_=?`~", "ABC2", "DEF3", "GHI4", "JKL5", "MNO6", "PQRS7", "TUV8", "WXYZ9" };
 
 void CGUIDialogKeyboard::SetControlLabel(int id, const CStdString &label)
 { // find all controls with this id, and set all their labels

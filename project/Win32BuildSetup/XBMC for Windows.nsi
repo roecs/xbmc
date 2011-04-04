@@ -15,7 +15,7 @@
 
   ;Name and file
   Name "XBMC"
-  OutFile "XBMCSetup-Rev${xbmc_revision}-${xbmc_target}.exe"
+  OutFile "XBMCSetup-${xbmc_revision}-${xbmc_target}.exe"
 
   XPStyle on
   
@@ -309,7 +309,7 @@ SectionEnd
 ;--------------------------------
 ;vs redist installer Section
 
-Section "Microsoft Visual C++ 2008 Redistributable Package (x86)" SEC_VCREDIST
+Section "Microsoft Visual C++ 2010 Redistributable Package (x86)" SEC_VCREDIST
 
   SectionIn 1 2
   

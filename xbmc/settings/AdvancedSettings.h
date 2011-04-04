@@ -22,6 +22,7 @@
 
 #include <vector>
 #include "utils/StdString.h"
+#include "utils/GlobalsHandling.h"
 
 class TiXmlElement;
 
@@ -63,6 +64,8 @@ class CAdvancedSettings
 {
   public:
     CAdvancedSettings();
+
+    static CAdvancedSettings* getInstance();
 
     void Initialize();
 
@@ -166,8 +169,8 @@ class CAdvancedSettings
     CStdStringArray m_pictureExcludeFromListingRegExps;
     CStdStringArray m_videoStackRegExps;
     CStdStringArray m_trailerMatchRegExps;
-    SETTINGS_TVSHOWLIST m_tvshowStackRegExps;
-    CStdString m_tvshowMultiPartStackRegExp;
+    SETTINGS_TVSHOWLIST m_tvshowEnumRegExps;
+    CStdString m_tvshowMultiPartEnumRegExp;
     typedef std::vector< std::pair<CStdString, CStdString> > StringMapping;
     StringMapping m_pathSubstitutions;
     int m_remoteDelay; ///< \brief number of remote messages to ignore before repeating
@@ -248,6 +251,7 @@ class CAdvancedSettings
 
     bool m_fullScreen;
     bool m_startFullScreen;
+    bool m_splashImage;
     bool m_alwaysOnTop;  /* makes xbmc to run always on top .. osx/win32 only .. */
     int m_playlistRetries;
     int m_playlistTimeout;
@@ -283,7 +287,9 @@ class CAdvancedSettings
     DatabaseSettings m_databaseVideo; // advanced video database setup
 
     unsigned int m_cacheMemBufferSize;
+
+    bool m_jsonOutputCompact;
+    unsigned int m_jsonTcpPort;
 };
 
-extern CAdvancedSettings g_advancedSettings;
-
+XBMC_GLOBAL(CAdvancedSettings,g_advancedSettings);

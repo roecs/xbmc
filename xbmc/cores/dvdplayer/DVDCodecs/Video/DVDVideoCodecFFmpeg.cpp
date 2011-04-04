@@ -163,12 +163,6 @@ bool CDVDVideoCodecFFmpeg::Open(CDVDStreamInfo &hints, CDVDCodecOptions &options
 
   m_dllAvCodec.avcodec_register_all();
 
-  #if (! defined USE_EXTERNAL_FFMPEG)
-    m_dllSwScale.sws_rgb2rgb_init(SWS_CPU_CAPS_MMX2);
-  #elif (defined HAVE_LIBSWSCALE_RGB2RGB_H) || (defined HAVE_FFMPEG_RGB2RGB_H)
-    m_dllSwScale.sws_rgb2rgb_init(SWS_CPU_CAPS_MMX2);
-  #endif
-
   m_bSoftware     = hints.software;
   m_pCodecContext = m_dllAvCodec.avcodec_alloc_context();
 
@@ -222,12 +216,17 @@ bool CDVDVideoCodecFFmpeg::Open(CDVDStreamInfo &hints, CDVDCodecOptions &options
   m_pCodecContext->get_format = GetFormat;
   m_pCodecContext->codec_tag = hints.codec_tag;
 
+#if defined(__APPLE__) && defined(__arm__)
+  // ffmpeg with enabled neon will crash and burn if this is enabled
+  m_pCodecContext->flags &= CODEC_FLAG_EMU_EDGE;
+#else
   if (pCodec->id != CODEC_ID_H264 && pCodec->capabilities & CODEC_CAP_DR1
 #if LIBAVCODEC_VERSION_INT >= AV_VERSION_INT(52,69,0)
       && pCodec->id != CODEC_ID_VP8
 #endif
      )
     m_pCodecContext->flags |= CODEC_FLAG_EMU_EDGE;
+#endif
 
   // if we don't do this, then some codecs seem to fail.
   m_pCodecContext->coded_height = hints.height;
@@ -256,7 +255,9 @@ bool CDVDVideoCodecFFmpeg::Open(CDVDStreamInfo &hints, CDVDCodecOptions &options
     m_dllAvCodec.av_set_string(m_pCodecContext, it->m_name.c_str(), it->m_value.c_str());
   }
 
-#if defined(_LINUX) || defined(_WIN32)
+#if defined(__APPLE__) && defined(__arm__)
+  m_dllAvCodec.avcodec_thread_init(m_pCodecContext, 1);
+#elif defined(_LINUX) || defined(_WIN32)
   int num_threads = std::min(8 /*MAX_THREADS*/, g_cpuInfo.getCPUCount());
   if( num_threads > 1 && !hints.software && m_pHardware == NULL // thumbnail extraction fails when run threaded
   && ( pCodec->id == CODEC_ID_H264
@@ -393,7 +394,14 @@ int CDVDVideoCodecFFmpeg::Decode(BYTE* pData, int iSize, double dts, double pts,
   m_dts = dts;
   m_pCodecContext->reordered_opaque = pts_dtoi(pts);
 
-  len = m_dllAvCodec.avcodec_decode_video(m_pCodecContext, m_pFrame, &iGotPicture, pData, iSize);
+  AVPacket avpkt;
+  m_dllAvCodec.av_init_packet(&avpkt);
+  avpkt.data = pData;
+  avpkt.size = iSize;
+  /* We lie, but this flag is only used by pngdec.c.
+   * Setting it correctly would allow CorePNG decoding. */
+  avpkt.flags = AV_PKT_FLAG_KEY;
+  len = m_dllAvCodec.avcodec_decode_video2(m_pCodecContext, m_pFrame, &iGotPicture, &avpkt);
 
   if(m_iLastKeyframe < m_pCodecContext->has_b_frames + 1)
     m_iLastKeyframe = m_pCodecContext->has_b_frames + 1;
@@ -420,17 +428,8 @@ int CDVDVideoCodecFFmpeg::Decode(BYTE* pData, int iSize, double dts, double pts,
   && m_pCodecContext->pix_fmt != PIX_FMT_YUVJ420P
   && m_pHardware == NULL)
   {
-    if (!m_dllSwScale.IsLoaded())
-    {
-      if(!m_dllSwScale.Load())
+    if (!m_dllSwScale.IsLoaded() && !m_dllSwScale.Load())
         return VC_ERROR;
-
-        #if (! defined USE_EXTERNAL_FFMPEG)
-          m_dllSwScale.sws_rgb2rgb_init(SWS_CPU_CAPS_MMX2);
-        #elif (defined HAVE_LIBSWSCALE_RGB2RGB_H) || (defined HAVE_FFMPEG_RGB2RGB_H)
-          m_dllSwScale.sws_rgb2rgb_init(SWS_CPU_CAPS_MMX2);
-        #endif
-    }
 
     if (!m_pConvertFrame)
     {

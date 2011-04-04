@@ -37,7 +37,6 @@ enum DVDStreamType
   DVDSTREAM_TYPE_TV     = 6,
   DVDSTREAM_TYPE_RTMP   = 7,
   DVDSTREAM_TYPE_HTSP   = 8,
-  DVDSTREAM_TYPE_MMS    = 9,
   DVDSTREAM_TYPE_MPLS   = 10,
   DVDSTREAM_TYPE_BLURAY = 11,
 };
@@ -96,6 +95,12 @@ public:
   virtual bool NextStream() { return false; }
   virtual void Abort() {}
   virtual int GetBlockSize() { return 0; }
+
+  /*! \brief Get the number of bytes currently cached/buffered ahead from
+   the current position in the input stream if applicable.
+   \return number of cached ahead data bytes (-1 if not available)
+   */
+  virtual __int64 GetCachedBytes() { return -1; }
 
   bool IsStreamType(DVDStreamType type) const { return m_streamType == type; }
   virtual bool IsEOF() = 0;

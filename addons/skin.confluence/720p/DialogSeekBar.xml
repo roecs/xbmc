@@ -1,6 +1,6 @@
 <window id="115">
 	<defaultcontrol>1</defaultcontrol>
-	<visible>[Player.Seeking | Player.DisplayAfterSeek | Player.Paused | Player.Forwarding | Player.Rewinding]</visible>
+	<visible>[Player.Seeking | Player.DisplayAfterSeek | Player.Paused | Player.Forwarding | Player.Rewinding] + ![Window.IsVisible(VideoOSD) | Window.IsVisible(MusicOSD)]</visible>
 	<animation effect="slide" start="0,80" end="0,0" time="100">WindowOpen</animation>
 	<animation effect="slide" start="0,0" end="0,80" time="100">WindowClose</animation>
 	<coordinates>
@@ -268,6 +268,16 @@
 				<aligny>center</aligny>
 				<label>$INFO[Player.SeekTime] - $INFO[Player.Duration]</label>
 				<visible>Player.Seeking</visible>
+			</control>
+			<control type="progress">
+				<description>ProgressbarCache</description>
+				<posx>20</posx>
+				<posy>50</posy>
+				<width>240</width>
+				<height>15</height>
+				<info>Player.ProgressCache</info>
+				<midtexture border="6,0,6,0">OSDProgressMidLight.png</midtexture>
+				<visible>true</visible>
 			</control>
 			<control type="progress" id="23">
 				<description>Progressbar</description>
