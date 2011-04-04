@@ -1014,7 +1014,6 @@ void CWinRenderer::RenderProcessor(DWORD flags)
   target->Release();
 }
 
-<<<<<<< HEAD
 void CWinRenderer::RenderDirectshow(DWORD flags)
 {
   CSingleLock lock(g_graphicsContext);

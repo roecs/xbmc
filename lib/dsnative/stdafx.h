@@ -30,7 +30,7 @@
 // Windows Header Files:
 #include <windows.h>
 #include <tchar.h>
-
+#include "StdString.h"
 #include "SmartPtr.h"
 
 #include <dshow.h>

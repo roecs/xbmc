@@ -34,6 +34,7 @@
 #ifndef _GEOMETRYHELPER_H
 #include "DsGeometry.h"
 #endif
+#include <Unknwn.h>
 namespace Com
 {
 

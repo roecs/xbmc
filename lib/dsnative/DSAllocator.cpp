@@ -74,7 +74,7 @@ void DebugPrint(const wchar_t *format, ... )
 
 }
 
-#define TRACE_EVR(x) CLog::DebugLog(x)
+#define TRACE_EVR(x) CLog::Log(LOGDEBUG,x)
 
 #pragma pack(push, 1)
 template<int texcoords>
@@ -672,7 +672,7 @@ HRESULT STDMETHODCALLTYPE DsAllocator::ProcessMessage(MFVP_MESSAGE_TYPE mess,ULO
   switch (mess)
   {
     case MFVP_MESSAGE_FLUSH:
-      CLog::DebugLog("EVR: MFVP_MESSAGE_FLUSH");
+      CLog::Log(LOGDEBUG,"EVR: MFVP_MESSAGE_FLUSH");
       if (m_pMixerThread)
         m_pMixerThread->StopThread(true);
       
@@ -695,12 +695,12 @@ HRESULT STDMETHODCALLTYPE DsAllocator::ProcessMessage(MFVP_MESSAGE_TYPE mess,ULO
     break;
     case MFVP_MESSAGE_BEGINSTREAMING:
     {
-      CLog::DebugLog("EVR Message MFVP_MESSAGE_BEGINSTREAMING received");
+      CLog::Log(LOGDEBUG,"EVR Message MFVP_MESSAGE_BEGINSTREAMING received");
       ResetStats();  
     }
     break;
     case MFVP_MESSAGE_ENDSTREAMING:
-      CLog::DebugLog("EVR Message MFVP_MESSAGE_ENDSTREAMING received");
+      CLog::Log(LOGDEBUG,"EVR Message MFVP_MESSAGE_ENDSTREAMING received");
       if (m_pMixerThread)
       {
         while(m_BusyList.Count())
@@ -712,7 +712,7 @@ HRESULT STDMETHODCALLTYPE DsAllocator::ProcessMessage(MFVP_MESSAGE_TYPE mess,ULO
       }
       break;
     case MFVP_MESSAGE_ENDOFSTREAM:
-      CLog::DebugLog("EVR Message MFVP_MESSAGE_ENDOFSTREAM received");
+      CLog::Log(LOGDEBUG,"EVR Message MFVP_MESSAGE_ENDOFSTREAM received");
       endofstream=true;
     break;
     case MFVP_MESSAGE_STEP:
@@ -733,13 +733,13 @@ STDMETHODIMP DsAllocator::OnClockStart(MFTIME hnsSystemTime,  int64_t llClockSta
 {
   m_nRenderState    = Started;
 
-  CLog::DebugLog("EVR: OnClockStart  hnsSystemTime = %I64d,   llClockStartOffset = %I64d", hnsSystemTime, llClockStartOffset);
+  CLog::Log(LOGDEBUG,"EVR: OnClockStart  hnsSystemTime = %I64d,   llClockStartOffset = %I64d", hnsSystemTime, llClockStartOffset);
   return S_OK;
 }
 
 STDMETHODIMP DsAllocator::OnClockStop(MFTIME hnsSystemTime)
 {
-  CLog::DebugLog("EVR: OnClockStop  hnsSystemTime = %I64d", hnsSystemTime);
+  CLog::Log(LOGDEBUG,"EVR: OnClockStop  hnsSystemTime = %I64d", hnsSystemTime);
   m_nRenderState    = Stopped;
   m_pMixerThread->StopThread();
   return S_OK;
@@ -747,14 +747,14 @@ STDMETHODIMP DsAllocator::OnClockStop(MFTIME hnsSystemTime)
 
 STDMETHODIMP DsAllocator::OnClockPause(MFTIME hnsSystemTime)
 {
-  CLog::DebugLog("EVR: OnClockPause  hnsSystemTime = %I64d", hnsSystemTime);
+  CLog::Log(LOGDEBUG,"EVR: OnClockPause  hnsSystemTime = %I64d", hnsSystemTime);
   return S_OK;
 }
 
 STDMETHODIMP DsAllocator::OnClockRestart(MFTIME hnsSystemTime)
 {
   m_nRenderState  = Started;
-  CLog::DebugLog("EVR: OnClockRestart  hnsSystemTime = %I64d", hnsSystemTime);
+  CLog::Log(LOGDEBUG,"EVR: OnClockRestart  hnsSystemTime = %I64d", hnsSystemTime);
 
   return S_OK;
 }
@@ -1127,7 +1127,7 @@ void DsAllocator::AllocateEVRSurfaces()
   subtype.Data1=D3DFMT_X8R8G8B8;
   m_pMediaType->GetGUID(MF_MT_SUBTYPE,&subtype);
   D3DFORMAT format=(D3DFORMAT)subtype.Data1;
-  CLog::DebugLog("Surfaceformat is %d, width %d, height %d",format,vwidth,vheight);
+  CLog::Log(LOGDEBUG,"Surfaceformat is %d, width %d, height %d",format,vwidth,vheight);
   format=D3DFMT_X8R8G8B8;
 
   RemoveAllSamples();

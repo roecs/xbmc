@@ -933,8 +933,8 @@ dsnerror_t DSVideoCodec::Decode(BYTE *src, int size, double pts, double *newpts,
     for (int i = 0; i < size ; i++)
       xtravectstring.AppendFormat("%02X ",ptr[i]);
     CLog::Log(LOGINFO,"%s",xtravectstring.c_str());*/
-    CLog::DebugLog("DXVADECODERH264:%i",size);
-    CLog::DebugLog("%s",dbg.c_str());
+    CLog::Log(LOGDEBUG,"DXVADECODERH264:%i",size);
+    CLog::Log(LOGDEBUG,"%s",dbg.c_str());
     
 #endif
       

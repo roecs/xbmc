@@ -398,7 +398,7 @@ void CDVDVideoCodecDirectshow::Dispose()
 void CDVDVideoCodecDirectshow::SetDropState(bool bDrop)
 {
   if (bDrop)
-    CLog::DebugLog("%s we should drop next frame", __FUNCTION__);
+    CLog::Log(LOGDEBUG,"%s we should drop next frame", __FUNCTION__);
 }
 
 int CDVDVideoCodecDirectshow::Decode(BYTE* pData, int iSize, double dts, double pts, int flags)

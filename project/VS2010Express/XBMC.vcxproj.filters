@@ -2450,6 +2450,27 @@
     <ClCompile Include="..\..\xbmc\cores\VideoRenderers\RenderCapture.cpp">
       <Filter>cores\VideoRenderers</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\xbmc\settings\AudioSettings.cpp">
+      <Filter>settings</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\xbmc\cores\dvdplayer\DVDCodecs\Video\DVDVideoCodecDirectshow.cpp">
+      <Filter>cores\dvdplayer\DVDCodecs\Video</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\xbmc\cores\dvdplayer\DVDCodecs\Audio\DVDAudioCodecDirectshow.cpp">
+      <Filter>cores\dvdplayer\DVDCodecs\Audio</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\xbmc\cores\VideoRenderers\VideoShaders\PixelShaderList.cpp">
+      <Filter>cores\VideoRenderers\Shaders</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\xbmc\cores\VideoRenderers\VideoShaders\ExternalPixelShader.cpp">
+      <Filter>cores\VideoRenderers\Shaders</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\xbmc\cores\VideoRenderers\VideoShaders\PixelShaderCompiler.cpp">
+      <Filter>cores\VideoRenderers\Shaders</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\xbmc\cores\AudioRenderers\Win32DirectShowAudioRenderer.cpp">
+      <Filter>cores\AudioRenderers</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\xbmc\win32\pch.h">
@@ -4898,6 +4919,27 @@
     </ClInclude>
     <ClInclude Include="..\..\xbmc\utils\GlobalsHandling.h">
       <Filter>utils</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\xbmc\settings\AudioSettings.h">
+      <Filter>settings</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\xbmc\cores\dvdplayer\DVDCodecs\Video\DVDVideoCodecDirectshow.h">
+      <Filter>cores\dvdplayer\DVDCodecs\Video</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\xbmc\cores\dvdplayer\DVDCodecs\Audio\DVDAudioCodecDirectshow.h">
+      <Filter>cores\dvdplayer\DVDCodecs\Audio</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\xbmc\cores\VideoRenderers\VideoShaders\PixelShaderList.h">
+      <Filter>cores\VideoRenderers\Shaders</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\xbmc\cores\VideoRenderers\VideoShaders\ExternalPixelShader.h">
+      <Filter>cores\VideoRenderers\Shaders</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\xbmc\cores\VideoRenderers\VideoShaders\PixelShaderCompiler.h">
+      <Filter>cores\VideoRenderers\Shaders</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\xbmc\cores\AudioRenderers\Win32DirectShowAudioRenderer.h">
+      <Filter>cores\AudioRenderers</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

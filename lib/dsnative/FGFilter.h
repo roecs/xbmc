@@ -24,7 +24,6 @@
 #include "streams.h"
 #include <list>
 
-
 class CFGFilter
 {
 public:
