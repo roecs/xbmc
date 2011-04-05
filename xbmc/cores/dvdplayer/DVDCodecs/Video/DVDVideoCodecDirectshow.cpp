@@ -382,17 +382,25 @@ bool CDVDVideoCodecDirectshow::Open(CDVDStreamInfo &hints, CDVDCodecOptions &opt
 
 void CDVDVideoCodecDirectshow::Dispose()
 {
-  if (bih)
-    free(bih);
-  if (bihout)
-    free(bihout);
-
+  
+  try
+  {
+    if (bih)
+      free(bih);
+    if (bihout)
+      free(bihout);
+  }
+  catch (...)
+  {
+    CLog::Log(LOGERROR,"Failed freeing BITMAPINFOHEADER");
+  }
   if (codec)
   {
     CLog::Log(LOGNOTICE,"unloading dsnative");
     /*m_dllDsNative.*/DSCloseVideoCodec(codec);
     codec = NULL;
   }
+  
 }
 
 void CDVDVideoCodecDirectshow::SetDropState(bool bDrop)
