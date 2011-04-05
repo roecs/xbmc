@@ -382,8 +382,8 @@ bool CDVDVideoCodecDirectshow::Open(CDVDStreamInfo &hints, CDVDCodecOptions &opt
 
 void CDVDVideoCodecDirectshow::Dispose()
 {
-  
-  try
+  //Memory is freed by dsnative. But their might be some missing memory leak that need to be verified
+  /*try
   {
     if (bih)
       free(bih);
@@ -393,11 +393,11 @@ void CDVDVideoCodecDirectshow::Dispose()
   catch (...)
   {
     CLog::Log(LOGERROR,"Failed freeing BITMAPINFOHEADER");
-  }
+  }*/
   if (codec)
   {
     CLog::Log(LOGNOTICE,"unloading dsnative");
-    /*m_dllDsNative.*/DSCloseVideoCodec(codec);
+    DSCloseVideoCodec(codec);
     codec = NULL;
   }
   
