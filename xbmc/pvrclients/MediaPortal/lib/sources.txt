@@ -1,0 +1,13 @@
+libdvbpsi 0.2.0:
+http://www.videolan.org
+
+Used sources:
+git://git.videolan.org/libdvbpsi.git
+commit a905bc77d8efa2f04b9f6fed28e47e847f6642f6
+Author: Jean-Paul Saman <jean-paul.saman@m2x.nl>
+Date:   Thu Apr 21 15:53:49 2011 +0200
+
+    Aid rpm build for non 32-bit builds
+
+    - Added --libdir=%{_libdir} to configure
+    - Added --enable-debug to compile with debug symbols

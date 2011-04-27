@@ -1,0 +1,182 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{07912EDA-37D7-4307-A88F-20ED9BF93365}</ProjectGuid>
+    <Keyword>Win32Proj</Keyword>
+    <RootNamespace>libdvbpsi</RootNamespace>
+    <ProjectName>pvrclient_mptv_libdvbpsi</ProjectName>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup />
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <ClCompile>
+      <PrecompiledHeader>
+      </PrecompiledHeader>
+      <WarningLevel>Level3</WarningLevel>
+      <Optimization>Disabled</Optimization>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>../../;../../win32;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <PrecompiledHeader>
+      </PrecompiledHeader>
+      <Optimization>MaxSpeed</Optimization>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <None Include="ReadMe.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\config.h" />
+    <ClInclude Include="..\..\demux.h" />
+    <ClInclude Include="..\..\descriptor.h" />
+    <ClInclude Include="..\..\descriptors\dr.h" />
+    <ClInclude Include="..\..\descriptors\dr_02.h" />
+    <ClInclude Include="..\..\descriptors\dr_03.h" />
+    <ClInclude Include="..\..\descriptors\dr_04.h" />
+    <ClInclude Include="..\..\descriptors\dr_05.h" />
+    <ClInclude Include="..\..\descriptors\dr_06.h" />
+    <ClInclude Include="..\..\descriptors\dr_07.h" />
+    <ClInclude Include="..\..\descriptors\dr_08.h" />
+    <ClInclude Include="..\..\descriptors\dr_09.h" />
+    <ClInclude Include="..\..\descriptors\dr_0a.h" />
+    <ClInclude Include="..\..\descriptors\dr_0b.h" />
+    <ClInclude Include="..\..\descriptors\dr_0c.h" />
+    <ClInclude Include="..\..\descriptors\dr_0d.h" />
+    <ClInclude Include="..\..\descriptors\dr_0e.h" />
+    <ClInclude Include="..\..\descriptors\dr_0f.h" />
+    <ClInclude Include="..\..\descriptors\dr_42.h" />
+    <ClInclude Include="..\..\descriptors\dr_43.h" />
+    <ClInclude Include="..\..\descriptors\dr_44.h" />
+    <ClInclude Include="..\..\descriptors\dr_45.h" />
+    <ClInclude Include="..\..\descriptors\dr_47.h" />
+    <ClInclude Include="..\..\descriptors\dr_48.h" />
+    <ClInclude Include="..\..\descriptors\dr_4d.h" />
+    <ClInclude Include="..\..\descriptors\dr_4e.h" />
+    <ClInclude Include="..\..\descriptors\dr_52.h" />
+    <ClInclude Include="..\..\descriptors\dr_55.h" />
+    <ClInclude Include="..\..\descriptors\dr_56.h" />
+    <ClInclude Include="..\..\descriptors\dr_58.h" />
+    <ClInclude Include="..\..\descriptors\dr_59.h" />
+    <ClInclude Include="..\..\descriptors\dr_5a.h" />
+    <ClInclude Include="..\..\descriptors\dr_69.h" />
+    <ClInclude Include="..\..\descriptors\dr_8a.h" />
+    <ClInclude Include="..\..\dvbpsi.h" />
+    <ClInclude Include="..\..\dvbpsi_private.h" />
+    <ClInclude Include="..\..\psi.h" />
+    <ClInclude Include="..\..\tables\bat.h" />
+    <ClInclude Include="..\..\tables\bat_private.h" />
+    <ClInclude Include="..\..\tables\cat.h" />
+    <ClInclude Include="..\..\tables\cat_private.h" />
+    <ClInclude Include="..\..\tables\eit.h" />
+    <ClInclude Include="..\..\tables\eit_private.h" />
+    <ClInclude Include="..\..\tables\nit.h" />
+    <ClInclude Include="..\..\tables\nit_private.h" />
+    <ClInclude Include="..\..\tables\pat.h" />
+    <ClInclude Include="..\..\tables\pat_private.h" />
+    <ClInclude Include="..\..\tables\pmt.h" />
+    <ClInclude Include="..\..\tables\pmt_private.h" />
+    <ClInclude Include="..\..\tables\sdt.h" />
+    <ClInclude Include="..\..\tables\sdt_private.h" />
+    <ClInclude Include="..\..\tables\sis.h" />
+    <ClInclude Include="..\..\tables\sis_private.h" />
+    <ClInclude Include="..\..\tables\tot.h" />
+    <ClInclude Include="..\..\tables\tot_private.h" />
+    <ClInclude Include="..\..\win32\inttypes.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\..\demux.c" />
+    <ClCompile Include="..\..\descriptor.c" />
+    <ClCompile Include="..\..\descriptors\dr_02.c" />
+    <ClCompile Include="..\..\descriptors\dr_03.c" />
+    <ClCompile Include="..\..\descriptors\dr_04.c" />
+    <ClCompile Include="..\..\descriptors\dr_05.c" />
+    <ClCompile Include="..\..\descriptors\dr_06.c" />
+    <ClCompile Include="..\..\descriptors\dr_07.c" />
+    <ClCompile Include="..\..\descriptors\dr_08.c" />
+    <ClCompile Include="..\..\descriptors\dr_09.c" />
+    <ClCompile Include="..\..\descriptors\dr_0a.c" />
+    <ClCompile Include="..\..\descriptors\dr_0b.c" />
+    <ClCompile Include="..\..\descriptors\dr_0c.c" />
+    <ClCompile Include="..\..\descriptors\dr_0d.c" />
+    <ClCompile Include="..\..\descriptors\dr_0e.c" />
+    <ClCompile Include="..\..\descriptors\dr_0f.c" />
+    <ClCompile Include="..\..\descriptors\dr_42.c" />
+    <ClCompile Include="..\..\descriptors\dr_43.c" />
+    <ClCompile Include="..\..\descriptors\dr_44.c" />
+    <ClCompile Include="..\..\descriptors\dr_45.c" />
+    <ClCompile Include="..\..\descriptors\dr_47.c" />
+    <ClCompile Include="..\..\descriptors\dr_48.c" />
+    <ClCompile Include="..\..\descriptors\dr_4d.c" />
+    <ClCompile Include="..\..\descriptors\dr_4e.c" />
+    <ClCompile Include="..\..\descriptors\dr_52.c" />
+    <ClCompile Include="..\..\descriptors\dr_55.c" />
+    <ClCompile Include="..\..\descriptors\dr_56.c" />
+    <ClCompile Include="..\..\descriptors\dr_58.c" />
+    <ClCompile Include="..\..\descriptors\dr_59.c" />
+    <ClCompile Include="..\..\descriptors\dr_5a.c" />
+    <ClCompile Include="..\..\descriptors\dr_69.c" />
+    <ClCompile Include="..\..\descriptors\dr_8a.c" />
+    <ClCompile Include="..\..\dvbpsi.c" />
+    <ClCompile Include="..\..\psi.c" />
+    <ClCompile Include="..\..\tables\bat.c" />
+    <ClCompile Include="..\..\tables\cat.c" />
+    <ClCompile Include="..\..\tables\eit.c" />
+    <ClCompile Include="..\..\tables\nit.c" />
+    <ClCompile Include="..\..\tables\pat.c" />
+    <ClCompile Include="..\..\tables\pmt.c" />
+    <ClCompile Include="..\..\tables\sdt.c" />
+    <ClCompile Include="..\..\tables\sis.c" />
+    <ClCompile Include="..\..\tables\tot.c" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>

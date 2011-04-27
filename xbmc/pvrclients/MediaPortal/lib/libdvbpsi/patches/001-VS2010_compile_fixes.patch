@@ -1,0 +1,663 @@
+diff --git a/src/dvbpsi.h b/src/dvbpsi.h
+index 4ee5450..278d331 100644
+--- a/src/dvbpsi.h
++++ b/src/dvbpsi.h
+@@ -36,6 +36,12 @@
+ #define DVBPSI_VERSION      0.2.0
+ #define DVBPSI_VERSION_INT  ((0<<16)+(2<<8)+0)
+ 
++/**/
++/* If we're not using GNU C, skip __attribute__ */
++#ifndef __GNUC__
++#  define  __attribute__(x)  /*NOTHING*/
++#endif
++
+ #ifdef __cplusplus
+ extern "C" {
+ #endif
+diff --git a/src/tables/bat.c b/src/tables/bat.c
+index 8055985..5ce4af3 100755
+--- a/src/tables/bat.c
++++ b/src/tables/bat.c
+@@ -55,6 +55,7 @@
+ int dvbpsi_AttachBAT(dvbpsi_decoder_t * p_psi_decoder, uint8_t i_table_id,
+           uint16_t i_extension, dvbpsi_bat_callback pf_callback, void* p_cb_data)
+ {
++  unsigned int i = 0;
+   dvbpsi_demux_t* p_demux = (dvbpsi_demux_t*)p_psi_decoder->p_private_decoder;
+   dvbpsi_demux_subdec_t* p_subdec;
+   dvbpsi_bat_decoder_t*  p_bat_decoder;
+@@ -99,7 +100,7 @@ int dvbpsi_AttachBAT(dvbpsi_decoder_t * p_psi_decoder, uint8_t i_table_id,
+   p_bat_decoder->b_current_valid = 0;
+   p_bat_decoder->p_building_bat = NULL;
+ 
+-  for(unsigned int i = 0; i < 256; i++)
++  for(i = 0; i < 256; i++)
+     p_bat_decoder->ap_sections[i] = NULL;
+ 
+   return 0;
+@@ -113,6 +114,7 @@ int dvbpsi_AttachBAT(dvbpsi_decoder_t * p_psi_decoder, uint8_t i_table_id,
+ void dvbpsi_DetachBAT(dvbpsi_demux_t * p_demux, uint8_t i_table_id,
+           uint16_t i_extension)
+ {
++  unsigned int i = 0;
+   dvbpsi_demux_subdec_t* p_subdec;
+   dvbpsi_demux_subdec_t** pp_prev_subdec;
+   dvbpsi_bat_decoder_t* p_bat_decoder;
+@@ -130,7 +132,7 @@ void dvbpsi_DetachBAT(dvbpsi_demux_t * p_demux, uint8_t i_table_id,
+   p_bat_decoder = (dvbpsi_bat_decoder_t*)p_subdec->p_cb_data;
+   free(p_bat_decoder->p_building_bat);
+ 
+-  for(unsigned int i = 0; i < 256; i++)
++  for(i = 0; i < 256; i++)
+   {
+     if(p_bat_decoder->ap_sections[i])
+       dvbpsi_DeletePSISections(p_bat_decoder->ap_sections[i]);
+@@ -291,6 +293,8 @@ void dvbpsi_GatherBATSections(dvbpsi_decoder_t * p_psi_decoder,
+                         = (dvbpsi_bat_decoder_t*)p_private_decoder;
+   int b_append = 1;
+   int b_reinit = 0;
++  unsigned int i = 0;
++  int j = 0;
+ 
+   DVBPSI_DEBUG_ARG("BAT decoder",
+                    "Table version %2d, " "i_table_id %2d, " "i_extension %5d, "
+@@ -383,7 +387,7 @@ void dvbpsi_GatherBATSections(dvbpsi_decoder_t * p_psi_decoder,
+       p_bat_decoder->p_building_bat = NULL;
+     }
+     /* Clear the section array */
+-    for(unsigned int i = 0; i < 256; i++)
++    for(i = 0; i < 256; i++)
+     {
+       if(p_bat_decoder->ap_sections[i] != NULL)
+       {
+@@ -421,7 +425,7 @@ void dvbpsi_GatherBATSections(dvbpsi_decoder_t * p_psi_decoder,
+ 
+     /* Check if we have all the sections */
+     b_complete = 0;
+-    for(unsigned int i = 0; i <= p_bat_decoder->i_last_section_number; i++)
++    for(i = 0; i <= p_bat_decoder->i_last_section_number; i++)
+     {
+       if(!p_bat_decoder->ap_sections[i])
+         break;
+@@ -438,7 +442,7 @@ void dvbpsi_GatherBATSections(dvbpsi_decoder_t * p_psi_decoder,
+       /* Chain the sections */
+       if(p_bat_decoder->i_last_section_number)
+       {
+-        for(int j = 0; j <= p_bat_decoder->i_last_section_number - 1; j++)
++        for(j = 0; j <= p_bat_decoder->i_last_section_number - 1; j++)
+           p_bat_decoder->ap_sections[j]->p_next =
+                                         p_bat_decoder->ap_sections[j + 1];
+       }
+@@ -452,7 +456,7 @@ void dvbpsi_GatherBATSections(dvbpsi_decoder_t * p_psi_decoder,
+                                  p_bat_decoder->p_building_bat);
+       /* Reinitialize the structures */
+       p_bat_decoder->p_building_bat = NULL;
+-      for(unsigned int i = 0; i <= p_bat_decoder->i_last_section_number; i++)
++      for(i = 0; i <= p_bat_decoder->i_last_section_number; i++)
+         p_bat_decoder->ap_sections[i] = NULL;
+     }
+   }
+diff --git a/src/tables/cat.c b/src/tables/cat.c
+index 680ddd8..58eb509 100644
+--- a/src/tables/cat.c
++++ b/src/tables/cat.c
+@@ -55,6 +55,7 @@
+ dvbpsi_handle dvbpsi_AttachCAT(dvbpsi_cat_callback pf_callback,
+                                void* p_cb_data)
+ {
++  unsigned int i = 0;
+   dvbpsi_handle h_dvbpsi = (dvbpsi_decoder_t*)malloc(sizeof(dvbpsi_decoder_t));
+   dvbpsi_cat_decoder_t* p_cat_decoder;
+ 
+@@ -84,7 +85,7 @@ dvbpsi_handle dvbpsi_AttachCAT(dvbpsi_cat_callback pf_callback,
+   /* CAT decoder initial state */
+   p_cat_decoder->b_current_valid = 0;
+   p_cat_decoder->p_building_cat = NULL;
+-  for(unsigned int i = 0; i <= 255; i++)
++  for(i = 0; i <= 255; i++)
+     p_cat_decoder->ap_sections[i] = NULL;
+ 
+   return h_dvbpsi;
+@@ -98,12 +99,13 @@ dvbpsi_handle dvbpsi_AttachCAT(dvbpsi_cat_callback pf_callback,
+  *****************************************************************************/
+ void dvbpsi_DetachCAT(dvbpsi_handle h_dvbpsi)
+ {
++  unsigned int i = 0;
+   dvbpsi_cat_decoder_t* p_cat_decoder
+                         = (dvbpsi_cat_decoder_t*)h_dvbpsi->p_private_decoder;
+ 
+   free(p_cat_decoder->p_building_cat);
+ 
+-  for(unsigned int i = 0; i <= 255; i++)
++  for(i = 0; i <= 255; i++)
+   {
+     if(p_cat_decoder->ap_sections[i])
+       free(p_cat_decoder->ap_sections[i]);
+@@ -186,6 +188,7 @@ void dvbpsi_GatherCATSections(dvbpsi_decoder_t* p_decoder,
+                         = (dvbpsi_cat_decoder_t*)p_decoder->p_private_decoder;
+   int b_append = 1;
+   int b_reinit = 0;
++  unsigned int i = 0;
+ 
+   DVBPSI_DEBUG_ARG("CAT decoder",
+                    "Table version %2d, " "i_extension %5d, "
+@@ -268,7 +271,7 @@ void dvbpsi_GatherCATSections(dvbpsi_decoder_t* p_decoder,
+       p_cat_decoder->p_building_cat = NULL;
+     }
+     /* Clear the section array */
+-    for(unsigned int i = 0; i <= 255; i++)
++    for(i = 0; i <= 255; i++)
+     {
+       if(p_cat_decoder->ap_sections[i] != NULL)
+       {
+@@ -305,7 +308,7 @@ void dvbpsi_GatherCATSections(dvbpsi_decoder_t* p_decoder,
+ 
+     /* Check if we have all the sections */
+     b_complete = 0;
+-    for(unsigned int i = 0; i <= p_cat_decoder->i_last_section_number; i++)
++    for(i = 0; i <= p_cat_decoder->i_last_section_number; i++)
+     {
+       if(!p_cat_decoder->ap_sections[i])
+         break;
+@@ -322,7 +325,7 @@ void dvbpsi_GatherCATSections(dvbpsi_decoder_t* p_decoder,
+       /* Chain the sections */
+       if(p_cat_decoder->i_last_section_number)
+       {
+-        for(unsigned int i = 0; (int)i <= p_cat_decoder->i_last_section_number - 1; i++)
++        for(i = 0; (int)i <= p_cat_decoder->i_last_section_number - 1; i++)
+           p_cat_decoder->ap_sections[i]->p_next =
+                                         p_cat_decoder->ap_sections[i + 1];
+       }
+@@ -336,7 +339,7 @@ void dvbpsi_GatherCATSections(dvbpsi_decoder_t* p_decoder,
+                                  p_cat_decoder->p_building_cat);
+       /* Reinitialize the structures */
+       p_cat_decoder->p_building_cat = NULL;
+-      for(unsigned int i = 0; i <= p_cat_decoder->i_last_section_number; i++)
++      for(i = 0; i <= p_cat_decoder->i_last_section_number; i++)
+         p_cat_decoder->ap_sections[i] = NULL;
+     }
+   }
+diff --git a/src/tables/eit.c b/src/tables/eit.c
+index f3f6ddf..e5447e5 100644
+--- a/src/tables/eit.c
++++ b/src/tables/eit.c
+@@ -56,6 +56,7 @@ int dvbpsi_AttachEIT(dvbpsi_decoder_t * p_psi_decoder, uint8_t i_table_id,
+           uint16_t i_extension, dvbpsi_eit_callback pf_callback,
+                                void* p_cb_data)
+ {
++  unsigned int i = 0;
+   dvbpsi_demux_t* p_demux = (dvbpsi_demux_t*)p_psi_decoder->p_private_decoder;
+   dvbpsi_demux_subdec_t* p_subdec;
+   dvbpsi_eit_decoder_t*  p_eit_decoder;
+@@ -100,7 +101,7 @@ int dvbpsi_AttachEIT(dvbpsi_decoder_t * p_psi_decoder, uint8_t i_table_id,
+   /* EIT decoder initial state */
+   p_eit_decoder->b_current_valid = 0;
+   p_eit_decoder->p_building_eit = NULL;
+-  for(unsigned int i = 0; i <= 255; i++)
++  for(i = 0; i <= 255; i++)
+     p_eit_decoder->ap_sections[i] = NULL;
+ 
+   return 0;
+@@ -115,6 +116,7 @@ int dvbpsi_AttachEIT(dvbpsi_decoder_t * p_psi_decoder, uint8_t i_table_id,
+ void dvbpsi_DetachEIT(dvbpsi_demux_t * p_demux, uint8_t i_table_id,
+           uint16_t i_extension)
+ {
++  unsigned int i = 0;
+   dvbpsi_demux_subdec_t* p_subdec;
+   dvbpsi_demux_subdec_t** pp_prev_subdec;
+   dvbpsi_eit_decoder_t* p_eit_decoder;
+@@ -134,7 +136,7 @@ void dvbpsi_DetachEIT(dvbpsi_demux_t * p_demux, uint8_t i_table_id,
+ 
+   free(p_eit_decoder->p_building_eit);
+ 
+-  for(unsigned int i = 0; i <= 255; i++)
++  for(i = 0; i <= 255; i++)
+   {
+     if(p_eit_decoder->ap_sections[i])
+       dvbpsi_DeletePSISections(p_eit_decoder->ap_sections[i]);
+@@ -277,6 +279,7 @@ void dvbpsi_GatherEITSections(dvbpsi_decoder_t * p_psi_decoder,
+                         = (dvbpsi_eit_decoder_t*)p_private_decoder;
+   int b_append = 1;
+   int b_reinit = 0;
++  unsigned int i = 0;
+ 
+   DVBPSI_DEBUG_ARG("EIT decoder",
+                    "Table version %2d, " "i_table_id %2d, " "i_extension %5d, "
+@@ -361,7 +364,7 @@ void dvbpsi_GatherEITSections(dvbpsi_decoder_t * p_psi_decoder,
+       p_eit_decoder->p_building_eit = NULL;
+     }
+     /* Clear the section array */
+-    for(unsigned int i = 0; i <= 255; i++)
++    for(i = 0; i <= 255; i++)
+     {
+       if(p_eit_decoder->ap_sections[i] != NULL)
+       {
+@@ -423,7 +426,7 @@ void dvbpsi_GatherEITSections(dvbpsi_decoder_t * p_psi_decoder,
+        (p_eit_decoder->i_first_received_section_number == 0 &&
+         p_section->i_number == p_eit_decoder->i_last_section_number))
+     {
+-      for(unsigned int i = 0; i <= p_eit_decoder->i_last_section_number; i++)
++      for(i = 0; i <= p_eit_decoder->i_last_section_number; i++)
+       {
+         if(!p_eit_decoder->ap_sections[i])
+           break;
+@@ -463,7 +466,7 @@ void dvbpsi_GatherEITSections(dvbpsi_decoder_t * p_psi_decoder,
+         dvbpsi_psi_section_t * p_prev_section;
+ 
+         p_prev_section = p_eit_decoder->ap_sections[0];
+-        for(unsigned int i = 1; i <= p_eit_decoder->i_last_section_number; i++)
++        for(i = 1; i <= p_eit_decoder->i_last_section_number; i++)
+         {
+           if(p_eit_decoder->ap_sections[i] != NULL)
+           {
+@@ -482,7 +485,7 @@ void dvbpsi_GatherEITSections(dvbpsi_decoder_t * p_psi_decoder,
+                                  p_eit_decoder->p_building_eit);
+       /* Reinitialize the structures */
+       p_eit_decoder->p_building_eit = NULL;
+-      for(unsigned int i = 0; i <= p_eit_decoder->i_last_section_number; i++)
++      for(i = 0; i <= p_eit_decoder->i_last_section_number; i++)
+         p_eit_decoder->ap_sections[i] = NULL;
+     }
+   }
+diff --git a/src/tables/nit.c b/src/tables/nit.c
+index 4489071..24736d2 100644
+--- a/src/tables/nit.c
++++ b/src/tables/nit.c
+@@ -57,6 +57,7 @@ int dvbpsi_AttachNIT(dvbpsi_decoder_t * p_psi_decoder, uint8_t i_table_id,
+                      uint16_t i_extension, dvbpsi_nit_callback pf_callback,
+                      void* p_cb_data)
+ {
++  unsigned int i = 0;
+   dvbpsi_demux_t* p_demux = (dvbpsi_demux_t*)p_psi_decoder->p_private_decoder;
+   dvbpsi_demux_subdec_t* p_subdec;
+   dvbpsi_nit_decoder_t*  p_nit_decoder;
+@@ -102,7 +103,7 @@ int dvbpsi_AttachNIT(dvbpsi_decoder_t * p_psi_decoder, uint8_t i_table_id,
+   /* NIT decoder initial state */
+   p_nit_decoder->b_current_valid = 0;
+   p_nit_decoder->p_building_nit = NULL;
+-  for(unsigned int i = 0; i <= 255; i++)
++  for(i = 0; i <= 255; i++)
+     p_nit_decoder->ap_sections[i] = NULL;
+ 
+   return 0;
+@@ -117,6 +118,7 @@ int dvbpsi_AttachNIT(dvbpsi_decoder_t * p_psi_decoder, uint8_t i_table_id,
+ void dvbpsi_DetachNIT(dvbpsi_demux_t * p_demux, uint8_t i_table_id,
+                       uint16_t i_extension)
+ {
++  unsigned int i = 0;
+   dvbpsi_demux_subdec_t* p_subdec;
+   dvbpsi_demux_subdec_t** pp_prev_subdec;
+   dvbpsi_nit_decoder_t* p_nit_decoder;
+@@ -136,7 +138,7 @@ void dvbpsi_DetachNIT(dvbpsi_demux_t * p_demux, uint8_t i_table_id,
+ 
+   free(p_nit_decoder->p_building_nit);
+ 
+-  for(unsigned int i = 0; i <= 255; i++)
++  for(i = 0; i <= 255; i++)
+   {
+     if(p_nit_decoder->ap_sections[i])
+       dvbpsi_DeletePSISections(p_nit_decoder->ap_sections[i]);
+@@ -302,6 +304,7 @@ void dvbpsi_GatherNITSections(dvbpsi_decoder_t * p_decoder,
+                         = (dvbpsi_nit_decoder_t*)p_private_decoder;
+   int b_append = 1;
+   int b_reinit = 0;
++  unsigned int i = 0;
+ 
+   DVBPSI_DEBUG_ARG("NIT decoder",
+                    "Table version %2d, " "i_extension %5d, "
+@@ -394,7 +397,7 @@ void dvbpsi_GatherNITSections(dvbpsi_decoder_t * p_decoder,
+       p_nit_decoder->p_building_nit = NULL;
+     }
+     /* Clear the section array */
+-    for(unsigned int i = 0; i <= 255; i++)
++    for(i = 0; i <= 255; i++)
+     {
+       if(p_nit_decoder->ap_sections[i] != NULL)
+       {
+@@ -432,7 +435,7 @@ void dvbpsi_GatherNITSections(dvbpsi_decoder_t * p_decoder,
+ 
+     /* Check if we have all the sections */
+     b_complete = 0;
+-    for(unsigned int i = 0; i <= p_nit_decoder->i_last_section_number; i++)
++    for(i = 0; i <= p_nit_decoder->i_last_section_number; i++)
+     {
+       if(!p_nit_decoder->ap_sections[i])
+         break;
+@@ -449,7 +452,7 @@ void dvbpsi_GatherNITSections(dvbpsi_decoder_t * p_decoder,
+       /* Chain the sections */
+       if(p_nit_decoder->i_last_section_number)
+       {
+-        for(unsigned int i = 0; (int)i <= p_nit_decoder->i_last_section_number - 1; i++)
++        for(i = 0; (int)i <= p_nit_decoder->i_last_section_number - 1; i++)
+           p_nit_decoder->ap_sections[i]->p_next =
+                                         p_nit_decoder->ap_sections[i + 1];
+       }
+@@ -463,7 +466,7 @@ void dvbpsi_GatherNITSections(dvbpsi_decoder_t * p_decoder,
+                                  p_nit_decoder->p_building_nit);
+       /* Reinitialize the structures */
+       p_nit_decoder->p_building_nit = NULL;
+-      for(unsigned int i = 0; i <= p_nit_decoder->i_last_section_number; i++)
++      for(i = 0; i <= p_nit_decoder->i_last_section_number; i++)
+         p_nit_decoder->ap_sections[i] = NULL;
+     }
+   }
+diff --git a/src/tables/pat.c b/src/tables/pat.c
+index 63c50ab..7c75f4a 100644
+--- a/src/tables/pat.c
++++ b/src/tables/pat.c
+@@ -53,6 +53,7 @@ dvbpsi_handle dvbpsi_AttachPAT(dvbpsi_pat_callback pf_callback,
+ {
+   dvbpsi_handle h_dvbpsi = (dvbpsi_decoder_t*)malloc(sizeof(dvbpsi_decoder_t));
+   dvbpsi_pat_decoder_t* p_pat_decoder;
++  unsigned int i = 0;
+ 
+   if(h_dvbpsi == NULL)
+     return NULL;
+@@ -80,7 +81,7 @@ dvbpsi_handle dvbpsi_AttachPAT(dvbpsi_pat_callback pf_callback,
+   /* PAT decoder initial state */
+   p_pat_decoder->b_current_valid = 0;
+   p_pat_decoder->p_building_pat = NULL;
+-  for(unsigned int i = 0; i <= 255; i++)
++  for(i = 0; i <= 255; i++)
+     p_pat_decoder->ap_sections[i] = NULL;
+ 
+   return h_dvbpsi;
+@@ -94,12 +95,13 @@ dvbpsi_handle dvbpsi_AttachPAT(dvbpsi_pat_callback pf_callback,
+  *****************************************************************************/
+ void dvbpsi_DetachPAT(dvbpsi_handle h_dvbpsi)
+ {
++  unsigned int i = 0;
+   dvbpsi_pat_decoder_t* p_pat_decoder
+                         = (dvbpsi_pat_decoder_t*)h_dvbpsi->p_private_decoder;
+ 
+   free(p_pat_decoder->p_building_pat);
+ 
+-  for(unsigned int i = 0; i <= 255; i++)
++  for(i = 0; i <= 255; i++)
+   {
+     if(p_pat_decoder->ap_sections[i])
+       free(p_pat_decoder->ap_sections[i]);
+@@ -193,6 +195,7 @@ void dvbpsi_GatherPATSections(dvbpsi_decoder_t* p_decoder,
+                         = (dvbpsi_pat_decoder_t*)p_decoder->p_private_decoder;
+   int b_append = 1;
+   int b_reinit = 0;
++  unsigned int i = 0;
+ 
+   DVBPSI_DEBUG_ARG("PAT decoder",
+                    "Table version %2d, " "i_extension %5d, "
+@@ -285,7 +288,7 @@ void dvbpsi_GatherPATSections(dvbpsi_decoder_t* p_decoder,
+       p_pat_decoder->p_building_pat = NULL;
+     }
+     /* Clear the section array */
+-    for(unsigned int i = 0; i <= 255; i++)
++    for(i = 0; i <= 255; i++)
+     {
+       if(p_pat_decoder->ap_sections[i] != NULL)
+       {
+@@ -323,7 +326,7 @@ void dvbpsi_GatherPATSections(dvbpsi_decoder_t* p_decoder,
+ 
+     /* Check if we have all the sections */
+     b_complete = 0;
+-    for(unsigned int i = 0; i <= p_pat_decoder->i_last_section_number; i++)
++    for(i = 0; i <= p_pat_decoder->i_last_section_number; i++)
+     {
+       if(!p_pat_decoder->ap_sections[i])
+         break;
+@@ -340,7 +343,7 @@ void dvbpsi_GatherPATSections(dvbpsi_decoder_t* p_decoder,
+       /* Chain the sections */
+       if(p_pat_decoder->i_last_section_number)
+       {
+-        for(unsigned int i = 0; (int)i <= p_pat_decoder->i_last_section_number - 1; i++)
++        for(i = 0; (int)i <= p_pat_decoder->i_last_section_number - 1; i++)
+           p_pat_decoder->ap_sections[i]->p_next =
+                                         p_pat_decoder->ap_sections[i + 1];
+       }
+@@ -354,7 +357,7 @@ void dvbpsi_GatherPATSections(dvbpsi_decoder_t* p_decoder,
+                                  p_pat_decoder->p_building_pat);
+       /* Reinitialize the structures */
+       p_pat_decoder->p_building_pat = NULL;
+-      for(unsigned int i = 0; i <= p_pat_decoder->i_last_section_number; i++)
++      for(i = 0; i <= p_pat_decoder->i_last_section_number; i++)
+         p_pat_decoder->ap_sections[i] = NULL;
+     }
+   }
+@@ -373,9 +376,11 @@ void dvbpsi_GatherPATSections(dvbpsi_decoder_t* p_decoder,
+ void dvbpsi_DecodePATSections(dvbpsi_pat_t* p_pat,
+                                dvbpsi_psi_section_t* p_section)
+ {
++  uint8_t *p_byte = 0;
++
+   while(p_section)
+   {
+-    for(uint8_t *p_byte = p_section->p_payload_start;
++    for(p_byte = p_section->p_payload_start;
+         p_byte < p_section->p_payload_end;
+         p_byte += 4)
+     {
+diff --git a/src/tables/pmt.c b/src/tables/pmt.c
+index 22317a7..970151c 100644
+--- a/src/tables/pmt.c
++++ b/src/tables/pmt.c
+@@ -54,6 +54,8 @@ dvbpsi_handle dvbpsi_AttachPMT(uint16_t i_program_number,
+                                dvbpsi_pmt_callback pf_callback,
+                                void* p_cb_data)
+ {
++  unsigned int i = 0;
++
+   dvbpsi_handle h_dvbpsi = (dvbpsi_decoder_t*)malloc(sizeof(dvbpsi_decoder_t));
+   dvbpsi_pmt_decoder_t* p_pmt_decoder;
+ 
+@@ -84,7 +86,7 @@ dvbpsi_handle dvbpsi_AttachPMT(uint16_t i_program_number,
+   /* PMT decoder initial state */
+   p_pmt_decoder->b_current_valid = 0;
+   p_pmt_decoder->p_building_pmt = NULL;
+-  for(unsigned int i = 0; i <= 255; i++)
++  for(i = 0; i <= 255; i++)
+     p_pmt_decoder->ap_sections[i] = NULL;
+ 
+   return h_dvbpsi;
+@@ -98,12 +100,13 @@ dvbpsi_handle dvbpsi_AttachPMT(uint16_t i_program_number,
+  *****************************************************************************/
+ void dvbpsi_DetachPMT(dvbpsi_handle h_dvbpsi)
+ {
++  unsigned int i = 0;
+   dvbpsi_pmt_decoder_t* p_pmt_decoder
+                         = (dvbpsi_pmt_decoder_t*)h_dvbpsi->p_private_decoder;
+ 
+   free(p_pmt_decoder->p_building_pmt);
+ 
+-  for(unsigned int i = 0; i <= 255; i++)
++  for(i = 0; i <= 255; i++)
+   {
+     if(p_pmt_decoder->ap_sections[i])
+       free(p_pmt_decoder->ap_sections[i]);
+@@ -265,6 +268,7 @@ void dvbpsi_GatherPMTSections(dvbpsi_decoder_t* p_decoder,
+                         = (dvbpsi_pmt_decoder_t*)p_decoder->p_private_decoder;
+   int b_append = 1;
+   int b_reinit = 0;
++  unsigned int i = 0;
+ 
+   DVBPSI_DEBUG_ARG("PMT decoder",
+                    "Table version %2d, " "i_extension %5d, "
+@@ -358,7 +362,7 @@ void dvbpsi_GatherPMTSections(dvbpsi_decoder_t* p_decoder,
+       p_pmt_decoder->p_building_pmt = NULL;
+     }
+     /* Clear the section array */
+-    for(unsigned int i = 0; i <= 255; i++)
++    for(i = 0; i <= 255; i++)
+     {
+       if(p_pmt_decoder->ap_sections[i] != NULL)
+       {
+@@ -398,7 +402,7 @@ void dvbpsi_GatherPMTSections(dvbpsi_decoder_t* p_decoder,
+ 
+     /* Check if we have all the sections */
+     b_complete = 0;
+-    for(unsigned int i = 0; i <= p_pmt_decoder->i_last_section_number; i++)
++    for(i = 0; i <= p_pmt_decoder->i_last_section_number; i++)
+     {
+       if(!p_pmt_decoder->ap_sections[i])
+         break;
+@@ -415,7 +419,7 @@ void dvbpsi_GatherPMTSections(dvbpsi_decoder_t* p_decoder,
+       /* Chain the sections */
+       if(p_pmt_decoder->i_last_section_number)
+       {
+-        for(unsigned int i = 0; (int)i <= p_pmt_decoder->i_last_section_number - 1; i++)
++        for(i = 0; (int)i <= p_pmt_decoder->i_last_section_number - 1; i++)
+           p_pmt_decoder->ap_sections[i]->p_next =
+                                         p_pmt_decoder->ap_sections[i + 1];
+       }
+@@ -429,7 +433,7 @@ void dvbpsi_GatherPMTSections(dvbpsi_decoder_t* p_decoder,
+                                  p_pmt_decoder->p_building_pmt);
+       /* Reinitialize the structures */
+       p_pmt_decoder->p_building_pmt = NULL;
+-      for(unsigned int i = 0; i <= p_pmt_decoder->i_last_section_number; i++)
++      for(i = 0; i <= p_pmt_decoder->i_last_section_number; i++)
+         p_pmt_decoder->ap_sections[i] = NULL;
+     }
+   }
+diff --git a/src/tables/sdt.c b/src/tables/sdt.c
+index 548877c..8c7a34a 100644
+--- a/src/tables/sdt.c
++++ b/src/tables/sdt.c
+@@ -55,6 +55,8 @@ int dvbpsi_AttachSDT(dvbpsi_decoder_t * p_psi_decoder, uint8_t i_table_id,
+           uint16_t i_extension, dvbpsi_sdt_callback pf_callback,
+                                void* p_cb_data)
+ {
++  unsigned int i;
++
+   dvbpsi_demux_t* p_demux = (dvbpsi_demux_t*)p_psi_decoder->p_private_decoder;
+   dvbpsi_demux_subdec_t* p_subdec;
+   dvbpsi_sdt_decoder_t*  p_sdt_decoder;
+@@ -99,7 +101,7 @@ int dvbpsi_AttachSDT(dvbpsi_decoder_t * p_psi_decoder, uint8_t i_table_id,
+   /* SDT decoder initial state */
+   p_sdt_decoder->b_current_valid = 0;
+   p_sdt_decoder->p_building_sdt = NULL;
+-  for(unsigned int i = 0; i <= 255; i++)
++  for(i = 0; i <= 255; i++)
+     p_sdt_decoder->ap_sections[i] = NULL;
+ 
+   return 0;
+@@ -114,6 +116,7 @@ int dvbpsi_AttachSDT(dvbpsi_decoder_t * p_psi_decoder, uint8_t i_table_id,
+ void dvbpsi_DetachSDT(dvbpsi_demux_t * p_demux, uint8_t i_table_id,
+           uint16_t i_extension)
+ {
++  unsigned int i;
+   dvbpsi_demux_subdec_t* p_subdec;
+   dvbpsi_demux_subdec_t** pp_prev_subdec;
+   dvbpsi_sdt_decoder_t* p_sdt_decoder;
+@@ -133,7 +136,7 @@ void dvbpsi_DetachSDT(dvbpsi_demux_t * p_demux, uint8_t i_table_id,
+ 
+   free(p_sdt_decoder->p_building_sdt);
+ 
+-  for(unsigned int i = 0; i <= 255; i++)
++  for(i = 0; i <= 255; i++)
+   {
+     if(p_sdt_decoder->ap_sections[i])
+       dvbpsi_DeletePSISections(p_sdt_decoder->ap_sections[i]);
+@@ -274,6 +277,7 @@ void dvbpsi_GatherSDTSections(dvbpsi_decoder_t * p_psi_decoder,
+                         = (dvbpsi_sdt_decoder_t*)p_private_decoder;
+   int b_append = 1;
+   int b_reinit = 0;
++  unsigned int i = 0;
+ 
+   DVBPSI_DEBUG_ARG("SDT decoder",
+                    "Table version %2d, " "i_table_id %2d, " "i_extension %5d, "
+@@ -358,7 +362,7 @@ void dvbpsi_GatherSDTSections(dvbpsi_decoder_t * p_psi_decoder,
+       p_sdt_decoder->p_building_sdt = NULL;
+     }
+     /* Clear the section array */
+-    for(unsigned int i = 0; i <= 255; i++)
++    for(i = 0; i <= 255; i++)
+     {
+       if(p_sdt_decoder->ap_sections[i] != NULL)
+       {
+@@ -398,7 +402,7 @@ void dvbpsi_GatherSDTSections(dvbpsi_decoder_t * p_psi_decoder,
+ 
+     /* Check if we have all the sections */
+     b_complete = 0;
+-    for(unsigned int i = 0; i <= p_sdt_decoder->i_last_section_number; i++)
++    for(i = 0; i <= p_sdt_decoder->i_last_section_number; i++)
+     {
+       if(!p_sdt_decoder->ap_sections[i])
+         break;
+@@ -415,7 +419,7 @@ void dvbpsi_GatherSDTSections(dvbpsi_decoder_t * p_psi_decoder,
+       /* Chain the sections */
+       if(p_sdt_decoder->i_last_section_number)
+       {
+-        for(unsigned int i = 0; (int)i <= p_sdt_decoder->i_last_section_number - 1; i++)
++        for(i = 0; (int)i <= p_sdt_decoder->i_last_section_number - 1; i++)
+           p_sdt_decoder->ap_sections[i]->p_next =
+                                         p_sdt_decoder->ap_sections[i + 1];
+       }
+@@ -429,7 +433,7 @@ void dvbpsi_GatherSDTSections(dvbpsi_decoder_t * p_psi_decoder,
+                                  p_sdt_decoder->p_building_sdt);
+       /* Reinitialize the structures */
+       p_sdt_decoder->p_building_sdt = NULL;
+-      for(unsigned int i = 0; i <= p_sdt_decoder->i_last_section_number; i++)
++      for(i = 0; i <= p_sdt_decoder->i_last_section_number; i++)
+         p_sdt_decoder->ap_sections[i] = NULL;
+     }
+   }
+diff --git a/src/tables/sis.c b/src/tables/sis.c
+index 825b8ff..f1b2d32 100644
+--- a/src/tables/sis.c
++++ b/src/tables/sis.c
+@@ -336,6 +336,8 @@ void dvbpsi_DecodeSISSections(dvbpsi_sis_t* p_sis,
+                               dvbpsi_psi_section_t* p_section)
+ {
+     uint8_t *p_byte, *p_end;
++    uint32_t i_splice_command_length;
++    uint8_t *p_desc;
+ 
+     while (p_section)
+     {
+@@ -356,7 +358,7 @@ void dvbpsi_DecodeSISSections(dvbpsi_sis_t* p_sis,
+             p_sis->i_splice_command_length = ((p_byte[11] & 0x0F) << 8) | p_byte[12];
+             p_sis->i_splice_command_type = p_byte[13];
+ 
+-            uint32_t i_splice_command_length = p_sis->i_splice_command_length;
++            i_splice_command_length = p_sis->i_splice_command_length;
+             if (p_sis->i_splice_command_length == 0xfff)
+             {
+                 /* FIXME: size 0xfff of splice_command_section is undefined */
+@@ -365,7 +367,7 @@ void dvbpsi_DecodeSISSections(dvbpsi_sis_t* p_sis,
+             /* FIXME: handle splice_command_sections */
+ 
+             /* Service descriptors */
+-            uint8_t *p_desc = p_byte + 13 + i_splice_command_length;
++            p_desc = p_byte + 13 + i_splice_command_length;
+             p_sis->i_descriptors_length = (p_desc[0] << 8) | p_desc[1];
+ 
+             p_desc += 1;
+@@ -408,6 +410,10 @@ void dvbpsi_DecodeSISSections(dvbpsi_sis_t* p_sis,
+  *****************************************************************************/
+ dvbpsi_psi_section_t *dvbpsi_GenSISSections(dvbpsi_sis_t* p_sis)
+ {
++    uint32_t i_desc_start;
++    uint32_t i_desc_length = 0;
++    dvbpsi_descriptor_t * p_descriptor = 0;
++
+     dvbpsi_psi_section_t * p_current = dvbpsi_NewPSISection(1024);
+ 
+     p_current->i_table_id = 0xFC;
+@@ -437,7 +443,7 @@ dvbpsi_psi_section_t *dvbpsi_GenSISSections(dvbpsi_sis_t* p_sis)
+     p_current->p_data[12] = (uint8_t) (p_sis->i_splice_command_length & 0xFF);
+     p_current->p_data[13] = p_sis->i_splice_command_type;
+ 
+-    uint32_t i_desc_start = 13 + p_sis->i_splice_command_length;
++    i_desc_start = 13 + p_sis->i_splice_command_length;
+     if (p_sis->i_splice_command_length == 0xfff)
+     {
+         /* FIXME: size 0xfff of splice_command_section is undefined */
+@@ -452,9 +458,7 @@ dvbpsi_psi_section_t *dvbpsi_GenSISSections(dvbpsi_sis_t* p_sis)
+ 
+     p_current->p_payload_end += (i_desc_start + 1);
+ 
+-    uint32_t i_desc_length = 0;
+-
+-    dvbpsi_descriptor_t * p_descriptor = p_sis->p_first_descriptor;
++    p_descriptor = p_sis->p_first_descriptor;
+     while ((p_descriptor != NULL) && (p_current->i_length <= 1018))
+     {
+         i_desc_length += p_descriptor->i_length + 2;

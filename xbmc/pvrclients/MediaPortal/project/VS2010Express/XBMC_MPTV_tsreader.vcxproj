@@ -55,7 +55,7 @@
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
       <Optimization>Disabled</Optimization>
-      <AdditionalIncludeDirectories>..\..\..\..\..\addons\library.xbmc.addon;..\..\..\..\..\addons\library.xbmc.pvr;..\..\..\..\addons\include;..\..\;..\..\tsreader;..\..\lib\live555\liveMedia\include;..\..\lib\live555\BasicUsageEnvironment\include;..\..\lib\live555\UsageEnvironment\include;..\..\lib\live555\groupsock\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\..\..\..\..\addons\library.xbmc.addon;..\..\..\..\..\addons\library.xbmc.pvr;..\..\..\..\addons\include;..\..\;..\..\tsreader;..\..\lib\live555\liveMedia\include;..\..\lib\live555\BasicUsageEnvironment\include;..\..\lib\live555\UsageEnvironment\include;..\..\lib\live555\groupsock\include;..\..\lib\libdvbpsi;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>_WIN32;_DEBUG;_WINDOWS;MPTV_EXPORTS;_WIN32PC;_WINSOCKAPI_;_USE_32BIT_TIME_T;TSREADER;LIVE555;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <MinimalRebuild>true</MinimalRebuild>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
@@ -167,6 +167,9 @@
     <None Include="..\..\README" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\..\lib\libdvbpsi\project\VS2010express\libdvbpsi.vcxproj">
+      <Project>{07912eda-37d7-4307-a88f-20ed9bf93365}</Project>
+    </ProjectReference>
     <ProjectReference Include="..\..\lib\live555\LiveMedia555.vcxproj">
       <Project>{3c398bd4-5714-4802-ab86-d43add15b3c0}</Project>
     </ProjectReference>

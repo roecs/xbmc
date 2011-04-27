@@ -1197,3 +1197,14 @@ lib/cmyth/Makefile
 /xbmc/pvrclients/MediaPortal/lib/live555/obj
 /xbmc/pvrclients/MediaPortal/lib/live555/shared
 /xbmc/pvrclients/MediaPortal/project/VS2010Express/Debug-tsreader
+
+/xbmc/pvrclients/MediaPortal/lib/libdvbpsi/project/VS2010express/Debug
+/xbmc/pvrclients/MediaPortal/lib/test/test_libdvbpsi_getpcrpid/Debug
+/addons/pvr.team-mediaportal.tvserver/TVServerXBMC
+/xbmc/pvrclients/ForTheRecord/lib/curl-7.21.4/lib/Debug
+/xbmc/pvrclients/ForTheRecord/lib/curl-7.21.4/lib/Release
+/xbmc/pvrclients/ForTheRecord/project/VS2010Express/Debug
+/xbmc/pvrclients/ForTheRecord/project/VS2010Express/Release
+/xbmc/pvrclients/MediaPortal/project/VS2010Express/Release-tsreader
+/xbmc/pvrclients/MediaPortal/lib/libdvbpsi/project/VS2010express/Release
+/xbmc/pvrclients/MediaPortal/lib/test/test_libdvbpsi_getpcrpid/Release
