@@ -1517,6 +1517,10 @@
   <string id="16317">Temporal (Half)</string>
   <string id="16318">Temporal/Spatial (Half)</string>
   <string id="16319">DXVA</string>
+  <string id="16320">Bilinear</string>
+  <string id="16321">Bicubic 0.60</string>
+  <string id="16322">Bicubic 0.75</string>
+  <string id="16323">Bicubic 1.00</string>
 
   <string id="16400">Post-processing</string>
 

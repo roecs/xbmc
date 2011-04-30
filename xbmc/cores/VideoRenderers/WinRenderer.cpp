@@ -139,7 +139,7 @@ void CWinRenderer::SelectRenderMethod()
   }
   else if (CONF_FLAGS_FORMAT_MASK(m_flags) == CONF_FLAGS_FORMAT_EVR)
   {
-    m_renderMethod = RENDER_D3D;
+    m_renderMethod = RENDER_DS;
     for(int i = 0; i < 4; i++)
       m_resizerpixershader[i] = NULL;
     LPCSTR pProfile = m_deviceCaps.PixelShaderVersion >= D3DPS_VERSION(3, 0) ? "ps_3_0" : "ps_2_0";
@@ -1036,8 +1036,25 @@ void CWinRenderer::RenderDirectshow(DWORD flags)
     CLog::Log(LOGERROR, "CWinRenderer::RenderSurface - failed to get render target. %s", CRenderSystemDX::GetErrorDescription(hr).c_str());
     return;
   }
-  
-  hr = pD3DDevice->SetPixelShader(m_resizerpixershader[1]);
+  switch (g_settings.m_currentVideoSettings.m_ScalingMethod)
+  {
+    case VS_SCALINGMETHOD_DS_BILINEAR:
+      hr = pD3DDevice->SetPixelShader(m_resizerpixershader[0]);
+      break;
+    case VS_SCALINGMETHOD_DS_BICUBIC_60:
+      hr = pD3DDevice->SetPixelShader(m_resizerpixershader[1]);
+      break;
+    case VS_SCALINGMETHOD_DS_BICUBIC_75:
+      hr = pD3DDevice->SetPixelShader(m_resizerpixershader[2]);
+      break;
+    case VS_SCALINGMETHOD_DS_BICUBIC_100:
+      hr = pD3DDevice->SetPixelShader(m_resizerpixershader[3]);
+      break;
+    default:
+      hr = pD3DDevice->SetPixelShader(m_resizerpixershader[0]);
+  }
+  if (FAILED(hr))
+    hr = pD3DDevice->SetPixelShader(NULL);
 
   image->alloc->Render(rect, target, image->index);
   target->Release();
@@ -1098,7 +1115,7 @@ bool CWinRenderer::CreateYV12Texture(int index)
   {
     m_VideoBuffers[index] = new DXVABuffer();
   }
-  else if (m_renderMethod == RENDER_D3D)
+  else if (m_renderMethod == RENDER_DS)
   {
     m_VideoBuffers[index] = new D3DBuffer();
   }
@@ -1163,6 +1180,19 @@ bool CWinRenderer::Supports(ESCALINGMETHOD method)
     if(method == VS_SCALINGMETHOD_DXVA_HARDWARE)
       return true;
     return false;
+  }
+  else if(m_renderMethod == RENDER_DS)
+  {
+    if (method == VS_SCALINGMETHOD_DS_BILINEAR)
+      return true;
+    else if(method == VS_SCALINGMETHOD_DS_BICUBIC_60)
+      return true;
+    else if(method == VS_SCALINGMETHOD_DS_BICUBIC_75)
+      return true;
+    else if(method == VS_SCALINGMETHOD_DS_BICUBIC_100)
+      return true;
+    else
+      return false;
   }
   else if(m_renderMethod == RENDER_PS)
   {
