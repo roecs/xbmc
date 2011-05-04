@@ -208,6 +208,175 @@ static HRESULT DrawRect(IDirect3DDevice9* pD3DDev, MYD3DVERTEX<0> v[4])
   return S_OK;
 }
 
+
+////////////////////////////////////////////////////////////////////////////////////////////
+/* VMR9 rendering thread                                                                  */
+////////////////////////////////////////////////////////////////////////////////////////////
+class CVMR9RenderThread : public CThread
+{
+public:
+  CVMR9RenderThread();
+  virtual ~CVMR9RenderThread();
+  void                FreeFirstBuffer();
+  unsigned int        GetReadyCount(void);
+  unsigned int        GetFreeCount(void);
+  IDirect3DSurface9*  ReadyListPop(void);
+  void                FreeListPush(IDirect3DSurface9* pBuffer);
+  IDirect3DSurface9*  GetFreeSurface(void);
+  void                ReadyPush(IDirect3DSurface9* surf);
+  bool                WaitOutput(unsigned int msec);
+  void                OutputReady();
+protected:
+  virtual void        Process(void);
+  
+  Com::CSyncPtrQueue<IDirect3DSurface9> m_FreeList;
+  Com::CSyncPtrQueue<IDirect3DSurface9> m_ReadyList;
+  unsigned int                      m_timeout;
+  bool                m_format_valid;
+  int                 m_width;
+  int                 m_height;
+  CEvent              m_ready_event;
+  CEvent              m_stop_event;
+  double              m_pSleepTimePerFrame;
+};
+CVMR9RenderThread::CVMR9RenderThread() :
+  CThread(),
+  m_timeout(20),
+  m_pSleepTimePerFrame(0.0)
+{
+}
+
+CVMR9RenderThread::~CVMR9RenderThread()
+{
+  CLog::Log(LOGINFO, "%s: CEvrMixerThread Closing...", __FUNCTION__);
+  m_stop_event.Set();
+  while(m_ReadyList.Count())
+    m_ReadyList.Pop()->Release();
+  while(m_FreeList.Count())
+    m_FreeList.Pop()->Release();
+}
+
+void CVMR9RenderThread::FreeFirstBuffer()
+{
+  FreeListPush(m_ReadyList.Pop());
+}
+
+unsigned int CVMR9RenderThread::GetReadyCount(void)
+{
+  return m_ReadyList.Count();
+}
+
+unsigned int CVMR9RenderThread::GetFreeCount(void)
+{
+  return m_FreeList.Count();
+}
+
+IDirect3DSurface9* CVMR9RenderThread::ReadyListPop(void)
+{
+  IDirect3DSurface9 *pBuffer = m_ReadyList.Pop();
+  return pBuffer;
+}
+
+void CVMR9RenderThread::FreeListPush(IDirect3DSurface9* pBuffer)
+{
+  m_FreeList.Push(pBuffer);
+  pBuffer->AddRef();
+}
+
+void CVMR9RenderThread::OutputReady()
+{
+  m_ready_event.Set();
+}
+
+bool CVMR9RenderThread::WaitOutput(unsigned int msec)
+{
+  return m_ready_event.WaitMSec(msec);
+}
+
+IDirect3DSurface9* CVMR9RenderThread::GetFreeSurface(void)
+{
+  return m_FreeList.Pop();
+}
+
+void CVMR9RenderThread::ReadyPush(IDirect3DSurface9* pSurf)
+{
+  m_ReadyList.Push(pSurf);
+}
+#if 0
+bool CVMR9RenderThread::ProcessOutput(void)
+{
+  HRESULT     hr = S_OK;
+  DWORD       dwStatus = 0;
+  LONGLONG    mixerStartTime = 0, mixerEndTime = 0, llMixerLatency = 0;
+  MFTIME      systemTime = 0;
+  
+  
+  if (m_FreeList.Count() == 0)
+    return false;
+
+  MFT_OUTPUT_DATA_BUFFER dataBuffer;
+  ZeroMemory(&dataBuffer, sizeof(dataBuffer));
+  IMFSample *pSample = NULL;
+  // Get next output buffer from the free list
+  pSample = m_FreeList.Pop();
+  dataBuffer.pSample = pSample;
+  mixerStartTime = GetPerfCounter();
+  hr = m_pMixer->ProcessOutput (0 , 1, &dataBuffer, &dwStatus);
+  mixerEndTime = GetPerfCounter();
+  if (hr == MF_E_TRANSFORM_NEED_MORE_INPUT)
+  {
+    m_FreeList.Push(pSample);
+    return false;
+  }
+  if (m_pSink)
+  {
+    llMixerLatency = mixerEndTime - mixerStartTime;
+    m_pSink->Notify (EC_PROCESSING_LATENCY, (LONG_PTR)&llMixerLatency, 0);
+  }
+  if (m_pSleepTimePerFrame == 0)
+  {
+    LONGLONG sample_duration = 0;
+    if (SUCCEEDED(pSample->GetSampleDuration(&sample_duration)))
+    {
+      sample_duration = (LONGLONG)(sample_duration - std::min(std::max((LONGLONG)0,llMixerLatency),(LONGLONG)(sample_duration/2)));
+      m_pSleepTimePerFrame = DS_TIME_TO_MSEC(sample_duration);
+    }
+  }
+  m_ReadyList.Push(pSample);
+}
+#endif
+
+void CVMR9RenderThread::Process(void)
+{
+  DWORD res;
+#if 0
+  // decoder is primed so now calls in DtsProcOutputXXCopy will block
+  while (!m_bStop)
+  {
+    if (SUCCEEDED(m_pMixer->GetOutputStatus(&res)))
+    {
+      if (res & MFT_OUTPUT_STATUS_SAMPLE_READY)
+        break;
+    }
+    
+    Sleep(10);
+
+  }
+  CLog::Log(LOGINFO, "%s: CEvrMixerThread Started...", __FUNCTION__);
+  while (!m_bStop)
+  {
+    
+    if (SUCCEEDED(m_pMixer->GetOutputStatus(&res)&&(res & MFT_OUTPUT_STATUS_SAMPLE_READY)))
+      ProcessOutput();
+   
+     
+    m_ready_event.WaitMSec(m_pSleepTimePerFrame);
+
+  }
+#endif
+}
+////////////////////////////////////////////////////////////////////////////////////////////
+/* EVR rendering thread                                                                   */
 ////////////////////////////////////////////////////////////////////////////////////////////
 class CEvrMixerThread : public CThread
 {
@@ -224,7 +393,7 @@ public:
 protected:
   bool                ProcessOutput(void);
   virtual void        Process(void);
-
+  
   Com::CSyncPtrQueue<IMFSample> m_FreeList;
   Com::CSyncPtrQueue<IMFSample> m_ReadyList;
 
@@ -234,18 +403,6 @@ protected:
   bool                m_format_valid;
   int                 m_width;
   int                 m_height;
-  uint64_t            m_timestamp;
-  uint64_t            m_PictureNumber;
-  uint8_t             m_color_space;
-  unsigned int        m_color_range;
-  unsigned int        m_color_matrix;
-  int                 m_interlace;
-  bool                m_framerate_tracking;
-  uint64_t            m_framerate_cnt;
-  double              m_framerate_timestamp;
-  double              m_framerate;
-  int                 m_aspectratio_x;
-  int                 m_aspectratio_y;
   CEvent              m_ready_event;
   CEvent              m_stop_event;
   double              m_pSleepTimePerFrame;
@@ -256,11 +413,6 @@ CEvrMixerThread::CEvrMixerThread(IMFTransform* mixer, IMediaEventSink* sink) :
   m_pMixer(mixer),
   m_pSink(sink),
   m_timeout(20),
-  m_format_valid(false),
-  m_framerate_tracking(false),
-  m_framerate_cnt(0),
-  m_framerate_timestamp(0.0),
-  m_framerate(0.0),
   m_pSleepTimePerFrame(0.0)
 {
 }
@@ -453,14 +605,44 @@ HRESULT STDMETHODCALLTYPE DsAllocator::InitializeDevice(DWORD_PTR userid,VMR9All
 {
   if (!surfallocnotify)
     return S_FALSE;
-  
+  int surfacenumber = *numbuf;
+  if (surfacenumber == 1)
+  {
+    *numbuf = 4;
+    surfacenumber = *numbuf;
+  }
+
   CleanupSurfaces();
+  m_pVmr9Thread = new CVMR9RenderThread();
   CAutoSingleLock lock(m_section);
-  m_pSurfaces.resize(*numbuf);
-  HRESULT hr= surfallocnotify->AllocateSurfaceHelper(allocinf,numbuf,&m_pSurfaces.at(0));
+  m_pSurfaces.resize(surfacenumber);
+  HRESULT hr= S_OK;//surfallocnotify->AllocateSurfaceHelper(allocinf,numbuf,&m_pSurfaces.at(0));
   vheight=allocinf->dwHeight;
   vwidth=allocinf->dwWidth;
-  //lock.Unlock();
+  if(allocinf->dwFlags & VMR9AllocFlag_3DRenderTarget)
+    allocinf->dwFlags |= VMR9AllocFlag_TextureSurface;
+  m_pSurfaces.resize(surfacenumber);
+  m_pTextures.resize(surfacenumber);
+  for (int i=0;i<surfacenumber;i++)
+  {
+    HRESULT hr;
+    hr = m_pCallback->GetD3DDev()->CreateTexture(vwidth, vheight, 1, D3DUSAGE_RENDERTARGET, D3DFMT_X8R8G8B8, D3DPOOL_DEFAULT,&m_pTextures[i],NULL);
+    if (SUCCEEDED(hr))
+    {
+      if (SUCCEEDED(m_pTextures[i]->GetSurfaceLevel(0, &m_pSurfaces[i])))
+        m_pVmr9Thread->FreeListPush(m_pSurfaces[i]);
+      else
+        assert(0);
+      
+      
+    }
+    else
+    {
+      m_pSurfaces[i]=NULL;
+    }
+  }
+  
+  hr = surfallocnotify->AllocateSurfaceHelper(allocinf, numbuf, &m_pSurfaces[0]);
   return hr;
 }
 
@@ -487,14 +669,16 @@ HRESULT STDMETHODCALLTYPE DsAllocator::GetSurface(DWORD_PTR userid,DWORD surfind
   if (surf==NULL) return E_POINTER;
 
   CAutoSingleLock lock(m_section);
+  //*surf = m_pVmr9Thread->GetFreeSurface();
   m_pSurfaces[surfindex]->AddRef();
   *surf=m_pSurfaces[surfindex];
-  //lock.Unlock();
+  
   return S_OK;
 }
 HRESULT STDMETHODCALLTYPE DsAllocator::AdviseNotify(IVMRSurfaceAllocatorNotify9* allnoty)
 {
   CAutoSingleLock lock(m_section);
+  inevrmode = false;
   surfallocnotify=allnoty;
   IDirect3D9 *d3d;
   IDirect3DDevice9 *d3ddev = m_pCallback->GetD3DDev();
@@ -520,6 +704,18 @@ HRESULT STDMETHODCALLTYPE DsAllocator::StopPresenting(DWORD_PTR userid)
 
 HRESULT STDMETHODCALLTYPE DsAllocator::PresentImage(DWORD_PTR userid,VMR9PresentationInfo* presinf)
 {
+  HRESULT hr = S_OK;
+  for (int i = 0; i < m_pSurfaces.size(); i++)
+  {
+    if (m_pSurfaces.at(i)==presinf->lpSurf)
+    {
+      current_index = i;
+      hr = presinf->lpSurf->GetContainer(IID_IDirect3DTexture9, (void**)&m_pTextures.at(i));
+    }
+  }
+  
+
+  m_pVmr9Thread->ReadyPush(presinf->lpSurf);
   //TODO
   return S_OK;
 
@@ -1073,33 +1269,32 @@ void DsAllocator::RenegotiateEVRMediaType()
       mixtype->Release();
       continue;
     }
+    UINT32 val;
+    hr = mixtype->GetUINT32(MF_MT_VIDEO_NOMINAL_RANGE,&val);
+    if (val == MFNominalRange_0_255)
+      CLog::Log(LOGINFO,"MFNominalRange_0_255");
+    else if(val == MFNominalRange_16_235)
+    {
+      CLog::Log(LOGINFO,"nominal range is MFNominalRange_16_235 changing it to MFNominalRange_0_255");
+      mixtype->SetUINT32(MF_MT_VIDEO_NOMINAL_RANGE,MFNominalRange_0_255);
+    }
+    
     //Type is ok!
-
     gotcha=true;
 
     CAutoSingleLock lock(m_section);
-    //if (m_pMediaType) m_pMediaType->Release();
+    
     m_pMediaType=NULL;
 
     m_pMediaType=mixtype;
     AllocateEVRSurfaces();
-    //lock.Unlock();
 
     hr=m_pMixer->SetOutputType(0,mixtype,0);
-
-
-
     if (hr!=S_OK) 
     {
-      CAutoSingleLock lock(m_section);
-      //if (m_pMediaType) m_pMediaType->Release();
       m_pMediaType=NULL;
       gotcha=false;
-
-      //lock.Unlock();
     }
-
-
     DebugPrint(L"Output type set! %d",hr);
   }
   if (!gotcha)
@@ -1114,11 +1309,15 @@ void DsAllocator::RenegotiateEVRMediaType()
 
 int DsAllocator::GetReadySample()
 { 
-  return m_pMixerThread->GetReadyCount();
+  if (inevrmode)
+    return m_pMixerThread->GetReadyCount();
+  else
+    return m_pVmr9Thread->GetReadyCount();
 }
 
 void DsAllocator::AllocateEVRSurfaces()
 {
+  inevrmode = true;
   LARGE_INTEGER temp64;
   m_pMediaType->GetUINT64(MF_MT_FRAME_SIZE, (UINT64*)&temp64);
   vwidth=temp64.HighPart;
@@ -1343,58 +1542,86 @@ void DsAllocator::Render(const RECT& dst, IDirect3DSurface9* target, int index)
 
 bool DsAllocator::GetPicture(DVDVideoPicture *pDvdVideoPicture)
 {
-  IMFSample* pMFSample = m_pMixerThread->ReadyListPop();
-  if (!pMFSample)
-    return false;
-  int nSamplesLeft = 0;
-  int surf_index = 0;
-  LONGLONG sample_time, sample_duration;
-  CAutoSingleLock lock(m_section);
-  HRESULT hr = pMFSample->GetUINT32(GUID_SURFACE_INDEX, (UINT32 *)&surf_index);
-  pDvdVideoPicture->pts = DVD_NOPTS_VALUE;
-  pDvdVideoPicture->dts = DVD_NOPTS_VALUE;
-  if (SUCCEEDED(pMFSample->GetSampleTime(&sample_time)))
-    pDvdVideoPicture->pts = sample_time / 10;
-  if (SUCCEEDED(pMFSample->GetSampleDuration(&sample_duration)))
-    pDvdVideoPicture->iDuration = sample_duration / 10;
-  UINT32 width, height;
-  
-  if ((m_pMediaType) && (SUCCEEDED(MFGetAttributeSize(m_pMediaType, MF_MT_FRAME_SIZE, &width, &height))))
+  if (inevrmode)
   {
-    pDvdVideoPicture->iWidth = width;
-    pDvdVideoPicture->iHeight = height;
-    pDvdVideoPicture->iDisplayWidth = width;
-    pDvdVideoPicture->iDisplayHeight = height;
+    IMFSample* pMFSample = m_pMixerThread->ReadyListPop();
+    if (!pMFSample)
+      return false;
+    int nSamplesLeft = 0;
+    int surf_index = 0;
+    LONGLONG sample_time, sample_duration;
+    CAutoSingleLock lock(m_section);
+    HRESULT hr = pMFSample->GetUINT32(GUID_SURFACE_INDEX, (UINT32 *)&surf_index);
+    pDvdVideoPicture->pts = DVD_NOPTS_VALUE;
+    pDvdVideoPicture->dts = DVD_NOPTS_VALUE;
+    if (SUCCEEDED(pMFSample->GetSampleTime(&sample_time)))
+      pDvdVideoPicture->pts = sample_time / 10;
+    if (SUCCEEDED(pMFSample->GetSampleDuration(&sample_duration)))
+      pDvdVideoPicture->iDuration = sample_duration / 10;
+    UINT32 width, height;
+  
+    if ((m_pMediaType) && (SUCCEEDED(MFGetAttributeSize(m_pMediaType, MF_MT_FRAME_SIZE, &width, &height))))
+    {
+      pDvdVideoPicture->iWidth = width;
+      pDvdVideoPicture->iHeight = height;
+      pDvdVideoPicture->iDisplayWidth = width;
+      pDvdVideoPicture->iDisplayHeight = height;
+    }
+    else
+    {
+     pDvdVideoPicture->iWidth = vwidth;
+      pDvdVideoPicture->iHeight = vheight;
+      pDvdVideoPicture->iDisplayWidth = vwidth;
+      pDvdVideoPicture->iDisplayHeight = vheight;
+    }
+    //Not the best way to do it
+    /*if (SUCCEEDED(MFGetAttributeSize(pMFSample, MF_MT_FRAME_SIZE, &width, &height)))
+    {
+      pDvdVideoPicture->iWidth = width;
+      pDvdVideoPicture->iHeight = height;
+      pDvdVideoPicture->iDisplayWidth = width;
+      pDvdVideoPicture->iDisplayHeight = height;
+    }*/
+    pDvdVideoPicture->pSurfaceIndex = surf_index;
+  
+    while( m_BusyList.Count())
+      m_pMixerThread->FreeListPush( m_BusyList.Pop() );
+    m_BusyList.Push(pMFSample);
+
+    return true;
   }
   else
   {
-   pDvdVideoPicture->iWidth = vwidth;
+    pDvdVideoPicture->iWidth = vwidth;
     pDvdVideoPicture->iHeight = vheight;
     pDvdVideoPicture->iDisplayWidth = vwidth;
     pDvdVideoPicture->iDisplayHeight = vheight;
+    pDvdVideoPicture->pSurfaceIndex = current_index;
+    /*IDirect3DSurface9* pSurf = m_pVmr9Thread->ReadyListPop();
+    for (int i = 0; i< m_pSurfaces.size();i++)
+    {
+      if (pSurf == m_pSurfaces.at(i))
+      {
+        pDvdVideoPicture->pSurfaceIndex = i;
+      }
+    }*/
+    
+    while( m_BusyList.Count())
+      m_pVmr9Thread->FreeListPush( m_BusySurfaceList.Pop() );
+    m_BusySurfaceList.Push(m_pSurfaces[current_index]);
+  //vmr9
+    return true;
   }
-  //Not the best way to do it
-  /*if (SUCCEEDED(MFGetAttributeSize(pMFSample, MF_MT_FRAME_SIZE, &width, &height)))
-  {
-    pDvdVideoPicture->iWidth = width;
-    pDvdVideoPicture->iHeight = height;
-    pDvdVideoPicture->iDisplayWidth = width;
-    pDvdVideoPicture->iDisplayHeight = height;
-  }*/
-  pDvdVideoPicture->pSurfaceIndex = surf_index;
-  
-  while( m_BusyList.Count())
-    m_pMixerThread->FreeListPush( m_BusyList.Pop() );
-  m_BusyList.Push(pMFSample);
-
-  return true;
-
 }
 
 /*Sample stuff*/
 bool DsAllocator::AcceptMoreData()
 {
-  return (m_pMixerThread->GetFreeCount()>0);
+  if (inevrmode)
+    return (m_pMixerThread->GetFreeCount()>0);
+  else
+    return (m_pVmr9Thread->GetFreeCount()>0);
+    
 }
 
 void DsAllocator::FreeFirstBuffer()

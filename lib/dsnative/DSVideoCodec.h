@@ -32,6 +32,7 @@ public:
   BOOL LoadLibrary();
   BOOL CreateFilter();
   BOOL CreateEvr(HWND window);
+  BOOL CreateVMR9(HWND window);
   BOOL CheckMediaTypes(IPin *pin);
   dsnerror_t SetOutputType();
   BOOL isAVC(DWORD biCompression);

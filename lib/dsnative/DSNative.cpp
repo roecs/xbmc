@@ -37,6 +37,7 @@ extern "C" DSVideoCodec * WINAPI DSOpenVideoCodec(const char *dll, IDSInfoCallba
     else if (!vcodec->CreateFilter())
         res = DNS_FAIL_FILTER;
     else if (!vcodec->CreateEvr(pCallback->GetWindow()))
+	  //else if (!vcodec->CreateVMR9(pCallback->GetWindow()))
         res = DNS_FAIL_FILTER;
     else if ((res = vcodec->CreateGraph(true)) == DSN_OK)
     {

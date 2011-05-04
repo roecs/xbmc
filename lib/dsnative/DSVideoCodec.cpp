@@ -207,9 +207,37 @@ BOOL DSVideoCodec::CreateEvr(HWND window)
   HRESULT hres=mfvideorenderer->InitializeRenderer(NULL,m_pEvr);
 
   mfvideorenderer->Release();
-return TRUE;
+  return TRUE;
 }
+BOOL DSVideoCodec::CreateVMR9(HWND window)
+{
+  HRESULT hr = CoCreateInstance(CLSID_VideoMixingRenderer9,0, CLSCTX_INPROC_SERVER,IID_IBaseFilter,(void**) &m_pEvrFilter);
+  if (FAILED(hr))
+    return FALSE;
+  
+  //setting renderless mode
+  Com::SmartPtr<IVMRFilterConfig9> pVmrConfig;
+  hr = m_pEvrFilter->QueryInterface(__uuidof(pVmrConfig), (void**) &pVmrConfig);
+  hr = pVmrConfig->SetRenderingMode(VMR9Mode_Renderless);
+  //set other config
+  hr = pVmrConfig->SetNumberOfStreams(1);
+  Com::SmartQIPtr<IVMRMixerControl9> pMC;
+  hr = m_pEvrFilter->QueryInterface(__uuidof(pMC), (void**) &pMC);
+  DWORD dwPrefs;
+  pMC->GetMixingPrefs(&dwPrefs);
+  dwPrefs |= MixerPref9_NonSquareMixing;
+  dwPrefs |= MixerPref9_NoDecimation;
+  hr = pMC->SetMixingPrefs(dwPrefs);
+  //setting or custom presenter
+  Com::SmartPtr<IVMRSurfaceAllocatorNotify9> pVmrSurfNotify;
+  hr = m_pEvrFilter->QueryInterface(__uuidof(pVmrSurfNotify), (void**) &pVmrSurfNotify);
+  m_pEvr = new DsAllocator(m_pCallback);
+  //random user id
+  hr = pVmrSurfNotify->AdviseSurfaceAllocator((DWORD) 0x6969DD,m_pEvr);
+  hr = m_pEvr->AdviseNotify(pVmrSurfNotify);
 
+  return TRUE;
+}
 BOOL DSVideoCodec::CheckMediaTypes(IPin *pin)
 {
   IEnumMediaTypes *pMedia;

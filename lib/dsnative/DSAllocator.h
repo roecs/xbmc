@@ -89,6 +89,7 @@ static int64_t GetPerfCounter()
 
 typedef Com::ComPtrList<IMFSample> VideoSampleList;
 class CEvrMixerThread;
+class CVMR9RenderThread;
 //The Allocator and Presenter for VMR9 is also a Presenter for EVR
 class DsAllocator 
   : public IVMRSurfaceAllocator9, IVMRImagePresenter9, 
@@ -214,6 +215,9 @@ protected:
   CEvent                         m_ready_event;
   //Vmr9
   IVMRSurfaceAllocatorNotify9*   surfallocnotify;
+  CVMR9RenderThread*             m_pVmr9Thread;
+  Com::CSyncPtrQueue<IDirect3DSurface9> m_BusySurfaceList;
+  int                            current_index;
   //common to both
   IDSInfoCallback*               m_pCallback;
   IDirect3DDeviceManager9*       m_pD3DDevManager;
