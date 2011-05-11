@@ -56,9 +56,7 @@
 #include "DVDStreamInfo.h"
 #include "settings/GUISettings.h"
 #include "utils/SystemInfo.h"
-//Temporary for testing directshow
-#define USE_DSHOW_AUDIO 0
-#define USE_DSHOW_VIDEO 1
+
 CDVDVideoCodec* CDVDFactoryCodec::OpenCodec(CDVDVideoCodec* pCodec, CDVDStreamInfo &hints, CDVDCodecOptions &options )
 {
   try
@@ -253,9 +251,12 @@ CDVDVideoCodec* CDVDFactoryCodec::CreateVideoCodec( CDVDStreamInfo &hint )
     options.push_back(CDVDCodecOption("lowres","1"));
   }
 #endif
-#if (USE_DSHOW_VIDEO)//defined(_WIN32)
-  if( (pCodec = OpenCodec(new CDVDVideoCodecDirectshow(), hint, options)) ) 
-    return pCodec;
+#if HAS_DX
+  if (g_guiSettings.GetBool("videoplayer.use_video_dshow"))
+  {
+    if( (pCodec = OpenCodec(new CDVDVideoCodecDirectshow(), hint, options)) ) 
+      return pCodec;
+  }
 #endif
 
   if( (pCodec = OpenCodec(new CDVDVideoCodecFFmpeg(), hint, options)) ) return pCodec;
@@ -268,9 +269,12 @@ CDVDAudioCodec* CDVDFactoryCodec::CreateAudioCodec( CDVDStreamInfo &hint, bool p
   CDVDAudioCodec* pCodec = NULL;
   CDVDCodecOptions options;
 
-#if (USE_DSHOW_AUDIO)//defined(_WIN32)
-  if( (pCodec = OpenCodec(new CDVDAudioCodecDirectshow(), hint, options)) ) 
+#if defined(_WIN32)
+  if (g_guiSettings.GetBool("audiooutput.use_audio_dshow"))
+  {
+    if( (pCodec = OpenCodec(new CDVDAudioCodecDirectshow(), hint, options)) ) 
     return pCodec;
+  }
 #endif
 
   if (passthrough)

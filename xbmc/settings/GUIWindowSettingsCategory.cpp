@@ -572,6 +572,10 @@ void CGUIWindowSettingsCategory::CreateSettings()
     {
       FillInAudioDevices(pSetting);
     }
+    else if (strSetting.Equals("audiooutput.dshow_renderer"))
+    {
+      FillDirectshowRenderers(pSetting);
+    }
     else if (strSetting.Equals("audiooutput.passthroughdevice"))
     {
       FillInAudioDevices(pSetting,true);
@@ -1300,6 +1304,13 @@ void CGUIWindowSettingsCategory::OnSettingChanged(CBaseSettingControl *pSettingC
       g_guiSettings.SetString("audiooutput.audiodevice", m_AnalogAudioSinkMap[pControl->GetCurrentLabel()]);
 #else
       g_guiSettings.SetString("audiooutput.audiodevice", pControl->GetCurrentLabel());
+#endif
+  }
+  else if (strSetting.Equals("audiooutput.dshow_renderer"))
+  {
+#if defined(_WIN32)
+     CGUISpinControlEx *pControl = (CGUISpinControlEx *)GetControl(pSettingControl->GetID());
+    g_guiSettings.SetString("audiooutput.dshow_renderer", m_DirectshowAudioSinkMap[pControl->GetCurrentLabel()]);
 #endif
   }
 #if defined(_LINUX)
@@ -2922,6 +2933,72 @@ void CGUIWindowSettingsCategory::FillInAudioDevices(CSetting* pSetting, bool Pas
     pControl->SetValue(selectedValue);
 #endif
 }
+#if defined(_WIN32)
+void CGUIWindowSettingsCategory::FillDirectshowRenderers(CSetting* pSetting, bool Passthrough)
+{
+  CGUISpinControlEx *pControl = (CGUISpinControlEx *)GetControl(GetSetting(pSetting->GetSetting())->GetID());
+  pControl->Clear();
+
+  CStdString currentDevice = Passthrough ? g_guiSettings.GetString("audiooutput.passthroughdevice") : g_guiSettings.GetString("audiooutput.dshow_renderer");
+
+  if (Passthrough)
+  {
+    m_DirectshowAudioSinkMap.clear();
+    m_DirectshowAudioSinkMap["Error - no devices found"] = "null:";
+    m_DirectshowAudioSinkMap[g_localizeStrings.Get(636)] = "custom";
+  }
+  else
+  {
+    m_AnalogAudioSinkMap.clear();
+    m_AnalogAudioSinkMap["Error - no devices found"] = "null:";
+    m_AnalogAudioSinkMap[g_localizeStrings.Get(636)] = "custom";
+  }
+
+  int numberSinks = 0;
+
+  int selectedValue = -1;
+  AudioSinkList sinkList;
+  CAudioRendererFactory::EnumerateDshowRenderer(sinkList, Passthrough);
+  if (sinkList.size()==0)
+  {
+    pControl->AddLabel("Error - no devices found", 0);
+    numberSinks = 1;
+    selectedValue = 0;
+  }
+  else
+  {
+    AudioSinkList::const_iterator iter = sinkList.begin();
+    for (int i=0; iter != sinkList.end(); iter++)
+    {
+      CStdString label = (*iter).first;
+      CStdString sink  = (*iter).second;
+      pControl->AddLabel(label.c_str(), i);
+
+      if (currentDevice.Equals(sink))
+        selectedValue = i;
+
+      if (Passthrough)
+        m_DirectshowAudioSinkMap[label] = sink;
+      else
+        m_DirectshowAudioSinkMap[label] = sink;
+
+      i++;
+    }
+
+    numberSinks = sinkList.size();
+  }
+
+  if (selectedValue < 0)
+  {
+    CLog::Log(LOGWARNING, "Failed to find previously selected audio sink");
+    pControl->AddLabel(currentDevice, numberSinks);
+    pControl->SetValue(numberSinks);
+  }
+  else
+    pControl->SetValue(selectedValue);
+
+}
+#endif
 
 void CGUIWindowSettingsCategory::NetworkInterfaceChanged(void)
 {

@@ -423,7 +423,11 @@ void CGUISettings::Initialize()
 #endif
 
   CSettingsCategory* ao = AddCategory(4, "audiooutput", 772);
-
+#if defined(_WIN32)
+  AddBool(ao,"audiooutput.use_audio_dshow", 13433, false);
+  
+  AddString(ao, "audiooutput.dshow_renderer", 13434, "Default", SPIN_CONTROL_TEXT);
+#endif
   map<int,int> audiomode;
   audiomode.insert(make_pair(338,AUDIO_ANALOG));
   audiomode.insert(make_pair(339,AUDIO_IEC958));
@@ -585,6 +589,7 @@ void CGUISettings::Initialize()
 #endif
 #ifdef HAS_DX
   AddBool(g_sysinfo.IsVistaOrHigher() ? vp: NULL, "videoplayer.usedxva2", 13427, false);
+  AddBool(vp,"videoplayer.use_video_dshow", 13433, false);
 #endif
 #ifdef HAVE_LIBCRYSTALHD
   AddBool(CCrystalHD::GetInstance()->DevicePresent() ? vp: NULL, "videoplayer.usechd", 13428, true);

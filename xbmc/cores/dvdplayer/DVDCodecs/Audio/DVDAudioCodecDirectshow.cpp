@@ -54,7 +54,7 @@ bool CDVDAudioCodecDirectshow::Open(CDVDStreamInfo &hints, CDVDCodecOptions &opt
 { 
   CStdString ffdshow = CStdString("C:\\Program Files (x86)\\ffdshow\\ffdshow.ax");
  /*audiodev example directshow:{E30629D1-27E5-11CE-875D-00608CB78066}*/
-  CStdString audiodev = g_guiSettings.GetString("audiooutput.audiodevice");
+  CStdString audiodev = g_guiSettings.GetString("audiooutput.dshow_renderer");
   CStdStringW strAudioRendererGuid;
   GUID guidAudioRenderer = GUID_NULL;
   if (audiodev.Replace("directshow:","")>0)

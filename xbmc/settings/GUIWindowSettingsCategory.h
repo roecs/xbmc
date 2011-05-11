@@ -64,7 +64,9 @@ protected:
   void NetworkInterfaceChanged(void);
 
   void FillInAudioDevices(CSetting* pSetting, bool Passthrough = false);
-
+#if defined(_WIN32)
+  void FillDirectshowRenderers(CSetting* pSetting, bool Passthrough = false);
+#endif
   virtual void SetupControls();
   void CreateSettings();
   void UpdateSettings();
@@ -105,6 +107,7 @@ protected:
 
   std::map<CStdString, CStdString> m_AnalogAudioSinkMap;
   std::map<CStdString, CStdString> m_DigitalAudioSinkMap;
+  std::map<CStdString, CStdString> m_DirectshowAudioSinkMap;
   std::map<CStdString, CStdString> m_SkinFontSetIDs;
 
   // state of the window saved in JumpToSection()

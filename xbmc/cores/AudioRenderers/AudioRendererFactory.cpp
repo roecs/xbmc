@@ -171,7 +171,6 @@ void CAudioRendererFactory::EnumerateAudioSinks(AudioSinkList& vAudioSinks, bool
 #ifdef WIN32
   CWin32DirectSound::EnumerateAudioSinks(vAudioSinks, passthrough);
   CWin32WASAPI::EnumerateAudioSinks(vAudioSinks, passthrough);
-  CWin32DirectShowAudioRenderer::EnumerateAudioSinks(vAudioSinks, passthrough);
 #endif
 
 #if defined(__APPLE__)
@@ -182,7 +181,12 @@ void CAudioRendererFactory::EnumerateAudioSinks(AudioSinkList& vAudioSinks, bool
   CALSADirectSound::EnumerateAudioSinks(vAudioSinks, passthrough);
 #endif
 }
-
+#if defined(_WIN32)
+void CAudioRendererFactory::EnumerateDshowRenderer(AudioSinkList& vAudioSinks, bool passthrough)
+{
+  CWin32DirectShowAudioRenderer::EnumerateAudioSinks(vAudioSinks, passthrough);
+}
+#endif
 IAudioRenderer *CAudioRendererFactory::CreateFromUri(const CStdString &soundsystem, CStdString &renderer)
 {
 #ifdef HAS_PULSEAUDIO

@@ -1222,7 +1222,9 @@
   <string id="13430">Allow hardware acceleration (OpenMax)</string>
   <string id="13431">Pixel Shaders</string>
   <string id="13432">Allow hardware acceleration (VideoToolbox)</string>
-
+  <string id="13433">Use directshow prior to internal codec</string>
+  <string id="13434">Dshow Audio Renderer</string>
+  
   <string id="13500">A/V sync method</string>
   <string id="13501">Audio clock</string>
   <string id="13502">Video clock (Drop/Dupe audio)</string>
