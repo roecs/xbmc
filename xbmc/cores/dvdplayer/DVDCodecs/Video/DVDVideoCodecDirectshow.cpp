@@ -31,7 +31,7 @@
 #include "Mfobjects.h"
 #include "Settings/AdvancedSettings.h"
 #include "Charsetconverter.h"
-
+#include "dsnative/filterselectionrule.h"
 #include "DllAvFormat.h"
 #include "DllAvCodec.h"
 #pragma comment(lib, "mfplat.lib")
@@ -258,6 +258,7 @@ bool CDVDVideoCodecDirectshow::Open(CDVDStreamInfo &hints, CDVDCodecOptions &opt
   dllAvFormat.Load();
   
   bih->biCompression = dllAvFormat.av_codec_get_tag(mp_bmp_taglists, hints.codec);
+
   int level = hints.level;
   int profile = hints.profile;
 
@@ -278,6 +279,7 @@ bool CDVDVideoCodecDirectshow::Open(CDVDStreamInfo &hints, CDVDCodecOptions &opt
       avformat = new DllAvFormat;
       avformat->Load();
       avutil->Load();
+      
       ByteIOContext *pb;
       if (avformat->url_open_dyn_buf(&pb) < 0)
       {
@@ -337,16 +339,37 @@ bool CDVDVideoCodecDirectshow::Open(CDVDStreamInfo &hints, CDVDCodecOptions &opt
   GUID codecguid = GUID_NULL;
   //CLSIDFromString((LPCOLESTR)codecGuidW.c_str(),&codecguid);
   //Only try dxva format if allowed in user settings
+  AVCodec* pCodec;
+  DllAvCodec* avcodec;
+  avcodec = new DllAvCodec;
+  avcodec->Load();
+  avcodec->avcodec_register_all();
+  
+  pCodec = avcodec->avcodec_find_decoder(hints.codec);
+  
+  TiXmlDocument* pDoc = new TiXmlDocument();
+  pDoc->LoadFile("H:\\XBMC_GIT\\Master\\dscodec\\system\\players\\dvdplayer\\filtersconfig.xml");
+  TiXmlElement* pElement = pDoc->FirstChildElement("rules");
+  pElement = pElement->FirstChildElement("video");
+  Video_Info pVideoInfo;
+  
+  pVideoInfo.fourcc = pCodec->name;
+  pVideoInfo.height = hints.height;
+  pVideoInfo.width = hints.width;
+  CFilterSelectionRule* pRule = new CFilterSelectionRule(pElement,pVideoInfo);
+
+  avcodec->Unload();
+  
   if (g_guiSettings.GetBool("videoplayer.usedxva2"))
   {
-    codec = DSOpenVideoCodec("", this, CLSID_FFDShow_DXVA_Video_Decoder, bih, mmioFOURCC('N', 'V', '1', '2'), frametime ,curfile.c_str(), bihout ,&err);
+    codec = DSOpenVideoCodec("", this, pRule->getGuid(), bih, mmioFOURCC('N', 'V', '1', '2'), frametime ,curfile.c_str(), bihout ,&err);
     if (!codec)
-      codec = DSOpenVideoCodec("", this, CLSID_MPC_Video_Decoder , bih, mmioFOURCC('N', 'V', '1', '2'), frametime ,curfile.c_str(), bihout ,&err);
+      codec = DSOpenVideoCodec("", this, pRule->getGuid() , bih, mmioFOURCC('N', 'V', '1', '2'), frametime ,curfile.c_str(), bihout ,&err);
   }
   if (!codec)
-    codec = DSOpenVideoCodec("", this, CLSID_FFDShow_Video_Decoder , bih, mmioFOURCC('Y', 'V', '1', '2'), frametime ,curfile.c_str(), bihout ,&err);
+    codec = DSOpenVideoCodec("", this, pRule->getGuid() , bih, mmioFOURCC('Y', 'V', '1', '2'), frametime ,curfile.c_str(), bihout ,&err);
   if (!codec)
-    codec = DSOpenVideoCodec("" , this, CLSID_MPC_Video_Decoder , bih, mmioFOURCC('Y', 'V', '1', '2'), frametime ,curfile.c_str(), bihout ,&err);
+    codec = DSOpenVideoCodec("" , this, pRule->getGuid() , bih, mmioFOURCC('Y', 'V', '1', '2'), frametime ,curfile.c_str(), bihout ,&err);
   
   
   //CLSID_FFDShow_Video_Decoder

@@ -16,6 +16,9 @@
     <Filter Include="Video">
       <UniqueIdentifier>{c34c486f-8acc-40c2-ab3f-32e380342ece}</UniqueIdentifier>
     </Filter>
+    <Filter Include="FilterCoreFactory">
+      <UniqueIdentifier>{a6ca5b9a-1141-42f1-a183-9ff4ef6535e7}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="BaseClasses\amextra.cpp">
@@ -138,6 +141,9 @@
     </ClCompile>
     <ClCompile Include="FGFilter.cpp" />
     <ClCompile Include="DSUtil.cpp" />
+    <ClCompile Include="FilterSelectionRule.cpp">
+      <Filter>FilterCoreFactory</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="BaseClasses\amextra.h">
@@ -284,5 +290,8 @@
     </ClInclude>
     <ClInclude Include="FGFilter.h" />
     <ClInclude Include="DSUtil.h" />
+    <ClInclude Include="FilterSelectionRule.h">
+      <Filter>FilterCoreFactory</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

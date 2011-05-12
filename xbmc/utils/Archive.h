@@ -51,7 +51,7 @@ public:
   CArchive& operator<<(int64_t i64);
   CArchive& operator<<(bool b);
   CArchive& operator<<(char c);
-  CArchive& operator<<(const CStdString& str);
+  CArchive& operator<<(const CStdStringA& str);
   CArchive& operator<<(const CStdStringW& str);
   CArchive& operator<<(const SYSTEMTIME& time);
   CArchive& operator<<(IArchivable& obj);
@@ -64,7 +64,7 @@ public:
   CArchive& operator>>(int64_t& i64);
   CArchive& operator>>(bool& b);
   CArchive& operator>>(char& c);
-  CArchive& operator>>(CStdString& str);
+  CArchive& operator>>(CStdStringA& str);
   CArchive& operator>>(CStdStringW& str);
   CArchive& operator>>(SYSTEMTIME& time);
   CArchive& operator>>(IArchivable& obj);
