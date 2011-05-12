@@ -23,7 +23,6 @@
 #include "FilterSelectionRule.h"
 
 CFilterSelectionRule::CFilterSelectionRule(TiXmlElement* pRule, const Video_Info &video_info)
-  : m_guid(GUID_NULL)
 {
   Initialize(pRule, video_info);
 }
@@ -35,24 +34,40 @@ void CFilterSelectionRule::Initialize(TiXmlElement* pRule, const Video_Info &vid
 {
   if (! pRule)
     return;
+  m_filters.clear();
   TiXmlElement* pTempElement;
   pRule = pRule->FirstChildElement();
-
+  Filter_Info default_filter;
+  default_filter.guid = GUID_NULL;
   do
   {
-    
-    if (video_info.fourcc.Equals(pRule->Attribute("codec"),false))
+    Filter_Info filter;
+    filter.guid = GUID_NULL;
+
+    if (( video_info.fourcc.Equals(pRule->Attribute("codec"), false) ) || (CStdStringA(pRule->Attribute("codec")).Equals("default")))
     {
-      
       pTempElement = pRule->FirstChildElement("guid");
       CStdString strGuid = pTempElement->FirstChild()->ToText()->Value();
-      CLSIDFromString((LPCOLESTR)strGuid.c_str(),&m_guid);
-      break;
+      CLSIDFromString((LPCOLESTR)strGuid.c_str(), &filter.guid);
+      pTempElement = pRule->FirstChildElement("path");
+      if (pTempElement->FirstChild())
+        filter.path = pTempElement->FirstChild()->ToText()->Value();
+      pTempElement = pRule->FirstChildElement("osdname");
+      if (pTempElement->FirstChild())
+        filter.osdname = pTempElement->FirstChild()->ToText()->Value();
+      if (CStdStringA(pRule->Attribute("codec")).Equals("default"))
+      {
+        default_filter = filter;
+      }
+      else
+        m_filters.push_back(filter);
     }
-    pRule = pRule->NextSibling()->FirstChildElement();
+
+    pRule = pRule->NextSiblingElement();
   }
   while (pRule != NULL);
-  
+  if (default_filter.guid != GUID_NULL)
+    m_filters.push_back(default_filter);
   /*m_name = pRule->Attribute("name");
   if (!m_name || m_name.IsEmpty())
     m_name = "un-named";

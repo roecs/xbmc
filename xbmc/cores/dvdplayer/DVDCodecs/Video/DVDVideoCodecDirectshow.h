@@ -56,8 +56,9 @@ public:
   virtual void FrameReady(int number);
 
   virtual void SetDropState(bool bDrop);
-  virtual const char* GetName() { return "DirectShow"; }
+  virtual const char* GetName() { return m_pOsdname.c_str(); }
 protected:
+  CStdString m_pOsdname;
   DllAvCodec m_dllAvCodec;
   DllDSNative m_dllDsNative;
   MPEG2VIDEOINFO* m_pMPEG2VIDEOINFO;

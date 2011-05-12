@@ -294,4 +294,9 @@
       <Filter>FilterCoreFactory</Filter>
     </ClInclude>
   </ItemGroup>
+  <ItemGroup>
+    <None Include="..\..\system\players\dvdplayer\filtersconfig.xml">
+      <Filter>FilterCoreFactory</Filter>
+    </None>
+  </ItemGroup>
 </Project>

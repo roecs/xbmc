@@ -25,22 +25,32 @@
 //#include "FileItem.h"
 
 class TiXmlElement;
-typedef struct {
+
+typedef struct 
+{
   CStdStringA fourcc;
   int width;
   int height;
-} Video_Info;
+}
+Video_Info;
+
+typedef struct 
+{
+  GUID guid;
+  CStdStringA path;
+  CStdStringA osdname;
+}
+Filter_Info;
+
 class CFilterSelectionRule
 {
 public:
   CFilterSelectionRule(TiXmlElement* rule, const Video_Info &video_info);
   virtual ~CFilterSelectionRule();
-  GUID getGuid() {return m_guid;}
-  CStdStringA getPath() {return m_path;}
+  std::vector<Filter_Info> getFilters() { return m_filters; }
 private:
   void Initialize(TiXmlElement* pRule, const Video_Info &video_info);
-  GUID m_guid;
-  CStdStringA m_path;
+  std::vector<Filter_Info> m_filters;
 };
 #if 0
 class CFilterSelectionRule

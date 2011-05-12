@@ -357,20 +357,25 @@ bool CDVDVideoCodecDirectshow::Open(CDVDStreamInfo &hints, CDVDCodecOptions &opt
   pVideoInfo.height = hints.height;
   pVideoInfo.width = hints.width;
   CFilterSelectionRule* pRule = new CFilterSelectionRule(pElement,pVideoInfo);
-
+  std::vector<Filter_Info> pFilters = pRule->getFilters();
+  
   avcodec->Unload();
-  
-  if (g_guiSettings.GetBool("videoplayer.usedxva2"))
+  for (std::vector<Filter_Info>::iterator it = pFilters.begin(); it != pFilters.end(); it++)
   {
-    codec = DSOpenVideoCodec("", this, pRule->getGuid(), bih, mmioFOURCC('N', 'V', '1', '2'), frametime ,curfile.c_str(), bihout ,&err);
+    codec = DSOpenVideoCodec((*it).path, this, (*it).guid, bih, 
+                             g_guiSettings.GetBool("videoplayer.usedxva2") ? mmioFOURCC('N', 'V', '1', '2') : mmioFOURCC('Y', 'V', '1', '2'), 
+                             frametime ,
+                             curfile.c_str(), 
+                             bihout ,
+                             &err);
     if (!codec)
-      codec = DSOpenVideoCodec("", this, pRule->getGuid() , bih, mmioFOURCC('N', 'V', '1', '2'), frametime ,curfile.c_str(), bihout ,&err);
+      CLog::Log(LOGERROR,"DShowNative codec failed:%s",/*m_dllDsNative.*/DSStrError(err));
+    else
+    {
+      m_pOsdname = (*it).osdname;
+      break;
+    }
   }
-  if (!codec)
-    codec = DSOpenVideoCodec("", this, pRule->getGuid() , bih, mmioFOURCC('Y', 'V', '1', '2'), frametime ,curfile.c_str(), bihout ,&err);
-  if (!codec)
-    codec = DSOpenVideoCodec("" , this, pRule->getGuid() , bih, mmioFOURCC('Y', 'V', '1', '2'), frametime ,curfile.c_str(), bihout ,&err);
-  
   
   //CLSID_FFDShow_Video_Decoder
   //CLSID_FFDShow_DXVA_Video_Decoder

@@ -1,8 +1,14 @@
 <rules>
   <video>
     <rule codec="mpeg4">
+      <osdname>MpcVideoDec</osdname>
       <path></path>
       <guid>{008BAC12-FBAF-497B-9670-BC6F6FBAE2C4}</guid>
-	</rule>
+	  </rule>
+    <rule codec="default">
+      <osdname>MpcVideoDec</osdname>
+      <path></path>
+      <guid>{008BAC12-FBAF-497B-9670-BC6F6FBAE2C4}</guid>
+    </rule>
   </video>
 </rules>
