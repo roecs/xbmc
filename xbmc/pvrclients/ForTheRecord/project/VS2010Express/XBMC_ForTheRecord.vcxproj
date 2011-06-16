@@ -112,6 +112,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="..\..\activerecording.cpp" />
     <ClCompile Include="..\..\channel.cpp" />
     <ClCompile Include="..\..\client.cpp" />
     <ClCompile Include="..\..\..\..\..\addons\library.xbmc.addon\dlfcn-win32.cpp" />
@@ -142,6 +143,7 @@
     <ClCompile Include="..\..\..\MediaPortal\tsreader\WaitEvent.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\..\activerecording.h" />
     <ClInclude Include="..\..\channel.h" />
     <ClInclude Include="..\..\client.h" />
     <ClInclude Include="..\..\epg.h" />

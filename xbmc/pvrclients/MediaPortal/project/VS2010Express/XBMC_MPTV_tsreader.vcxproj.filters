@@ -77,6 +77,9 @@
     <ClCompile Include="..\..\tsreader\WaitEvent.cpp">
       <Filter>Source Files\tsreader</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\uri.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\channels.h">
@@ -144,6 +147,9 @@
     </ClInclude>
     <ClInclude Include="..\..\tsreader\WaitEvent.h">
       <Filter>Header Files\tsreader</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\uri.h">
+      <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
