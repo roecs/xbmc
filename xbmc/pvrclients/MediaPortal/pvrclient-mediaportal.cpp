@@ -567,7 +567,7 @@ PVR_ERROR cPVRClientMediaPortal::RequestChannelList(PVRHANDLE handle, int radio)
     if( channel.Parse(data) )
     {
       tag.uid = channel.UID();
-      tag.number = g_iTVServerXBMCBuild >= 102 ? channel.ExternalID() : channel.UID();
+      tag.number = channel.UID(); //Dharma PVR mixes up the uid and number field internally, so keep them identical
       tag.name = channel.Name();
       tag.callsign = channel.Name(); //Used for automatic channel icon search
       tag.iconpath = "";
