@@ -51,6 +51,8 @@
 #elif defined __APPLE__
 #include "CocoaInterface.h"
 #endif
+#include "addons/AddonCallbacks.h"
+#include "addons/AddonCallbacksGUI.h"
 #include "storage/MediaManager.h"
 #include "guilib/LocalizeStrings.h"
 #include "threads/SingleLock.h"
@@ -623,6 +625,15 @@ case TMSG_POWERDOWN:
     case TMSG_GUI_ACTIVATE_WINDOW:
       {
         g_windowManager.ActivateWindow(pMsg->dwParam1, pMsg->params, pMsg->dwParam2 > 0);
+      }
+      break;
+
+    case TMSG_GUI_ADDON_DIALOG:
+      {
+        if (pMsg->lpVoid)
+        { // TODO: This is ugly - really these python dialogs should just be normal XBMC dialogs
+          ((ADDON::CGUIAddonWindowDialog *) pMsg->lpVoid)->Show_Internal(pMsg->dwParam2 > 0);
+        }
       }
       break;
 

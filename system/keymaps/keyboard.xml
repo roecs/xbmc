@@ -157,6 +157,13 @@
       <backspace>Backspace</backspace>
     </keyboard>
   </VirtualKeyboard>
+  <MyTV>
+    <keyboard>
+      <delete>Delete</delete>
+      <m>Move</m>
+      <r>Rename</r>
+    </keyboard>
+  </MyTV>
   <MyFiles>
     <keyboard>
       <space>Highlight</space>
@@ -218,6 +225,7 @@
       <down>BigStepBack</down>
       <a>AudioDelay</a>
       <escape>Fullscreen</escape>
+      <c>Playlist</c>
       <v>XBMC.ActivateWindow(Teletext)</v>
     </keyboard>
   </FullscreenVideo>
@@ -265,6 +273,8 @@
       <o>CodecInfo</o>
       <l>LockPreset</l>
       <escape>FullScreen</escape>
+      <g>XBMC.ActivateWindow(PVROSDGuide)</g>
+      <c>XBMC.ActivateWindow(PVROSDChannels)</c>
     </keyboard>
   </Visualisation>
   <MusicOSD>
@@ -592,6 +602,36 @@
       <backspace>Close</backspace>
     </keyboard>
   </NumericInput>
+  <PVROSDChannels>
+    <keyboard>
+      <backspace>Close</backspace>
+      <escape>Close</escape>
+      <c>Close</c>
+    </keyboard>
+  </PVROSDChannels>
+  <PVROSDGuide>
+    <keyboard>
+      <backspace>Close</backspace>
+      <escape>Close</escape>
+    </keyboard>
+  </PVROSDGuide>
+  <PVROSDDirector>
+    <keyboard>
+      <backspace>Close</backspace>
+      <escape>Close</escape>
+    </keyboard>
+  </PVROSDDirector>
+  <PVROSDCutter>
+    <keyboard>
+      <backspace>Close</backspace>
+      <escape>Close</escape>
+    </keyboard>
+  </PVROSDCutter>
+  <MyTVSettings>
+    <keyboard>
+      <backspace>PreviousMenu</backspace>
+    </keyboard>
+  </MyTVSettings>
   <FileBrowser>
     <keyboard>
       <space>Highlight</space>

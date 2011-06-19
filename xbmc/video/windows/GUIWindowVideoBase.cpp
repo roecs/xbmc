@@ -61,6 +61,9 @@
 #include "utils/StringUtils.h"
 #include "utils/log.h"
 #include "utils/FileUtils.h"
+#include "interfaces/AnnouncementManager.h"
+#include "pvr/PVRManager.h"
+#include "pvr/recordings/PVRRecordings.h"
 #include "utils/URIUtils.h"
 
 #include "addons/Skin.h"
@@ -71,6 +74,7 @@ using namespace PLAYLIST;
 using namespace VIDEODATABASEDIRECTORY;
 using namespace VIDEO;
 using namespace ADDON;
+using namespace PVR;
 
 #define CONTROL_BTNVIEWASICONS     2
 #define CONTROL_BTNSORTBY          3
@@ -1345,6 +1349,62 @@ bool CGUIWindowVideoBase::OnPlayMedia(int iItem)
   {
     item.m_strPath = pItem->GetVideoInfoTag()->m_strFileNameAndPath;
     item.SetProperty("original_listitem_url", pItem->m_strPath);
+  }
+
+  if (item.m_strPath.Left(17) == "pvr://recordings/")
+  {
+    /* For recordings we check here for a available stream URL */
+    CPVRRecording *tag = g_PVRRecordings->GetByPath(item.m_strPath);
+    if (tag && !tag->m_strStreamURL.IsEmpty())
+    {
+      CStdString stream = tag->m_strStreamURL;
+
+      /* Isolate the folder from the filename */
+      size_t found = stream.find_last_of("/");
+      if (found == CStdString::npos)
+        found = stream.find_last_of("\\");
+
+      if (found != CStdString::npos)
+      {
+        /* Check here for asterix at the begin of the filename */
+        if (stream[found+1] == '*')
+        {
+          /* Create a "stack://" url with all files matching the extension */
+          CStdString ext = URIUtils::GetExtension(stream);
+          CStdString dir = stream.substr(0, found).c_str();
+
+          CFileItemList items;
+          CDirectory::GetDirectory(dir, items);
+          items.Sort(SORT_METHOD_FILE ,SORT_ORDER_ASC);
+
+          vector<int> stack;
+          for (int i = 0; i < items.Size(); ++i)
+          {
+            if (URIUtils::GetExtension(items[i]->m_strPath) == ext)
+              stack.push_back(i);
+          }
+
+          if (stack.size() > 0)
+          {
+            /* If we have a stack change the path of the item to it */
+            CStackDirectory dir;
+            CStdString stackPath = dir.ConstructStackPath(items, stack);
+            item.m_strPath = stackPath;
+          }
+        }
+        else
+        {
+          /* If no asterix is present play only the given stream URL */
+          item.m_strPath = stream;
+        }
+      }
+      else
+      {
+        CLog::Log(LOGERROR, "CGUIWindowTV: Can't open recording, no valid filename!");
+        CGUIDialogOK::ShowAndGetInput(19033,0,19036,0);
+        return false;
+      }
+    }
   }
 
   PlayMovie(&item);

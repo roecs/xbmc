@@ -23,6 +23,7 @@
 
 #include "utils/StdString.h"
 #include "system.h"
+#include "DVDDemuxPacket.h"
 
 class CDVDInputStream;
 

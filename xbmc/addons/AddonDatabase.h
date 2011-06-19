@@ -57,9 +57,11 @@ public:
    \sa SetRepoTimestamp */
   CDateTime GetRepoTimestamp(const CStdString& id);
 
+  bool GetSystemEnabled(const CStdString& id);
+  bool SetSystemEnabled(const CStdString& id, bool enabled);
   bool Search(const CStdString& search, ADDON::VECADDONS& items);
   bool SearchTitle(const CStdString& strSearch, ADDON::VECADDONS& items);
-  static void SetPropertiesFromAddon(const ADDON::AddonPtr& addon, CFileItemPtr& item); 
+  static void SetPropertiesFromAddon(const ADDON::AddonPtr& addon, CFileItemPtr& item);
 
   /*! \brief Disable an addon.
    Sets a flag that this addon has been disabled.  If disabled, it is usually still available on disk.
@@ -80,6 +82,20 @@ public:
    \sa DisableAddon, IsAddonDisabled */
   bool HasDisabledAddons();
 
+  /*! \brief Enable an system PVR addon.
+   Sets a flag that this PVR addon has been enabled.  If disabled, it is usually still available on disk.
+   \param addonID id of the addon to enable
+   \param disable whether to enable or disable.  Defaults to false (disable)
+   \return true on success, false on failure
+   \sa IsSystemPVRAddonEnabled */
+  bool EnableSystemPVRAddon(const CStdString &addonID, bool enable = false);
+
+  /*! \brief Check whether an system PVR addon has been enabled via EnableSystemPVRAddon.
+   \param addonID id of the addon to check
+   \return true if the addon is disabled, false otherwise
+   \sa EnableSystemPVRAddon */
+  bool IsSystemPVRAddonEnabled(const CStdString &addonID);
+
   /*! \brief Mark an addon as broken
    Sets a flag that this addon has been marked as broken in the repository.
    \param addonID id of the addon to mark as broken
@@ -97,7 +113,7 @@ public:
 protected:
   virtual bool CreateTables();
   virtual bool UpdateOldVersion(int version);
-  virtual int GetMinVersion() const { return 14; }
+  virtual int GetMinVersion() const { return 15; }
   const char *GetBaseDBName() const { return "Addons"; }
 };
 

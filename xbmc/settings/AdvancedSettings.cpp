@@ -91,6 +91,10 @@ void CAdvancedSettings::Initialize()
   m_videoAllowMpeg4VDPAU = false;
   m_DXVACheckCompatibility = false;
   m_DXVACheckCompatibilityPresent = false;
+  m_DXVADeintQuickSwitch = true;
+  m_DXVADeintAutoMaxWidth = 9999;
+  m_DXVADeintAutoMaxHeight = 9999;
+  m_DXVADeintAutoMaxFps = 99.9f;
 
   m_musicUseTimeSeeking = true;
   m_musicTimeSeekForward = 10;
@@ -222,6 +226,11 @@ void CAdvancedSettings::Initialize()
 
   m_iMythMovieLength = 0; // 0 == Off
 
+  m_iEpgLingerTime = 60;           /* keep 1 hour by default */
+  m_iEpgUpdateCheckInterval = 300; /* check if tables need to be updated every 5 minutes */
+  m_iEpgCleanupInterval = 900;     /* remove old entries from the EPG every 15 minutes */
+  m_iEpgActiveTagCheckInterval = 60; /* check for updated active tags every minute */
+
   m_bEdlMergeShortCommBreaks = false;      // Off by default
   m_iEdlMaxCommBreakLength = 8 * 30 + 10;  // Just over 8 * 30 second commercial break.
   m_iEdlMinCommBreakLength = 3 * 30;       // 3 * 30 second commercial breaks.
@@ -269,6 +278,12 @@ void CAdvancedSettings::Initialize()
 #endif
 
   m_bgInfoLoaderMaxThreads = 5;
+
+  m_iPVRTimeCorrection             = 0;
+  m_iPVRInfoToggleInterval         = 3000;
+  m_bPVRShowEpgInfoOnEpgItemSelect = true;
+  m_iPVRMinVideoCacheLevel         = 5;
+  m_iPVRMinAudioCacheLevel         = 5;
 
   m_measureRefreshrate = false;
 
@@ -525,6 +540,14 @@ void CAdvancedSettings::ParseSettingsFile(const CStdString &file)
 
     m_DXVACheckCompatibilityPresent = XMLUtils::GetBoolean(pElement,"checkdxvacompatibility", m_DXVACheckCompatibility);
 
+    TiXmlElement* pDXVADeint = pElement->FirstChildElement("dxvadeinterlace");
+    if (pDXVADeint)
+    {
+      XMLUtils::GetBoolean(pDXVADeint,"enablequickswitch", m_DXVADeintQuickSwitch);
+      XMLUtils::GetUInt(pDXVADeint, "automaxhqwidth", m_DXVADeintAutoMaxWidth);
+      XMLUtils::GetUInt(pDXVADeint, "automaxhqheight", m_DXVADeintAutoMaxHeight);
+      XMLUtils::GetFloat(pDXVADeint, "automaxhqfps", m_DXVADeintAutoMaxFps);
+    }
   }
 
   pElement = pRootElement->FirstChildElement("musiclibrary");
@@ -690,6 +713,16 @@ void CAdvancedSettings::ParseSettingsFile(const CStdString &file)
   if (pElement)
   {
     XMLUtils::GetInt(pElement, "movielength", m_iMythMovieLength);
+  }
+
+  // EPG
+  pElement = pRootElement->FirstChildElement("epg");
+  if (pElement)
+  {
+    XMLUtils::GetInt(pElement, "lingertime", m_iEpgLingerTime);
+    XMLUtils::GetInt(pElement, "updatecheckinterval", m_iEpgUpdateCheckInterval);
+    XMLUtils::GetInt(pElement, "cleanupinterval", m_iEpgCleanupInterval);
+    XMLUtils::GetInt(pElement, "activetagcheckinterval", m_iEpgActiveTagCheckInterval);
   }
 
   // EDL commercial break handling
@@ -863,6 +896,16 @@ void CAdvancedSettings::ParseSettingsFile(const CStdString &file)
   XMLUtils::GetInt(pRootElement, "bginfoloadermaxthreads", m_bgInfoLoaderMaxThreads);
   m_bgInfoLoaderMaxThreads = std::max(1, m_bgInfoLoaderMaxThreads);
 
+  TiXmlElement *pPVR = pRootElement->FirstChildElement("pvr");
+  if (pPVR)
+  {
+    XMLUtils::GetInt(pPVR, "timecorrection", m_iPVRTimeCorrection, 0, 1440);
+    XMLUtils::GetInt(pPVR, "infotoggleinterval", m_iPVRInfoToggleInterval, 0, 30000);
+    XMLUtils::GetBoolean(pPVR, "showepginfoonselect", m_bPVRShowEpgInfoOnEpgItemSelect);
+    XMLUtils::GetInt(pPVR, "minvideocachelevel", m_iPVRMinVideoCacheLevel, 0, 100);
+    XMLUtils::GetInt(pPVR, "minaudiocachelevel", m_iPVRMinAudioCacheLevel, 0, 100);
+  }
+
   XMLUtils::GetBoolean(pRootElement, "measurerefreshrate", m_measureRefreshrate);
 
   TiXmlElement* pDatabase = pRootElement->FirstChildElement("videodatabase");
@@ -886,6 +929,28 @@ void CAdvancedSettings::ParseSettingsFile(const CStdString &file)
     XMLUtils::GetString(pDatabase, "user", m_databaseMusic.user);
     XMLUtils::GetString(pDatabase, "pass", m_databaseMusic.pass);
     XMLUtils::GetString(pDatabase, "name", m_databaseMusic.name);
+  }
+
+  pDatabase = pRootElement->FirstChildElement("tvdatabase");
+  if (pDatabase)
+  {
+    XMLUtils::GetString(pDatabase, "type", m_databaseTV.type);
+    XMLUtils::GetString(pDatabase, "host", m_databaseTV.host);
+    XMLUtils::GetString(pDatabase, "port", m_databaseTV.port);
+    XMLUtils::GetString(pDatabase, "user", m_databaseTV.user);
+    XMLUtils::GetString(pDatabase, "pass", m_databaseTV.pass);
+    XMLUtils::GetString(pDatabase, "name", m_databaseTV.name);
+  }
+
+  pDatabase = pRootElement->FirstChildElement("epgdatabase");
+  if (pDatabase)
+  {
+    XMLUtils::GetString(pDatabase, "type", m_databaseEpg.type);
+    XMLUtils::GetString(pDatabase, "host", m_databaseEpg.host);
+    XMLUtils::GetString(pDatabase, "port", m_databaseEpg.port);
+    XMLUtils::GetString(pDatabase, "user", m_databaseEpg.user);
+    XMLUtils::GetString(pDatabase, "pass", m_databaseEpg.pass);
+    XMLUtils::GetString(pDatabase, "name", m_databaseEpg.name);
   }
 
   pElement = pRootElement->FirstChildElement("enablemultimediakeys");

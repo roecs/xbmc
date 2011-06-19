@@ -192,14 +192,14 @@ CHTSPSession::~CHTSPSession()
 
 void CHTSPSession::Abort()
 {
-  shutdown(m_fd, SHUT_RDWR);
+  tcp_shutdown(m_fd);
 }
 
 void CHTSPSession::Close()
 {
   if(m_fd != INVALID_SOCKET)
   {
-    closesocket(m_fd);
+    tcp_close(m_fd);
     m_fd = INVALID_SOCKET;
   }
 
@@ -224,7 +224,7 @@ bool CHTSPSession::Connect(const std::string& hostname, int port)
   if(port == 0)
     port = 9982;
 
-  m_fd = htsp_tcp_connect(hostname.c_str()
+  m_fd = tcp_connect(hostname.c_str()
                         , port
                         , errbuf, errlen, 3000);
   if(m_fd == INVALID_SOCKET)
@@ -305,7 +305,7 @@ htsmsg_t* CHTSPSession::ReadMessage(int timeout)
     return m;
   }
 
-  x = htsp_tcp_read_timeout(m_fd, &l, 4, timeout);
+  x = tcp_read_timeout(m_fd, &l, 4, timeout);
   if(x == ETIMEDOUT)
     return htsmsg_create_map();
 
@@ -321,7 +321,7 @@ htsmsg_t* CHTSPSession::ReadMessage(int timeout)
 
   buf = malloc(l);
 
-  x = htsp_tcp_read(m_fd, buf, l);
+  x = tcp_read(m_fd, buf, l);
   if(x)
   {
     CLog::Log(LOGERROR, "CHTSPSession::ReadMessage - Failed to read packet (%d)\n", x);
@@ -344,7 +344,7 @@ bool CHTSPSession::SendMessage(htsmsg_t* m)
   }
   htsmsg_destroy(m);
 
-  if(send(m_fd, (char*)buf, len, 0) < 0)
+  if(tcp_send(m_fd, (char*)buf, len, 0) < 0)
   {
     free(buf);
     return false;

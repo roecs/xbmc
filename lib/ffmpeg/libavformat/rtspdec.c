@@ -60,8 +60,9 @@ static int rtsp_read_play(AVFormatContext *s)
             cmd[0] = 0;
         } else {
             snprintf(cmd, sizeof(cmd),
-                     "Range: npt=%0.3f-\r\n",
-                     (double)rt->seek_timestamp / AV_TIME_BASE);
+                     "Range: npt=%"PRId64".%03"PRId64"-\r\n",
+                     rt->seek_timestamp / AV_TIME_BASE,
+                     rt->seek_timestamp / (AV_TIME_BASE / 1000) % 1000);
         }
         ff_rtsp_send_cmd(s, "PLAY", rt->control_uri, cmd, reply, NULL);
         if (reply->status_code != RTSP_STATUS_OK) {
@@ -283,7 +284,7 @@ retry:
             for (i = 0; i < rt->nb_rtsp_streams; i++) {
                 rule_nr = 0;
                 for (r = 0; r < s->nb_streams; r++) {
-                    if (s->streams[r]->priv_data == rt->rtsp_streams[i]) {
+                    if (s->streams[r]->id == i) {
                         if (s->streams[r]->discard != AVDISCARD_ALL) {
                             if (!first)
                                 av_strlcat(rt->last_subscription, ",",
@@ -339,7 +340,9 @@ retry:
 
     /* send dummy request to keep TCP connection alive */
     if ((av_gettime() - rt->last_cmd_time) / 1000000 >= rt->timeout / 2) {
-        if (rt->server_type == RTSP_SERVER_WMS) {
+        if (rt->server_type == RTSP_SERVER_WMS ||
+           (rt->server_type != RTSP_SERVER_REAL &&
+            rt->get_parameter_supported)) {
             ff_rtsp_send_cmd_async(s, "GET_PARAMETER", rt->control_uri, NULL);
         } else {
             ff_rtsp_send_cmd_async(s, "OPTIONS", "*", NULL);

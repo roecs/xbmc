@@ -100,11 +100,11 @@ public:
   void UnInit();
 
 #ifdef HAS_DX
-  void AddProcessor(DXVA::CProcessor* processor, int64_t id)
+  void AddProcessor(DXVA::CProcessor* processor, int64_t id, unsigned picture_flags)
   {
     CSharedLock lock(m_sharedSection);
     if (m_pRenderer)
-      m_pRenderer->AddProcessor(processor, id);
+      m_pRenderer->AddProcessor(processor, id, picture_flags);
   }
   void AddProcessor(IPaintCallback* pAlloc, int surface_index)
   {

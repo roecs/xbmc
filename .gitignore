@@ -41,8 +41,9 @@ config.log
 *.vcxproj.*.user
 *.vcxproj.user
 *.obj
-*ReSharper*
 *.idb
+*ReSharper*
+*.exe
 
 # osx specifics
 /build/
@@ -65,16 +66,22 @@ config.log
 .libs/
 .deps/
 
+# Eclipse project files. Not needed as they are generated in two clicks if needed.
+.settings
+.project
+.cproject
+
 # /
 /.dummy
 /.dummy.in
 /Makefile
 /Makefile.include
 /aclocal.m4
-/autom4te.cache/
+autom4te.cache
 /build-aux/config.guess
 /build-aux/config.sub
 /build-aux/install-sh
+/build-aux/ltmain.sh
 /build-aux/missing
 /build-aux/ltmain.sh
 /autotools
@@ -113,6 +120,7 @@ config.log
 /addons/visualization.waveform/Waveform_win32.vis
 /addons/visualization.itunes/iTunes.mvis
 /addons/script.module.pil/
+/addons/pvr.*/*.pvr
 
 # /xbmc/guilib/
 /xbmc/guilib/Makefile
@@ -137,6 +145,17 @@ config.log
 
 # /lib/asap/
 /lib/asap/Makefile
+
+# /lib/addons/
+/lib/addons/library.xbmc.addon/Makefile
+/lib/addons/library.xbmc.gui/Makefile
+/lib/addons/library.xbmc.pvr/Makefile
+/lib/addons/library.xbmc.addon/project/VS2010Express/Release
+/lib/addons/library.xbmc.addon/project/VS2010Express/Debug
+/lib/addons/library.xbmc.gui/project/VS2010Express/Release
+/lib/addons/library.xbmc.gui/project/VS2010Express/Debug
+/lib/addons/library.xbmc.pvr/project/VS2010Express/Release
+/lib/addons/library.xbmc.pvr/project/VS2010Express/Debug
 
 # /lib/cmyth/
 lib/cmyth/Makefile
@@ -202,6 +221,11 @@ lib/cmyth/Makefile
 /lib/libass/libass/Makefile.in
 /lib/libass/libtool
 /lib/libass/ltmain.sh
+/lib/libass/m4/libtool.m4
+/lib/libass/m4/ltoptions.m4
+/lib/libass/m4/ltsugar.m4
+/lib/libass/m4/ltversion.m4
+/lib/libass/m4/lt~obsolete.m4
 /lib/libass/missing
 /lib/libass/shave/libtool.m4
 /lib/libass/shave/ltoptions.m4
@@ -288,6 +312,7 @@ lib/cmyth/Makefile
 /lib/libapetag/Makefile
 /lib/libapetag/config.h
 /lib/libapetag/libtool
+/lib/libapetag/m4/lt~obsolete.m4
 /lib/libapetag/stamp-h1
 
 # /project
@@ -1111,6 +1136,17 @@ project/Win32BuildSetup/dependencies/libcdio-10.dll
 /lib/libXDAAP/libXDAAP_win32/Debug
 /lib/libXDAAP/libXDAAP_win32/Release
 
+# /xbmc/osx/
+/xbmc/osx/Makefile
+
+# /portable_data
+/portable_data
+
+# /xbmc/pvrclients
+/xbmc/pvrclients/Makefile.include
+/xbmc/pvrclients/*/.dependencies
+/xbmc/pvrclients/*/Makefile
+
 /xbmc/screensavers/Makefile
 
 /xbmc/screensavers/rsxs-0.9/Makefile
@@ -1194,3 +1230,38 @@ project/Win32BuildSetup/dependencies/libcdio-10.dll
 /xbmc/visualizations/XBMCProjectM/libprojectM/config.inp
 
 /xbmc/win32/git_rev.h
+
+/addons/library.xbmc.addon/libXBMC_addon.dll
+/addons/library.xbmc.addon/libXBMC_addon.lib
+/addons/library.xbmc.gui/libXBMC_gui.dll
+/addons/library.xbmc.gui/libXBMC_gui.lib
+/addons/library.xbmc.pvr/libXBMC_pvr.dll
+/addons/library.xbmc.pvr/libXBMC_pvr.lib
+
+/addons/pvr.team-mediaportal.tvserver/XBMC_MPTV.lib
+/addons/pvr.team-mediaportal.tvserver-tsreader/XBMC_MPTV.lib
+/addons/pvr.fortherecord.argus/XBMC_ForTheRecord.lib
+/addons/pvr.fortherecord.argus/libcurl.dll
+/addons/pvr.fortherecord.argus/libcurld.dll
+/addons/pvr.hts/XBMC_Tvheadend_win32.lib
+/addons/pvr.vdr.vnsi/XBMC_VDR_vnsi_win32.lib
+
+/xbmc/pvrclients/MediaPortal/project/VS2010Express/Debug
+/xbmc/pvrclients/MediaPortal/project/VS2010Express/Release
+
+/xbmc/pvrclients/tvheadend/project/VS2010Express/Debug
+/xbmc/pvrclients/tvheadend/project/VS2010Express/Release
+/xbmc/pvrclients/vdr-vnsi/project/VS2010Express/Debug
+/xbmc/pvrclients/vdr-vnsi/project/VS2010Express/Release
+
+/xbmc/pvrclients/MediaPortal/lib/live555/obj
+/xbmc/pvrclients/MediaPortal/lib/live555/shared
+/xbmc/pvrclients/MediaPortal/project/VS2010Express/Debug-tsreader
+/xbmc/pvrclients/MediaPortal/project/VS2010Express/Release-tsreader
+
+/xbmc/pvrclients/ForTheRecord/project/VS2010Express/Debug
+/xbmc/pvrclients/ForTheRecord/project/VS2010Express/Release
+/xbmc/pvrclients/ForTheRecord/lib/curl-7.21.4/lib/Debug
+/xbmc/pvrclients/ForTheRecord/lib/curl-7.21.4/lib/Release
+/xbmc/pvrclients/ForTheRecord/lib/libcurl.*
+/xbmc/pvrclients/ForTheRecord/lib/libcurld.*

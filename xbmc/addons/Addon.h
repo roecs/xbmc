@@ -29,6 +29,7 @@
 
 class CURL;
 class TiXmlElement;
+class CAddonCallbacksAddon;
 
 typedef struct cp_plugin_info_t cp_plugin_info_t;
 typedef struct cp_extension_t cp_extension_t;
@@ -135,6 +136,12 @@ public:
    */
   virtual CStdString GetSetting(const CStdString& key);
 
+  /*! \brief Load the default settings and override these with any previously configured user settings
+   \return true if settings exist, false otherwise
+   \sa LoadUserSettings, SaveSettings, HasSettings, HasUserSettings, GetSetting, UpdateSetting
+   */
+  virtual bool LoadSettings();
+
   TiXmlElement* GetSettingsXML();
   virtual CStdString GetString(uint32_t id);
 
@@ -170,16 +177,12 @@ public:
   bool MeetsVersion(const AddonVersion &version) const;
 
 protected:
+  friend class CAddonCallbacksAddon;
+
   CAddon(const CAddon&); // protected as all copying is handled by Clone()
   CAddon(const CAddon&, const AddonPtr&);
   const AddonPtr Parent() const { return m_parent; }
   virtual void BuildLibName(const cp_extension_t *ext = NULL);
-
-  /*! \brief Load the default settings and override these with any previously configured user settings
-   \return true if settings exist, false otherwise
-   \sa LoadUserSettings, SaveSettings, HasSettings, HasUserSettings, GetSetting, UpdateSetting
-   */
-  virtual bool LoadSettings();
 
   /*! \brief Load the user settings
    \return true if user settings exist, false otherwise
@@ -207,7 +210,7 @@ protected:
   bool              m_userSettingsLoaded;
 
 private:
-  friend class AddonMgr;
+  friend class CAddonMgr;
   AddonProps m_props;
   const AddonPtr    m_parent;
   CStdString        m_userSettingsPath;

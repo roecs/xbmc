@@ -199,6 +199,7 @@
 #include "dialogs/GUIDialogYesNo.h"
 #include "dialogs/GUIDialogOK.h"
 #include "dialogs/GUIDialogProgress.h"
+#include "dialogs/GUIDialogExtendedProgressBar.h"
 #include "dialogs/GUIDialogSelect.h"
 #include "video/dialogs/GUIDialogFileStacking.h"
 #include "dialogs/GUIDialogNumeric.h"
@@ -218,6 +219,21 @@
 #ifdef HAS_LINUX_NETWORK
 #include "network/GUIDialogAccessPoints.h"
 #endif
+
+/* PVR related include Files */
+#include "pvr/PVRManager.h"
+#include "pvr/windows/GUIWindowPVR.h"
+#include "pvr/dialogs/GUIDialogPVRChannelManager.h"
+#include "pvr/dialogs/GUIDialogPVRChannelsOSD.h"
+#include "pvr/dialogs/GUIDialogPVRCutterOSD.h"
+#include "pvr/dialogs/GUIDialogPVRDirectorOSD.h"
+#include "pvr/dialogs/GUIDialogPVRGroupManager.h"
+#include "pvr/dialogs/GUIDialogPVRGuideInfo.h"
+#include "pvr/dialogs/GUIDialogPVRGuideOSD.h"
+#include "pvr/dialogs/GUIDialogPVRGuideSearch.h"
+#include "pvr/dialogs/GUIDialogPVRRecordingInfo.h"
+#include "pvr/dialogs/GUIDialogPVRTimerSettings.h"
+
 #include "video/dialogs/GUIDialogFullScreenInfo.h"
 #include "video/dialogs/GUIDialogTeletext.h"
 #include "dialogs/GUIDialogSlider.h"
@@ -294,6 +310,7 @@ using namespace DBUSSERVER;
 using namespace JSONRPC;
 #endif
 using namespace ANNOUNCEMENT;
+using namespace PVR;
 
 // uncomment this if you want to use release libs in the debug build.
 // Atm this saves you 7 mb of memory
@@ -1052,7 +1069,6 @@ bool CApplication::Initialize()
 #ifdef HAS_DX
   g_windowManager.Add(new CGUIWindowTestPatternDX);      // window id = 8
 #endif
-  g_windowManager.Add(new CGUIDialogTeletext);               // window id =
   g_windowManager.Add(new CGUIWindowSettingsScreenCalibration); // window id = 11
   g_windowManager.Add(new CGUIWindowSettingsCategory);         // window id = 12 slideshow:window id 2007
   g_windowManager.Add(new CGUIWindowVideoNav);                 // window id = 36
@@ -1064,6 +1080,7 @@ bool CApplication::Initialize()
   g_windowManager.Add(new CGUIWindowPointer);            // window id = 99
   g_windowManager.Add(new CGUIDialogYesNo);              // window id = 100
   g_windowManager.Add(new CGUIDialogProgress);           // window id = 101
+  g_windowManager.Add(new CGUIDialogExtendedProgressBar);     // window id = 148
   g_windowManager.Add(new CGUIDialogKeyboard);           // window id = 103
   g_windowManager.Add(&m_guiDialogVolumeBar);          // window id = 104
   g_windowManager.Add(&m_guiDialogSeekBar);            // window id = 115
@@ -1101,7 +1118,6 @@ bool CApplication::Initialize()
 #ifdef HAS_LINUX_NETWORK
   g_windowManager.Add(new CGUIDialogAccessPoints);      // window id = 141
 #endif
-
   g_windowManager.Add(new CGUIDialogLockSettings); // window id = 131
 
   g_windowManager.Add(new CGUIDialogContentSettings);        // window id = 132
@@ -1112,6 +1128,20 @@ bool CApplication::Initialize()
   g_windowManager.Add(new CGUIWindowMusicSongs);             // window id = 501
   g_windowManager.Add(new CGUIWindowMusicNav);               // window id = 502
   g_windowManager.Add(new CGUIWindowMusicPlaylistEditor);    // window id = 503
+
+  /* Load PVR related Windows and Dialogs */
+  g_windowManager.Add(new CGUIWindowPVR);                    // window id = 600
+  g_windowManager.Add(new CGUIDialogPVRGuideInfo);           // window id = 601
+  g_windowManager.Add(new CGUIDialogPVRRecordingInfo);       // window id = 602
+  g_windowManager.Add(new CGUIDialogPVRTimerSettings);       // window id = 603
+  g_windowManager.Add(new CGUIDialogPVRGroupManager);        // window id = 604
+  g_windowManager.Add(new CGUIDialogPVRChannelManager);      // window id = 605
+  g_windowManager.Add(new CGUIDialogPVRGuideSearch);         // window id = 606
+  g_windowManager.Add(new CGUIDialogPVRChannelsOSD);         // window id = 609
+  g_windowManager.Add(new CGUIDialogPVRGuideOSD);            // window id = 610
+  g_windowManager.Add(new CGUIDialogPVRDirectorOSD);         // window id = 611
+  g_windowManager.Add(new CGUIDialogPVRCutterOSD);           // window id = 612
+  g_windowManager.Add(new CGUIDialogTeletext);               // window id = 613
 
   g_windowManager.Add(new CGUIDialogSelect);             // window id = 2000
   g_windowManager.Add(new CGUIDialogMusicInfo);          // window id = 2001
@@ -1141,6 +1171,8 @@ bool CApplication::Initialize()
       CLog::Log(LOGERROR, "Default skin '%s' not found! Terminating..", DEFAULT_SKIN);
       FatalErrorHandler(true, true, true);
   }
+
+  StartPVRManager();
 
   if (g_advancedSettings.m_splashImage)
     SAFE_DELETE(m_splash);
@@ -1471,6 +1503,19 @@ void CApplication::StopZeroconf()
     CZeroconf::GetInstance()->Stop();
   }
 #endif
+}
+
+void CApplication::StartPVRManager()
+{
+  if (g_guiSettings.GetBool("pvrmanager.enabled"))
+    g_PVRManager.Start();
+}
+
+void CApplication::StopPVRManager()
+{
+  CLog::Log(LOGINFO, "stopping PVRManager");
+  StopPlaying();
+  g_PVRManager.Stop();
 }
 
 void CApplication::DimLCDOnPlayback(bool dim)
@@ -2453,7 +2498,7 @@ bool CApplication::OnAction(const CAction &action)
     return true;
   }
 
-  if ( IsPlaying())
+  if (IsPlaying() && !CurrentFileItem().IsLiveTV())
   {
     // pause : pauses current audio song
     if (action.GetID() == ACTION_PAUSE && m_iPlaySpeed == 1)
@@ -2533,6 +2578,7 @@ bool CApplication::OnAction(const CAction &action)
       }
     }
   }
+
   if (action.GetID() == ACTION_MUTE)
   {
     Mute();
@@ -3122,11 +3168,24 @@ bool CApplication::Cleanup()
     g_windowManager.Delete(WINDOW_DIALOG_ACCESS_POINTS);
     g_windowManager.Delete(WINDOW_DIALOG_SLIDER);
 
+    /* Delete PVR related windows and dialogs */
+    g_windowManager.Delete(WINDOW_PVR);
+    g_windowManager.Delete(WINDOW_DIALOG_PVR_GUIDE_INFO);
+    g_windowManager.Delete(WINDOW_DIALOG_PVR_RECORDING_INFO);
+    g_windowManager.Delete(WINDOW_DIALOG_PVR_TIMER_SETTING);
+    g_windowManager.Delete(WINDOW_DIALOG_PVR_GROUP_MANAGER);
+    g_windowManager.Delete(WINDOW_DIALOG_PVR_CHANNEL_MANAGER);
+    g_windowManager.Delete(WINDOW_DIALOG_PVR_GUIDE_SEARCH);
+    g_windowManager.Delete(WINDOW_DIALOG_PVR_CHANNEL_SCAN);
+    g_windowManager.Delete(WINDOW_DIALOG_PVR_UPDATE_PROGRESS);
+    g_windowManager.Delete(WINDOW_DIALOG_PVR_OSD_CHANNELS);
+    g_windowManager.Delete(WINDOW_DIALOG_PVR_OSD_GUIDE);
+    g_windowManager.Delete(WINDOW_DIALOG_PVR_OSD_DIRECTOR);
+    g_windowManager.Delete(WINDOW_DIALOG_PVR_OSD_CUTTER);
     g_windowManager.Delete(WINDOW_DIALOG_OSD_TELETEXT);
+
     g_windowManager.Delete(WINDOW_DIALOG_TEXT_VIEWER);
-
     g_windowManager.Delete(WINDOW_DIALOG_PLAY_EJECT);
-
     g_windowManager.Delete(WINDOW_STARTUP_ANIM);
     g_windowManager.Delete(WINDOW_LOGIN_SCREEN);
     g_windowManager.Delete(WINDOW_VISUALISATION);
@@ -3142,6 +3201,7 @@ bool CApplication::Cleanup()
     g_windowManager.Delete(WINDOW_DIALOG_MUSIC_OVERLAY);
     g_windowManager.Delete(WINDOW_DIALOG_VIDEO_OVERLAY);
     g_windowManager.Delete(WINDOW_SLIDESHOW);
+    g_windowManager.Delete(WINDOW_ADDON_BROWSER);
 
     g_windowManager.Delete(WINDOW_HOME);
     g_windowManager.Delete(WINDOW_PROGRAMS);
@@ -3156,6 +3216,7 @@ bool CApplication::Cleanup()
     g_windowManager.Remove(WINDOW_SETTINGS_MYVIDEOS);
     g_windowManager.Remove(WINDOW_SETTINGS_NETWORK);
     g_windowManager.Remove(WINDOW_SETTINGS_APPEARANCE);
+    g_windowManager.Remove(WINDOW_SETTINGS_MYPVR);
     g_windowManager.Remove(WINDOW_DIALOG_KAI_TOAST);
 
     g_windowManager.Remove(WINDOW_DIALOG_SEEK_BAR);
@@ -3274,6 +3335,7 @@ void CApplication::Stop(int exitCode)
 
     m_applicationMessenger.Cleanup();
 
+    StopPVRManager();
     StopServices();
     //Sleep(5000);
 
@@ -4052,7 +4114,7 @@ bool CApplication::IsPlayingFullScreenVideo() const
 
 void CApplication::SaveFileState()
 {
-  if (!g_settings.GetCurrentProfile().canWriteDatabases())
+  if (m_progressTrackingItem->IsPVRChannel() || !g_settings.GetCurrentProfile().canWriteDatabases())
     return;
   CJob* job = new CSaveFileStateJob(*m_progressTrackingItem,
       m_progressTrackingVideoResumeBookmark,
@@ -4133,6 +4195,9 @@ void CApplication::StopPlaying()
     if( m_pKaraokeMgr )
       m_pKaraokeMgr->Stop();
 #endif
+
+    if (g_PVRManager.IsPlayingTV() || g_PVRManager.IsPlayingRadio())
+      g_PVRManager.SaveCurrentChannelSettings();
 
     if (m_pPlayer)
       m_pPlayer->CloseFile();
@@ -4334,7 +4399,7 @@ void CApplication::ActivateScreenSaver(bool forceType /*= false */)
   if (!forceType)
   {
     // set to Dim in the case of a dialog on screen or playing video
-    if (g_windowManager.HasModalDialog() || (IsPlayingVideo() && g_guiSettings.GetBool("screensaver.usedimonpause")))
+    if (g_windowManager.HasModalDialog() || (IsPlayingVideo() && g_guiSettings.GetBool("screensaver.usedimonpause")) || g_PVRManager.IsRunningChannelScan())
     {
       if (!CAddonMgr::Get().GetAddon("screensaver.xbmc.builtin.dim", m_screenSaver))
         m_screenSaver.reset(new CScreenSaver(""));
@@ -5323,7 +5388,8 @@ bool CApplication::ProcessAndStartPlaylist(const CStdString& strPlayList, CPlayL
 
 void CApplication::SaveCurrentFileSettings()
 {
-  if (m_itemCurrentFile->IsVideo())
+  // don't store settings for PVR in video database
+  if (m_itemCurrentFile->IsVideo() && !m_itemCurrentFile->IsPVRChannel())
   {
     // save video settings
     if (g_settings.m_currentVideoSettings != g_settings.m_defaultVideoSettings)
@@ -5333,6 +5399,10 @@ void CApplication::SaveCurrentFileSettings()
       dbs.SetVideoSettings(m_itemCurrentFile->m_strPath, g_settings.m_currentVideoSettings);
       dbs.Close();
     }
+  }
+  else if (m_itemCurrentFile->IsPVRChannel())
+  {
+    g_PVRManager.SaveCurrentChannelSettings();
   }
 }
 

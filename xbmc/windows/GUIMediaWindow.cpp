@@ -657,8 +657,8 @@ bool CGUIMediaWindow::GetDirectory(const CStdString &strDirectory, CFileItemList
     items.AddFront(pItem, 0);
   }
 
-  int iWindow = GetID();
   CStdStringArray regexps;
+  int iWindow = GetID();
 
   if (iWindow == WINDOW_VIDEO_FILES)
     regexps = g_advancedSettings.m_videoExcludeFromListingRegExps;
@@ -802,7 +802,8 @@ bool CGUIMediaWindow::Update(const CStdString &strDirectory)
   if (!bSelectedFound)
     m_viewControl.SetSelectedItem(0);
 
-  m_history.AddPath(m_vecItems->m_strPath);
+  if (iWindow != WINDOW_PVR || (iWindow == WINDOW_PVR && m_vecItems->m_strPath.Left(17) == "pvr://recordings/"))
+    m_history.AddPath(m_vecItems->m_strPath);
 
   //m_history.DumpPathHistory();
 

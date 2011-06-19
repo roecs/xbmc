@@ -108,6 +108,8 @@ public:
   void StopUPnPRenderer();
   void StartUPnPServer();
   void StopUPnPServer();
+  void StartPVRManager();
+  void StopPVRManager();
   bool StartEventServer();
   bool StopEventServer(bool bWait, bool promptuser);
   void RefreshEventServer();
