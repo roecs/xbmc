@@ -24,7 +24,7 @@
 #define DMX_SPECIALID_STREAMINFO    -10
 #define DMX_SPECIALID_STREAMCHANGE  -11
 
- typedef struct DemuxPacket
+typedef struct DemuxPacket
 {
   unsigned char* pData;   // data
   int iSize;     // data size
@@ -34,4 +34,5 @@
   double pts; // pts in DVD_TIME_BASE
   double dts; // dts in DVD_TIME_BASE
   double duration; // duration in DVD_TIME_BASE if available
+  int flags; //mainly for keyframe
 } DemuxPacket;
