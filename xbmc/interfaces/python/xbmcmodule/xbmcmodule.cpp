@@ -19,21 +19,8 @@
  *
  */
 
-#include "system.h"
-#if (defined USE_EXTERNAL_PYTHON)
-  #if (defined HAVE_LIBPYTHON2_6)
-    #include <python2.6/Python.h>
-  #elif (defined HAVE_LIBPYTHON2_5)
-    #include <python2.5/Python.h>
-  #elif (defined HAVE_LIBPYTHON2_4)
-    #include <python2.4/Python.h>
-  #else
-    #error "Could not determine version of Python to use."
-  #endif
-#else
-  #include "python/Include/Python.h"
-#endif
-#include "../XBPythonDll.h"
+#include <Python.h>
+
 #include "player.h"
 #include "pyplaylist.h"
 #include "keyboard.h"
@@ -266,6 +253,8 @@ namespace PYXBMC
     "function       : string - builtin function to execute.\n"
     "\n"
     "List of functions - http://wiki.xbmc.org/?title=List_of_Built_In_Functions \n"
+    "\n"
+    "NOTE: This function is executed asynchronously, so do not rely on it being done immediately\n"
     "\n"
     "example:\n"
     "  - xbmc.executebuiltin('XBMC.RunXBE(c:\\\\avalaunch.xbe)')\n");

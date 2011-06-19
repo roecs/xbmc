@@ -369,6 +369,7 @@ int CGUIInfoManager::TranslateSingleString(const CStdString &strCondition)
     else if (strTest.Equals("system.ismaster")) ret = SYSTEM_ISMASTER;
     else if (strTest.Equals("system.internetstate")) ret = SYSTEM_INTERNET_STATE;
     else if (strTest.Equals("system.loggedon")) ret = SYSTEM_LOGGEDON;
+    else if (strTest.Equals("system.showexitbutton")) ret = SYSTEM_SHOW_EXIT_BUTTON;
     else if (strTest.Equals("system.hasdrivef")) ret = SYSTEM_HAS_DRIVE_F;
     else if (strTest.Equals("system.hasdriveg")) ret = SYSTEM_HAS_DRIVE_G;
     else if (strTest.Equals("system.kernelversion")) ret = SYSTEM_KERNEL_VERSION;
@@ -400,7 +401,6 @@ int CGUIInfoManager::TranslateSingleString(const CStdString &strCondition)
     else if (strTest.Equals("system.profilecount")) ret = SYSTEM_PROFILECOUNT;
     else if (strTest.Equals("system.progressbar")) ret = SYSTEM_PROGRESS_BAR;
     else if (strTest.Equals("system.platform.linux")) ret = SYSTEM_PLATFORM_LINUX;
-    else if (strTest.Equals("system.platform.xbox")) ret = SYSTEM_PLATFORM_XBOX;
     else if (strTest.Equals("system.platform.windows")) ret = SYSTEM_PLATFORM_WINDOWS;
     else if (strTest.Equals("system.platform.osx")) ret = SYSTEM_PLATFORM_OSX;
     else if (strTest.Left(15).Equals("system.getbool("))
@@ -953,6 +953,7 @@ int CGUIInfoManager::TranslateListItem(const CStdString &info)
   else if (info.Equals("originaltitle")) return LISTITEM_ORIGINALTITLE;
   else if (info.Equals("lastplayed")) return LISTITEM_LASTPLAYED;
   else if (info.Equals("playcount")) return LISTITEM_PLAYCOUNT;
+  else if (info.Equals("discnumber")) return LISTITEM_DISC_NUMBER;
   else if (info.Left(9).Equals("property(")) return AddListItemProp(info.Mid(9, info.GetLength() - 10));
   return 0;
 }
@@ -997,6 +998,8 @@ TIME_FORMAT CGUIInfoManager::TranslateTimeFormat(const CStdString &format)
   else if (format.Equals("(hh:mm)")) return TIME_FORMAT_HH_MM;
   else if (format.Equals("(mm:ss)")) return TIME_FORMAT_MM_SS;
   else if (format.Equals("(hh:mm:ss)")) return TIME_FORMAT_HH_MM_SS;
+  else if (format.Equals("(h)")) return TIME_FORMAT_H;
+  else if (format.Equals("(h:mm:ss)")) return TIME_FORMAT_H_MM_SS;
   return TIME_FORMAT_GUESS;
 }
 
@@ -1772,8 +1775,6 @@ bool CGUIInfoManager::GetBool(int condition1, int contextWindow, const CGUIListI
 #else
     bReturn = false;
 #endif
-  else if (condition == SYSTEM_PLATFORM_XBOX)
-    bReturn = false;
   else if (condition == SYSTEM_MEDIA_DVD)
     bReturn = g_mediaManager.IsDiscInDrive();
 #ifdef HAS_DVD_DRIVE
@@ -1822,6 +1823,8 @@ bool CGUIInfoManager::GetBool(int condition1, int contextWindow, const CGUIListI
     bReturn = g_settings.GetMasterProfile().getLockMode() != LOCK_MODE_EVERYONE && g_passwordManager.bMasterUser;
   else if (condition == SYSTEM_LOGGEDON)
     bReturn = !(g_windowManager.GetActiveWindow() == WINDOW_LOGIN_SCREEN);
+  else if (condition == SYSTEM_SHOW_EXIT_BUTTON)
+    bReturn = g_advancedSettings.m_showExitButton;
   else if (condition == SYSTEM_HAS_LOGINSCREEN)
     bReturn = g_settings.UsingLoginScreen();
   else if (condition == WEATHER_IS_FETCHED)
@@ -2049,7 +2052,7 @@ bool CGUIInfoManager::GetBool(int condition1, int contextWindow, const CGUIListI
       }
     break;
     case VISUALISATION_ENABLED:
-      bReturn = g_guiSettings.GetString("musicplayer.visualisation") != "None";
+      bReturn = !g_guiSettings.GetString("musicplayer.visualisation").IsEmpty();
     break;
     default: // default, use integer value different from 0 as true
       bReturn = GetInt(condition) != 0;
@@ -2622,7 +2625,7 @@ CStdString CGUIInfoManager::GetMultiInfoLabel(const GUIInfo &info, int contextWi
     AddonPtr addon;
     if (info.GetData2() == 0)
       CAddonMgr::Get().GetAddon(const_cast<CGUIInfoManager*>(this)->GetLabel(info.GetData1(), contextWindow),addon);
-    else 
+    else
       CAddonMgr::Get().GetAddon(m_stringParameters[info.GetData1()],addon);
     if (addon && info.m_info == SYSTEM_ADDON_TITLE)
       return addon->Name();
@@ -2805,9 +2808,13 @@ CStdString CGUIInfoManager::LocalizeTime(const CDateTime &time, TIME_FORMAT form
   case TIME_FORMAT_HH_MM:
     return time.GetAsLocalizedTime(use12hourclock ? "h:mm" : "HH:mm", false);
   case TIME_FORMAT_HH_MM_XX:
-      return time.GetAsLocalizedTime(use12hourclock ? "h:mm xx" : "HH:mm", false);      
+      return time.GetAsLocalizedTime(use12hourclock ? "h:mm xx" : "HH:mm", false);
   case TIME_FORMAT_HH_MM_SS:
     return time.GetAsLocalizedTime("", true);
+  case TIME_FORMAT_H:
+    return time.GetAsLocalizedTime("h", false);
+  case TIME_FORMAT_H_MM_SS:
+    return time.GetAsLocalizedTime("h:mm:ss", true);
   default:
     break;
   }
@@ -3054,9 +3061,9 @@ CStdString CGUIInfoManager::GetMusicTagLabel(int info, const CFileItem *item) co
   case MUSICPLAYER_GENRE:
     if (tag.GetGenre().size()) { return tag.GetGenre(); }
     break;
-  case MUSICPLAYER_LYRICS: 
-    if (tag.GetLyrics().size()) { return tag.GetLyrics(); } 
-   	break;
+  case MUSICPLAYER_LYRICS:
+    if (tag.GetLyrics().size()) { return tag.GetLyrics(); }
+  break;
   case MUSICPLAYER_TRACK_NUMBER:
     {
       CStdString strTrack;
@@ -3068,15 +3075,7 @@ CStdString CGUIInfoManager::GetMusicTagLabel(int info, const CFileItem *item) co
     }
     break;
   case MUSICPLAYER_DISC_NUMBER:
-    {
-      CStdString strDisc;
-      if (tag.Loaded() && tag.GetDiscNumber() > 0)
-      {
-        strDisc.Format("%02i", tag.GetDiscNumber());
-        return strDisc;
-      }
-    }
-    break;
+    return GetItemLabel(item, LISTITEM_DISC_NUMBER);
   case MUSICPLAYER_RATING:
     return GetItemLabel(item, LISTITEM_RATING);
   case MUSICPLAYER_COMMENT:
@@ -3178,7 +3177,7 @@ CStdString CGUIInfoManager::GetVideoLabel(int item)
         CStdString strYear;
         if (m_currentFile->GetVideoInfoTag()->m_iSpecialSortEpisode > 0)
           strYear.Format("S%i", m_currentFile->GetVideoInfoTag()->m_iEpisode);
-        else if(m_currentFile->GetVideoInfoTag()->m_iEpisode > 0) 
+        else if(m_currentFile->GetVideoInfoTag()->m_iEpisode > 0)
           strYear.Format("%i", m_currentFile->GetVideoInfoTag()->m_iEpisode);
         return strYear;
       }
@@ -3334,6 +3333,11 @@ void CGUIInfoManager::SetCurrentSong(CFileItem &item)
   }
   else
     m_currentFile->SetMusicThumb();
+    if (!m_currentFile->HasProperty("fanart_image"))
+    {
+      if (m_currentFile->CacheLocalFanart())
+        m_currentFile->SetProperty("fanart_image", m_currentFile->GetCachedFanart());
+    }
   m_currentFile->FillInDefaultIcon();
 
   CMusicInfoLoader::LoadAdditionalTagInfo(m_currentFile);
@@ -3345,26 +3349,11 @@ void CGUIInfoManager::SetCurrentMovie(CFileItem &item)
   *m_currentFile = item;
 
   CVideoDatabase dbs;
-  dbs.Open();
-  if (dbs.HasMovieInfo(item.m_strPath))
+  if (dbs.Open())
   {
-    dbs.GetMovieInfo(item.m_strPath, *m_currentFile->GetVideoInfoTag());
-    CLog::Log(LOGDEBUG,"%s, got movie info!", __FUNCTION__);
-    CLog::Log(LOGDEBUG,"  Title = %s", m_currentFile->GetVideoInfoTag()->m_strTitle.c_str());
+    dbs.LoadVideoInfo(item.m_strPath, *m_currentFile->GetVideoInfoTag());
+    dbs.Close();
   }
-  else if (dbs.HasEpisodeInfo(item.m_strPath))
-  {
-    dbs.GetEpisodeInfo(item.m_strPath, *m_currentFile->GetVideoInfoTag());
-    CLog::Log(LOGDEBUG,"%s, got episode info!", __FUNCTION__);
-    CLog::Log(LOGDEBUG,"  Title = %s", m_currentFile->GetVideoInfoTag()->m_strTitle.c_str());
-  }
-  else if (dbs.HasMusicVideoInfo(item.m_strPath))
-  {
-    dbs.GetMusicVideoInfo(item.m_strPath, *m_currentFile->GetVideoInfoTag());
-    CLog::Log(LOGDEBUG,"%s, got music video info!", __FUNCTION__);
-    CLog::Log(LOGDEBUG,"  Title = %s", m_currentFile->GetVideoInfoTag()->m_strTitle.c_str());
-  }
-  dbs.Close();
 
   // Find a thumb for this file.
   item.SetVideoThumb();
@@ -3772,6 +3761,13 @@ CStdString CGUIInfoManager::GetItemLabel(const CFileItem *item, int info) const
 
       return track;
     }
+  case LISTITEM_DISC_NUMBER:
+    {
+      CStdString disc;
+      if (item->HasMusicInfoTag() && item->GetMusicInfoTag()->GetDiscNumber() > 0)
+        disc.Format("%i", item->GetMusicInfoTag()->GetDiscNumber());
+      return disc;
+    }
   case LISTITEM_ARTIST:
     if (item->HasVideoInfoTag())
       return item->GetVideoInfoTag()->m_strArtist;
@@ -3949,7 +3945,7 @@ CStdString CGUIInfoManager::GetItemLabel(const CFileItem *item, int info) const
       else if (item->IsVideoDb() && item->HasVideoInfoTag())
       {
         if( item->m_bIsFolder )
-	  path = item->GetVideoInfoTag()->m_strPath;
+          path = item->GetVideoInfoTag()->m_strPath;
         else
           URIUtils::GetParentPath(item->GetVideoInfoTag()->m_strFileNameAndPath, path);
       }
@@ -4011,7 +4007,7 @@ CStdString CGUIInfoManager::GetItemLabel(const CFileItem *item, int info) const
     break;
   case LISTITEM_WRITER:
     if (item->HasVideoInfoTag())
-      return item->GetVideoInfoTag()->m_strWritingCredits;;
+      return item->GetVideoInfoTag()->m_strWritingCredits;
     break;
   case LISTITEM_TAGLINE:
     if (item->HasVideoInfoTag())

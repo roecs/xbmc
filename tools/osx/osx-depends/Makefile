@@ -6,10 +6,10 @@ SUBDIRS = \
 	liblzo liblzo2 freetype2 fontconfig \
 	openssl libssh2 curl \
 	jpeg tiff libpng libogg \
-	libvorbis libflac libmad fribidi libwavpack libmpeg2 \
-	faad2 libass libcdio libsamplerate librtmp \
+	libvorbis libflac libmad fribidi libmpeg2 \
+	faad2 libass libcdio libsamplerate librtmp libcrystalhd \
 	libGLEW libsdl libsdl_mixer libsdl_image \
-	libmicrohttpd libmodplug libbluray \
+	libmicrohttpd libmodplug libbluray libyajl \
 	samba python26 mysqlclient boost \
 
 .PHONY: setup $(SUBDIRS)

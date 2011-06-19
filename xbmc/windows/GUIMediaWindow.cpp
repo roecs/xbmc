@@ -321,7 +321,8 @@ bool CGUIMediaWindow::OnMessage(CGUIMessage& message)
       }
       else if (message.GetParam1() == GUI_MSG_REMOVED_MEDIA)
       {
-        if (m_vecItems->IsVirtualDirectoryRoot() && IsActive())
+        if ((m_vecItems->IsVirtualDirectoryRoot() ||
+             m_vecItems->m_strPath.Left(10).Equals("sources://")) && IsActive())
         {
           int iItem = m_viewControl.GetSelectedItem();
           Update(m_vecItems->m_strPath);
@@ -344,7 +345,8 @@ bool CGUIMediaWindow::OnMessage(CGUIMessage& message)
       }
       else if (message.GetParam1()==GUI_MSG_UPDATE_SOURCES)
       { // State of the sources changed, so update our view
-        if (m_vecItems->IsVirtualDirectoryRoot() && IsActive())
+        if ((m_vecItems->IsVirtualDirectoryRoot() ||
+             m_vecItems->m_strPath.Left(10).Equals("sources://")) && IsActive())
         {
           int iItem = m_viewControl.GetSelectedItem();
           Update(m_vecItems->m_strPath);
@@ -882,7 +884,7 @@ bool CGUIMediaWindow::OnClick(int iItem)
     {
 #ifdef HAS_PYTHON
       if (!g_pythonParser.StopScript(addon->LibPath()))
-        g_pythonParser.evalFile(addon->LibPath());
+        g_pythonParser.evalFile(addon->LibPath(),addon);
 #endif
       return true;
     }
@@ -966,7 +968,7 @@ bool CGUIMediaWindow::OnClick(int iItem)
       if (CAddonMgr::Get().GetAddon(url.GetHostName(),addon))
       {
         PluginPtr plugin = boost::dynamic_pointer_cast<CPluginSource>(addon);
-        if (plugin && plugin->Provides(CPluginSource::AUDIO))
+        if (plugin && plugin->Provides(CPluginSource::AUDIO) && pItem->IsAudio())
         {
           iPlaylist = PLAYLIST_MUSIC;
           autoplay = g_guiSettings.GetBool("musicplayer.autoplaynextitem");
@@ -1029,8 +1031,6 @@ void CGUIMediaWindow::ShowShareErrorMessage(CFileItem* pItem)
 
     if (pItem->m_iDriveType != CMediaSource::SOURCE_TYPE_REMOTE) //  Local shares incl. dvd drive
       idMessageText=15300;
-    else if (url.GetProtocol() == "xbms" && strHostName.IsEmpty()) //  xbms server discover
-      idMessageText=15302;
     else if (url.GetProtocol() == "smb" && strHostName.IsEmpty()) //  smb workgroup
       idMessageText=15303;
     else  //  All other remote shares

@@ -119,9 +119,7 @@ extern "C" void __stdcall init_emu_environ()
   memset(dll__environ, 0, EMU_MAX_ENVIRONMENT_ITEMS + 1);
 
   // python
-#ifdef _XBOX
-  dll_putenv("OS=xbox");
-#elif defined(_WIN32)
+#if defined(_WIN32)
   // fill our array with the windows system vars
   LPTSTR lpszVariable; 
   LPTCH lpvEnv;
@@ -192,10 +190,11 @@ extern "C" void __stdcall update_emu_environ()
     const CStdString &strProxyPort = g_guiSettings.GetString("network.httpproxyport");
     // Should we check for valid strings here? should HTTPS_PROXY use https://?
 #ifdef _WIN32
-    SetEnvironmentVariable("HTTP_PROXY", "http://" + strProxyServer + ":" + strProxyPort);
-    SetEnvironmentVariable("HTTPS_PROXY", "http://" + strProxyServer + ":" + strProxyPort);
-    dll_putenv( "HTTP_PROXY=http://" + strProxyServer + ":" + strProxyPort );
-    dll_putenv( "HTTPS_PROXY=http://" + strProxyServer + ":" + strProxyPort );
+    CStdString buf;
+    buf = "HTTP_PROXY=http://" + strProxyServer + ":" + strProxyPort;
+    pgwin32_putenv(buf.c_str());
+    buf = "HTTPS_PROXY=http://" + strProxyServer + ":" + strProxyPort;
+    dll_putenv(buf.c_str());
 #else
     setenv( "HTTP_PROXY", "http://" + strProxyServer + ":" + strProxyPort, true );
     setenv( "HTTPS_PROXY", "http://" + strProxyServer + ":" + strProxyPort, true );
@@ -203,10 +202,10 @@ extern "C" void __stdcall update_emu_environ()
     if (!g_guiSettings.GetString("network.httpproxyusername").IsEmpty())
     {
 #ifdef _WIN32
-      SetEnvironmentVariable("PROXY_USER", g_guiSettings.GetString("network.httpproxyusername"));
-      SetEnvironmentVariable("PROXY_PASS", g_guiSettings.GetString("network.httpproxypassword"));
-      dll_putenv("PROXY_USER=" + g_guiSettings.GetString("network.httpproxyusername"));
-      dll_putenv("PROXY_PASS=" + g_guiSettings.GetString("network.httpproxypassword"));
+      buf = "PROXY_USER" + g_guiSettings.GetString("network.httpproxyusername");
+      pgwin32_putenv(buf.c_str());
+      buf = "PROXY_PASS=" + g_guiSettings.GetString("network.httpproxypassword");
+      dll_putenv(buf.c_str());
 #else
       setenv("PROXY_USER", g_guiSettings.GetString("network.httpproxyusername"), true);
       setenv("PROXY_PASS", g_guiSettings.GetString("network.httpproxypassword"), true);
@@ -2005,15 +2004,6 @@ extern "C"
   }
 
 
-#ifdef _XBOX
-  char *getenv(const char *s)
-  {
-    // some libs in the solution linked to getenv which was exported in python.lib
-    // now python is in a dll this needs the be fixed, or not
-    CLog::Log(LOGWARNING, "old getenv from python.lib called, library check needed");
-    return NULL;
-  }
-#endif
 
   char* dll_getenv(const char* szKey)
   {
@@ -2059,11 +2049,7 @@ extern "C"
 
   void (__cdecl * dll_signal(int sig, void (__cdecl *func)(int)))(int)
   {
-#ifdef _XBOX
-    // the xbox has a NSIG of 23 (+1), problem is when calling signal with
-    // one of the signals below the xbox wil crash. Just return SIG_ERR
-    if (sig == SIGILL || sig == SIGFPE || sig == SIGSEGV) return SIG_ERR;
-#elif defined(_WIN32)
+#if defined(_WIN32)
     //vs2008 asserts for known signals, return err for everything unknown to windows.
     if (sig == 5 || sig == 7 || sig == 9 || sig == 10 || sig == 12 || sig == 14 || sig == 18 || sig == 19 || sig == 20)
       return SIG_ERR;
@@ -2126,7 +2112,10 @@ extern "C"
 #endif
     {
       void *p1 = va_arg(va, void*);
-      ret = pFile->IoControl(request, p1);
+      SNativeIoControl d;
+      d.request = request;
+      d.param   = p1;
+      ret = pFile->IoControl(IOCTRL_NATIVE, &d);
       if(ret<0)
         CLog::Log(LOGWARNING, "%s - %ld request failed with error [%d] %s", __FUNCTION__, request, errno, strerror(errno));
     }

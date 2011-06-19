@@ -32,6 +32,7 @@
 #include "utils/URIUtils.h"
 #include <vector>
 #include <string.h>
+#include <ostream>
 
 using XFILE::CDirectory;
 using XFILE::CFile;
@@ -39,81 +40,6 @@ using namespace std;
 
 namespace ADDON
 {
-
-// BACKWARDCOMPATIBILITY: These can be removed post-Dharma
-typedef struct
-{
-  const char* old;
-  const char* id;
-} ScraperUpdate;
-
-static const ScraperUpdate music[] =
-    {{"allmusic_merlin_lastfm.xml", "metadata.merlin.pl"},
-    {"daum.xml",                   "metadata.music.daum.net"},
-    {"israel-music.xml",           "metadata.he.israel-music.co.il"},
-    {"freebase.xml",               "metadata.freebase.com"},
-    {"1ting.xml",                  "metadata.1ting.com"},
-    {"allmusic.xml",               "metadata.allmusic.com"},
-    {"lastfm.xml",                 "metadata.last.fm"}};
-
-static const ScraperUpdate videos[] =
-   {{"7176.xml",                   "metadata.7176.com"},
-    {"amazonuk.xml",               "metadata.amazon.co.uk"},
-    {"amazonus.xml",               "metadata.amazon.com"},
-    {"asiandb.xml",                "metadata.asiandb.com"},
-    {"cine-passion.xml",           "metadata.cine-passion.fr"},
-    {"cinefacts.xml",              "metadata.cinefacts.de"},
-    {"daum-tv.xml",                "metadata.tv.daum.net"},
-    {"daum.xml",                   "metadata.movie.daum.net"},
-    {"fdbpl.xml",                  "metadata.fdb.pl"},
-    {"filmaffinity.xml",           "metadata.filmaffinity.com"},
-    {"filmbasen.xml",              "metadata.filmbasen.dagbladet.no"},
-    {"filmdelta.xml",              "metadata.filmdelta.se"},
-    {"filmstarts.xml",             "metadata.filmstarts.de"},
-    {"filmweb.xml",                "metadata.filmweb.pl"},
-    {"getlib.xml",                 "metadata.getlib.com"},
-    {"imdb.xml",                   "metadata.imdb.com"},
-    {"kino-de.xml",                "metadata.kino.de"},
-    {"KinoPoisk.xml",              "metadata.kinopoisk.ru"},
-    {"M1905.xml",                  "metadata.m1905.com"},
-    {"moviemaze.xml",              "metadata.moviemaze.de"},
-    {"moviemeter.xml",             "metadata.moviemeter.nl"},
-    {"movieplayer-it-film.xml",    "metadata.movieplayer.it"},
-    {"movieplayer-it-tv.xml",      "metadata.tv.movieplayer.it"},
-    {"mtime.xml",                  "metadata.mtime.com"},
-    {"mtv.xml",                    "metadata.mtv.com"},
-    {"myMovies.xml",               "metadata.mymovies.it"},
-    {"mymoviesdk.xml",             "metadata.mymovies.dk"},
-    {"naver.xml",                  "metadata.movie.naver.com"},
-    {"ofdb.xml",                   "metadata.ofdb.de"},
-    {"ptgate.xml",                 "metadata.ptgate.pt"},
-    {"rottentomatoes.xml",         "metadata.rottentomatoes.com"},
-    {"sratim.xml",                 "metadata.sratim.co.il"},
-    {"tmdb.xml",                   "metadata.themoviedb.org"},
-    {"tvdb.xml",                   "metadata.tvdb.com"},
-    {"videobuster.xml",            "metadata.videobuster.de"},
-    {"worldart.xml",               "metadata.worldart.ru"},
-    {"yahoomusic.xml",             "metadata.yahoomusic.com"}};
-
-const CStdString UpdateVideoScraper(const CStdString &old)
-{
-  for (unsigned int index=0; index < sizeof(videos)/sizeof(videos[0]); ++index)
-  {
-    if (old == videos[index].old)
-      return videos[index].id;
-  }
-  return "";
-}
-
-const CStdString UpdateMusicScraper(const CStdString &old)
-{
-  for (unsigned int index=0; index < sizeof(music)/sizeof(music[0]); ++index)
-  {
-    if (old == music[index].old)
-      return music[index].id;
-  }
-  return "";
-}
 
 /**
  * helper functions 
@@ -192,48 +118,6 @@ const CStdString GetIcon(const ADDON::TYPE& type)
       return map.icon;
   }
   return "";
-}
-
-/**
- * AddonVersion
- *
- */
-
-bool AddonVersion::operator==(const AddonVersion &rhs) const
-{
-  return str.Equals(rhs.str);
-}
-
-bool AddonVersion::operator!=(const AddonVersion &rhs) const
-{
-  return !(*this == rhs);
-}
-
-bool AddonVersion::operator>(const AddonVersion &rhs) const
-{
-  return (strverscmp(str.c_str(), rhs.str.c_str()) > 0);
-}
-
-bool AddonVersion::operator>=(const AddonVersion &rhs) const
-{
-  return (*this == rhs) || (*this > rhs);
-}
-
-bool AddonVersion::operator<(const AddonVersion &rhs) const
-{
-  return (strverscmp(str.c_str(), rhs.str.c_str()) < 0);
-}
-
-bool AddonVersion::operator<=(const AddonVersion &rhs) const
-{
-  return (*this == rhs) || !(*this > rhs);
-}
-
-CStdString AddonVersion::Print() const
-{
-  CStdString out;
-  out.Format("%s %s", g_localizeStrings.Get(24051), str); // "Version <str>"
-  return CStdString(out);
 }
 
 #define EMPTY_IF(x,y) \
@@ -664,6 +548,26 @@ TYPE CAddonLibrary::SetAddonType()
   else
     return ADDON_UNKNOWN;
 }
+
+CStdString GetXbmcApiVersionDependency(ADDON::AddonPtr addon)
+{
+  CStdString version("1.0");
+  if (addon.get() != NULL)
+  {
+    const ADDON::ADDONDEPS &deps = addon->GetDeps();
+    ADDON::ADDONDEPS::const_iterator it;
+    CStdString key("xbmc.python");
+    it = deps.find(key);
+    if (!(it == deps.end()))
+    {
+      const ADDON::AddonVersion * xbmcApiVersion = &(it->second.first);
+      version = xbmcApiVersion->c_str();
+    }
+  }
+
+  return version;
+}
+
 
 } /* namespace ADDON */
 

@@ -20,17 +20,9 @@
  *
  */
 
-#ifdef min
-#undef min
-#endif
-#ifdef max
-#undef max
-#endif
-
 #include <climits>
 #include <cmath>
 #include <vector>
-#include <limits>
 #include <string.h>
 #include <stdint.h>
 
@@ -98,7 +90,7 @@ public:
   static bool ThumbCached(const CStdString& strFileName);
   static void ThumbCacheAdd(const CStdString& strFileName, bool bFileExists);
   static void ThumbCacheClear();
-  static void PlayDVD(const CStdString& strProtocol="dvd");
+  static void PlayDVD(const CStdString& strProtocol = "dvd", bool restart = false);
   static CStdString GetNextFilename(const CStdString &fn_template, int max);
   static CStdString GetNextPathname(const CStdString &path_template, int max);
   static void TakeScreenshot();
@@ -150,6 +142,7 @@ public:
 
 #ifdef UNIT_TESTING
   static bool TestSplitExec();
+  static bool TestGetQualifiedFilename();
 #endif
 
   static void InitRandomSeed();

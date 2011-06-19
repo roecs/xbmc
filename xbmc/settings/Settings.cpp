@@ -57,6 +57,7 @@
 #include "utils/URIUtils.h"
 #include "input/MouseStat.h"
 #include "filesystem/File.h"
+#include "addons/AddonManager.h"
 
 using namespace std;
 using namespace XFILE;
@@ -104,6 +105,7 @@ void CSettings::Initialize()
   m_pictureExtensions = ".png|.jpg|.jpeg|.bmp|.gif|.ico|.tif|.tiff|.tga|.pcx|.cbz|.zip|.cbr|.rar|.m3u|.dng|.nef|.cr2|.crw|.orf|.arw|.erf|.3fr|.dcr|.x3f|.mef|.raf|.mrw|.pef|.sr2|.rss";
   m_musicExtensions = ".nsv|.m4a|.flac|.aac|.strm|.pls|.rm|.rma|.mpa|.wav|.wma|.ogg|.mp3|.mp2|.m3u|.mod|.amf|.669|.dmf|.dsm|.far|.gdm|.imf|.it|.m15|.med|.okt|.s3m|.stm|.sfx|.ult|.uni|.xm|.sid|.ac3|.dts|.cue|.aif|.aiff|.wpl|.ape|.mac|.mpc|.mp+|.mpp|.shn|.zip|.rar|.wv|.nsf|.spc|.gym|.adx|.dsp|.adp|.ymf|.ast|.afc|.hps|.xsp|.xwav|.waa|.wvs|.wam|.gcm|.idsp|.mpdsp|.mss|.spt|.rsd|.mid|.kar|.sap|.cmc|.cmr|.dmc|.mpt|.mpd|.rmt|.tmc|.tm8|.tm2|.oga|.url|.pxml|.tta|.rss|.cm3|.cms|.dlt|.brstm|.wtv";
   m_videoExtensions = ".m4v|.3g2|.3gp|.nsv|.tp|.ts|.ty|.strm|.pls|.rm|.rmvb|.m3u|.ifo|.mov|.qt|.divx|.xvid|.bivx|.vob|.nrg|.img|.iso|.pva|.wmv|.asf|.asx|.ogm|.m2v|.avi|.bin|.dat|.mpg|.mpeg|.mp4|.mkv|.avc|.vp3|.svq3|.nuv|.viv|.dv|.fli|.flv|.rar|.001|.wpl|.zip|.vdr|.dvr-ms|.xsp|.mts|.m2t|.m2ts|.evo|.ogv|.sdp|.avs|.rec|.url|.pxml|.vc1|.h264|.rcv|.rss|.mpls|.webm|.bdmv|.wtv";
+  m_discStubExtensions = ".disc";
   // internal music extensions
   m_musicExtensions += "|.sidstream|.oggstream|.nsfstream|.asapstream|.cdda";
 
@@ -135,6 +137,8 @@ void CSettings::Initialize()
   m_usingLoginScreen = false;
   m_lastUsedProfile = 0;
   m_currentProfile = 0;
+
+  m_activeKeyboardMapping = "default";
 }
 
 CSettings::~CSettings(void)
@@ -283,7 +287,7 @@ bool CSettings::GetSource(const CStdString &category, const TiXmlNode *source, C
       strPath = CSpecialProtocol::ReplaceOldPath(strPath, pathVersion);
       // make sure there are no virtualpaths or stack paths defined in xboxmediacenter.xml
       //CLog::Log(LOGDEBUG,"    Found path: %s", strPath.c_str());
-      if (!URIUtils::IsVirtualPath(strPath) && !URIUtils::IsStack(strPath))
+      if (!URIUtils::IsStack(strPath))
       {
         // translate special tags
         if (!strPath.IsEmpty() && strPath.at(0) == '$')
@@ -361,16 +365,6 @@ bool CSettings::GetSource(const CStdString &category, const TiXmlNode *source, C
 
     share.FromNameAndPaths(category, strName, verifiedPaths);
 
-/*    CLog::Log(LOGDEBUG,"      Adding source:");
-    CLog::Log(LOGDEBUG,"        Name: %s", share.strName.c_str());
-    if (URIUtils::IsVirtualPath(share.strPath) || URIUtils::IsMultiPath(share.strPath))
-    {
-      for (int i = 0; i < (int)share.vecPaths.size(); ++i)
-        CLog::Log(LOGDEBUG,"        Path (%02i): %s", i+1, share.vecPaths.at(i).c_str());
-    }
-    else
-      CLog::Log(LOGDEBUG,"        Path: %s", share.strPath.c_str());
-*/
     share.m_iBadPwdCount = 0;
     if (pLockMode)
     {
@@ -728,6 +722,10 @@ bool CSettings::LoadSettings(const CStdString& strSettingsFile)
   // Advanced settings
   g_advancedSettings.Load();
 
+  // Add the list of disc stub extensions (if any) to the list of video extensions
+  if (!m_discStubExtensions.IsEmpty())
+ 	g_settings.m_videoExtensions += "|" + m_discStubExtensions;
+
   // Default players?
   CLog::Log(LOGNOTICE, "Default DVD Player: %s", g_advancedSettings.m_videoDefaultDVDPlayer.c_str());
   CLog::Log(LOGNOTICE, "Default Video Player: %s", g_advancedSettings.m_videoDefaultPlayer.c_str());
@@ -956,6 +954,8 @@ bool CSettings::LoadProfile(unsigned int index)
     CUtil::DeleteMusicDatabaseDirectoryCache();
     CUtil::DeleteVideoDatabaseDirectoryCache();
 
+    ADDON::CAddonMgr::Get().StartServices(false);
+
     return true;
   }
 
@@ -1164,10 +1164,6 @@ bool CSettings::UpdateSource(const CStdString &strType, const CStdString strOldN
   VECSOURCES *pShares = GetSourcesFromType(strType);
 
   if (!pShares) return false;
-
-  // disallow virtual paths
-  if (strUpdateElement.Equals("path") && URIUtils::IsVirtualPath(strUpdateText))
-    return false;
 
   for (IVECSOURCES it = pShares->begin(); it != pShares->end(); it++)
   {

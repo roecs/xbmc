@@ -72,9 +72,9 @@
     
     eaglLayer.opaque = TRUE;
     eaglLayer.drawableProperties = [NSDictionary dictionaryWithObjectsAndKeys:
-      //[NSNumber numberWithBool:FALSE], kEAGLDrawablePropertyRetainedBacking,
-      //kEAGLColorFormatRGB565, kEAGLDrawablePropertyColorFormat,
-      kEAGLColorFormatRGBA8, kEAGLDrawablePropertyColorFormat,
+      [NSNumber numberWithBool:FALSE], kEAGLDrawablePropertyRetainedBacking,
+      kEAGLColorFormatRGB565, kEAGLDrawablePropertyColorFormat,
+      //kEAGLColorFormatRGBA8, kEAGLDrawablePropertyColorFormat,
       nil];
 		
     EAGLContext *aContext = [[EAGLContext alloc] 
@@ -229,7 +229,7 @@
     [self deinitDisplayLink];
 		animating = FALSE;
     if (!g_application.m_bStop)
-      g_application.Stop();
+      g_application.Stop(0);
     // wait for animation thread to die
     if ([animationThread isFinished] == NO)
       [animationThreadLock lockWhenCondition:TRUE];
@@ -246,6 +246,7 @@
   // OSX scheduler will monitor SCHED_RR threads and drop to SCHED_OTHER if it detects
   // the thread running away. OSX automatically does this with the CoreAudio audio
   // device handler thread.
+
   int32_t result;
   thread_extended_policy_data_t theFixedPolicy;
 
@@ -320,18 +321,8 @@
 - (void) runDisplayLink;
 {
   NSAutoreleasePool* pool = [[NSAutoreleasePool alloc] init];
-  /*
-  static CFTimeInterval oldtimestamp;
-  CFTimeInterval frameInterval, timestamp, duration;
 
-  duration = [displayLink duration];
-  timestamp = [displayLink timestamp];
-  frameInterval = [displayLink frameInterval];
-  NSLog(@"%s:duration(%f), delta(%f), timestamp(%f)", __PRETTY_FUNCTION__, 
-    duration, timestamp-oldtimestamp, timestamp);
-  oldtimestamp = timestamp;
-  */
-  displayFPS = 1.0 / [displayLink duration];
+  displayFPS = 1.0 / ([displayLink duration] * [displayLink frameInterval]);
   if (animationThread && [animationThread isExecuting] == YES)
   {
     if (g_VideoReferenceClock)
@@ -346,9 +337,9 @@
   displayLink = [NSClassFromString(@"CADisplayLink") 
     displayLinkWithTarget:self
     selector:@selector(runDisplayLink)];
-  [displayLink setFrameInterval:1];
-  [displayLink addToRunLoop:[NSRunLoop currentRunLoop] forMode:NSDefaultRunLoopMode];
-  displayFPS = 60;
+  [displayLink setFrameInterval:2];
+  [displayLink addToRunLoop:[NSRunLoop mainRunLoop] forMode:NSRunLoopCommonModes];
+  displayFPS = 1.0 / ([displayLink duration] * [displayLink frameInterval]);
 }
 //--------------------------------------------------------------
 - (void) deinitDisplayLink

@@ -154,8 +154,11 @@ public:
   CStdString m_pictureExtensions;
   CStdString m_musicExtensions;
   CStdString m_videoExtensions;
+  CStdString m_discStubExtensions;
 
   CStdString m_logFolder;
+
+  CStdString m_activeKeyboardMapping;
 
   bool m_bMyMusicSongInfoInVis;
   bool m_bMyMusicSongThumbInVis;

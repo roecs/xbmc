@@ -156,7 +156,7 @@ bool CAddonInstaller::Cancel(const CStdString &addonID)
 bool CAddonInstaller::Install(const CStdString &addonID, bool force, const CStdString &referer, bool background)
 {
   AddonPtr addon;
-  bool addonInstalled = CAddonMgr::Get().GetAddon(addonID, addon);
+  bool addonInstalled = CAddonMgr::Get().GetAddon(addonID, addon, ADDON_UNKNOWN, false);
   if (addonInstalled && !force)
     return true;
 
@@ -415,12 +415,13 @@ bool CAddonInstallJob::OnPreInstall()
   return false;
 }
 
-void CAddonInstallJob::DeleteAddon(const CStdString &addonFolder)
+bool CAddonInstallJob::DeleteAddon(const CStdString &addonFolder)
 {
   CFileItemList list;
   list.Add(CFileItemPtr(new CFileItem(addonFolder, true)));
   list[0]->Select(true);
-  CJobManager::GetInstance().AddJob(new CFileOperationJob(CFileOperationJob::ActionDelete, list, ""), NULL);
+  CFileOperationJob job(CFileOperationJob::ActionDelete, list, "");
+  return job.DoWork();
 }
 
 bool CAddonInstallJob::Install(const CStdString &installFrom)
@@ -480,8 +481,8 @@ void CAddonInstallJob::OnPostInstall(bool reloadAddon)
   }
   if (m_addon->Type() == ADDON_SKIN)
   {
-    if (reloadAddon || CGUIDialogYesNo::ShowAndGetInput(m_addon->Name(),
-                                                        g_localizeStrings.Get(24099),"",""))
+    if (reloadAddon || (!m_update && CGUIDialogYesNo::ShowAndGetInput(m_addon->Name(),
+                                                        g_localizeStrings.Get(24099),"","")))
     {
       g_guiSettings.SetString("lookandfeel.skin",m_addon->ID().c_str());
       g_application.m_guiDialogKaiToast.ResetTimer();
@@ -536,4 +537,29 @@ bool CAddonInstallJob::CheckHash(const CStdString& zipFile)
 CStdString CAddonInstallJob::AddonID() const
 {
   return (m_addon) ? m_addon->ID() : "";
+}
+
+CAddonUnInstallJob::CAddonUnInstallJob(const AddonPtr &addon)
+: m_addon(addon) 
+{
+}
+
+bool CAddonUnInstallJob::DoWork()
+{
+  if (!CAddonInstallJob::DeleteAddon(m_addon->Path()))
+    return false;
+
+  OnPostUnInstall();
+
+  return true;
+}
+
+void CAddonUnInstallJob::OnPostUnInstall()
+{
+  if (m_addon->Type() == ADDON_REPOSITORY)
+  {
+    CAddonDatabase database;
+    database.Open();
+    database.DeleteRepository(m_addon->ID());
+  }
 }

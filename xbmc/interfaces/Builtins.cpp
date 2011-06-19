@@ -112,7 +112,6 @@ const BUILT_IN commands[] = {
   { "Suspend",                    false,  "Suspends the system" },
   { "RestartApp",                 false,  "Restart XBMC" },
   { "Minimize",                   false,  "Minimize XBMC" },
-  { "Credits",                    false,  "Run XBMCs Credits" },
   { "Reset",                      false,  "Reset the xbox (warm reboot)" },
   { "Mastermode",                 false,  "Control master mode" },
   { "ActivateWindow",             true,   "Activate the specified window" },
@@ -122,7 +121,7 @@ const BUILT_IN commands[] = {
 #if defined(__APPLE__)
   { "RunAppleScript",             true,   "Run the specified AppleScript command" },
 #endif
-  { "RunPlugin",                  true,   "Run the specified plugin. This command is deprecated, use PlayMedia instead" },
+  { "RunPlugin",                  true,   "Run the specified plugin" },
   { "RunAddon",                   true,   "Run the specified plugin/script" },
   { "Extract",                    true,   "Extracts the specified archive" },
   { "PlayMedia",                  true,   "Play the specified media file (or playlist)" },
@@ -190,6 +189,7 @@ const BUILT_IN commands[] = {
   { "Addon.Default.Set",          true,   "Open a select dialog to allow choosing the default addon of the given type" },
   { "Addon.OpenSettings",         true,   "Open a settings dialog for the addon of the given id" },
   { "UpdateAddonRepos",           false,  "Check add-on repositories for updates" },
+  { "UpdateLocalAddons",          false,  "Check for local add-on changes" },
   { "ToggleDPMS",                 false,  "Toggle DPMS mode manually"},
 #if defined(HAS_LIRC) || defined(HAS_IRSERVERSUITE)
   { "LIRC.Stop",                  false,  "Removes XBMC as LIRC client" },
@@ -305,12 +305,6 @@ int CBuiltins::Execute(const CStdString& execString)
   {
     CUtil::TakeScreenshot();
   }
-  else if (execute.Equals("credits"))
-  {
-#ifdef HAS_CREDITS
-    CUtil::RunCredits();
-#endif
-  }
   else if (execute.Equals("reset")) //Will reset the xbox, aka soft reset
   {
     g_application.getApplicationMessenger().Reset();
@@ -375,7 +369,7 @@ int CBuiltins::Execute(const CStdString& execString)
       if (CAddonMgr::Get().GetAddon(params[0], script))
         scriptpath = script->LibPath();
 
-      g_pythonParser.evalFile(scriptpath, argv);
+      g_pythonParser.evalFile(scriptpath, argv,script);
     }
   }
 #endif
@@ -433,13 +427,14 @@ int CBuiltins::Execute(const CStdString& execString)
   }
   else if (execute.Equals("runplugin"))
   {
-    CLog::Log(LOGWARNING,"RunPlugin() is deprecated, use PlayMedia() instead");
-    
     if (params.size())
     {
-      CStdString cmd(execString);
-      cmd.Replace("RunPlugin","PlayMedia");
-      return Execute(cmd);
+      CFileItem item(params[0]);
+      if (!item.m_bIsFolder)
+      {
+        item.m_strPath = params[0];
+        CPluginDirectory::RunScriptWithParams(item.m_strPath);
+      }
     }
     else
     {
@@ -1130,11 +1125,14 @@ int CBuiltins::Execute(const CStdString& execString)
       videoScan->Close(true);
     }
 
+    ADDON::CAddonMgr::Get().StopServices(true);
+
     g_application.getNetwork().NetworkMessage(CNetwork::SERVICES_DOWN,1);
     g_settings.LoadMasterForLogin();
     g_passwordManager.bMasterUser = false;
     g_windowManager.ActivateWindow(WINDOW_LOGIN_SCREEN);
-    g_application.StartEventServer(); // event server could be needed in some situations
+    if (!g_application.StartEventServer()) // event server could be needed in some situations
+      g_application.m_guiDialogKaiToast.QueueNotification("DefaultIconWarning.png", g_localizeStrings.Get(33102), g_localizeStrings.Get(33100));
   }
   else if (execute.Equals("pagedown"))
   {
@@ -1397,7 +1395,7 @@ int CBuiltins::Execute(const CStdString& execString)
     if (window)
       window->SetProperty(params[0],params[1]);
   }
-  else if (execute.Equals("clearproperty") && params.size() == 2)
+  else if (execute.Equals("clearproperty") && params.size())
   {
     CGUIWindow *window = g_windowManager.GetWindow(g_windowManager.GetFocusedWindow());
     if (window)
@@ -1443,6 +1441,10 @@ int CBuiltins::Execute(const CStdString& execString)
   else if (execute.Equals("updateaddonrepos"))
   {
     CAddonInstaller::Get().UpdateRepos(true);
+  }
+  else if (execute.Equals("updatelocaladdons"))
+  {
+    CAddonMgr::Get().FindAddons();
   }
   else if (execute.Equals("toggledpms"))
   {

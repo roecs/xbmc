@@ -85,6 +85,8 @@ public:
   bool Load(const CStdString& strFileName, bool bContainsPath = false);
 
   void CenterWindow();
+
+  virtual void DoProcess(unsigned int currentTime, CDirtyRegionList &dirtyregions);
   
   /*! \brief Main render function, called every frame.
    Window classes should override this only if they need to alter how something is rendered.
@@ -135,8 +137,8 @@ public:
   virtual CFileItemPtr GetCurrentListItem(int offset = 0) { return CFileItemPtr(); };
   virtual int GetViewContainerID() const { return 0; };
   virtual bool IsActive() const;
-  void SetCoordsRes(RESOLUTION res) { m_coordsRes = res; };
-  RESOLUTION GetCoordsRes() const { return m_coordsRes; };
+  void SetCoordsRes(const RESOLUTION_INFO &res) { m_coordsRes = res; };
+  const RESOLUTION_INFO &GetCoordsRes() const { return m_coordsRes; };
   void LoadOnDemand(bool loadOnDemand) { m_loadOnDemand = loadOnDemand; };
   bool GetLoadOnDemand() { return m_loadOnDemand; }
   int GetRenderOrder() { return m_renderOrder; };
@@ -218,7 +220,7 @@ protected:
   virtual void OnInitWindow();
   virtual void OnDeinitWindow(int nextWindowID);
   EVENT_RESULT OnMouseAction(const CAction &action);
-  virtual bool RenderAnimation(unsigned int time);
+  virtual bool Animate(unsigned int currentTime);
   virtual bool CheckAnimation(ANIMATION_TYPE animType);
 
   CAnimation *GetAnimation(ANIMATION_TYPE animType, bool checkConditions = true);
@@ -249,7 +251,7 @@ protected:
 
   int m_idRange;
   OVERLAY_STATE m_overlayState;
-  RESOLUTION m_coordsRes; // resolution that the window coordinates are in.
+  RESOLUTION_INFO m_coordsRes; // resolution that the window coordinates are in.
   bool m_needsScaling;
   bool m_windowLoaded;  // true if the window's xml file has been loaded
   bool m_loadOnDemand;  // true if the window should be loaded only as needed

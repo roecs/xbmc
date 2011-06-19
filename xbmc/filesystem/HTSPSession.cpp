@@ -24,14 +24,10 @@
 #include "video/VideoInfoTag.h"
 #include "FileItem.h"
 #include "utils/log.h"
-#ifdef _MSC_VER
-#include <winsock2.h>
-#define SHUT_RDWR SD_BOTH
-#define ETIMEDOUT WSAETIMEDOUT
-#else
+
 #include <netinet/in.h>
 #include <netinet/tcp.h>
-#endif
+#include <sys/socket.h>
 
 extern "C" {
 #include "libhts/net.h"

@@ -24,6 +24,7 @@
 #include "guilib/GUIDialog.h"
 #include "guilib/GUIListItem.h"
 #include "ThumbLoader.h"
+#include "video/VideoDatabase.h"
 
 class CFileItem;
 
@@ -47,7 +48,6 @@ protected:
   void Refresh();
   void Update();
   void SetLabel(int iControl, const CStdString& strLabel);
-  VIDEODB_CONTENT_TYPE GetContentType(const CFileItem *pItem) const;
 
   // link cast to movies
   void ClearCastList();

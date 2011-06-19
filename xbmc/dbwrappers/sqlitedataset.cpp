@@ -32,6 +32,10 @@
 #include "sqlitedataset.h"
 #include "system.h" // for Sleep(), OutputDebugString() and GetLastError()
 
+#ifdef _WIN32
+#pragma comment(lib, "sqlite3.lib")
+#endif
+
 using namespace std;
 
 namespace dbiplus {
@@ -467,6 +471,15 @@ void SqliteDataset::fill_fields() {
 
 
 //------------- public functions implementation -----------------//
+bool SqliteDataset::dropIndex(const char *table, const char *index)
+{
+  string sql;
+
+  sql = static_cast<SqliteDatabase*>(db)->prepare("DROP INDEX IF EXISTS %s", index);
+
+  return (exec(sql) == SQLITE_OK);
+}
+
 
 int SqliteDataset::exec(const string &sql) {
   if (!handle()) throw DbErrors("No Database Connection");
@@ -499,6 +512,17 @@ int SqliteDataset::exec(const string &sql) {
         }
       }
     }
+  }
+  // Strip ON table from DROP INDEX statements:
+  // before: DROP INDEX foo ON table
+  // after:  DROP INDEX foo
+  size_t pos = qry.find("DROP INDEX ");
+  if ( pos != string::npos )
+  {
+    pos = qry.find(" ON ", pos+1);
+
+    if ( pos != string::npos )
+      qry = qry.substr(0, pos);
   }
 
   if((res = db->setErr(sqlite3_exec(handle(),qry.c_str(),&callback,&exec_res,&errmsg),qry.c_str())) == SQLITE_OK)
@@ -656,9 +680,6 @@ void SqliteDataset::prev(void) {
 }
 
 void SqliteDataset::next(void) {
-#ifdef _XBOX
-  free_row();
-#endif
   Dataset::next();
   if (!eof()) 
       fill_fields();

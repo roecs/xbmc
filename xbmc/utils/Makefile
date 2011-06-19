@@ -16,11 +16,14 @@ SRCS=AlarmClock.cpp \
      FileUtils.cpp \
      fstrcmp.c \
      fft.cpp \
+     GLUtils.cpp \
      HTMLTable.cpp \
      HTMLUtil.cpp \
      HttpHeader.cpp \
      InfoLoader.cpp \
      JobManager.cpp \
+     JSONVariantParser.cpp \
+     JSONVariantWriter.cpp \
      LabelFormatter.cpp \
      LangCodeExpander.cpp \
      LCD.cpp \
@@ -31,6 +34,7 @@ SRCS=AlarmClock.cpp \
      PCMRemap.cpp \
      PerformanceSample.cpp \
      PerformanceStats.cpp \
+     RecentlyAddedJob.cpp \
      RegExp.cpp \
      RingBuffer.cpp \
      RssReader.cpp \
@@ -49,7 +53,6 @@ SRCS=AlarmClock.cpp \
      Weather.cpp \
      Win32Exception.cpp \
      XMLUtils.cpp \
-     GLUtils.cpp \
 
 LIB=utils.a
 

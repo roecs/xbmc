@@ -21,11 +21,11 @@
  */
 
 #include "IAddon.h"
+#include "addons/AddonVersion.h"
 #include "tinyXML/tinyxml.h"
 #include "Util.h"
 #include "URL.h"
 #include "guilib/LocalizeStrings.h"
-#include <ostream>
 
 class CURL;
 class TiXmlElement;
@@ -44,22 +44,6 @@ const CStdString    GetIcon(const TYPE &type);
       TYPE          TranslateType(const CStdString &string);
 const CStdString    UpdateVideoScraper(const CStdString &scraper);
 const CStdString    UpdateMusicScraper(const CStdString &scraper);
-
-class AddonVersion
-{
-public:
-  AddonVersion(const CStdString &str) : str(str) {}
-  bool operator==(const AddonVersion &rhs) const;
-  bool operator!=(const AddonVersion &rhs) const;
-  bool operator>(const AddonVersion &rhs) const;
-  bool operator>=(const AddonVersion &rhs) const;
-  bool operator<(const AddonVersion &rhs) const;
-  bool operator<=(const AddonVersion &rhs) const;
-  CStdString Print() const;
-  const char *c_str() const { return str.c_str(); };
-private:
-  CStdString str;
-};
 
 class AddonProps
 {
