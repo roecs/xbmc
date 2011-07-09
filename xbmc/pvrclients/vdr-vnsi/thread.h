@@ -25,10 +25,8 @@
 #include <stdio.h>
 #include <sys/types.h>
 #include "tools.h"
-
-#ifdef __WINDOWS__
-#include "pthread.h"
-#endif
+#include "libPlatform/os-dependent.h"
+#include "client.h"
 
 class cCondWait {
 private:

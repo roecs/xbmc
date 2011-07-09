@@ -79,7 +79,7 @@ PVR_ERROR MythXml::requestChannelList(PVR_HANDLE handle, bool bRadio){
 	cmd.execute(hostname_, port_, params, result, timeout_);
   
 	if(!result.isSuccess())
-	  return PVR_ERROR_UNKOWN;
+	  return PVR_ERROR_UNKNOWN;
 	
 	const vector<SChannel>& channellist = result.getChannels();
 	vector<SChannel>::const_iterator it;
@@ -110,7 +110,7 @@ PVR_ERROR MythXml::requestEPGForChannel(PVR_HANDLE handle, const PVR_CHANNEL &ch
 	cmd.execute(hostname_, port_, params, result, timeout_);
   
 	if(!result.isSuccess())
-	  return PVR_ERROR_UNKOWN;
+	  return PVR_ERROR_UNKNOWN;
 	
 	EPG_TAG guideItem;
 	const vector<SEpg>& epgInfo = result.getEpg();
@@ -130,6 +130,7 @@ PVR_ERROR MythXml::requestEPGForChannel(PVR_HANDLE handle, const PVR_CHANNEL &ch
 	  guideItem.strPlot     = epg.description;
 	  guideItem.iGenreType      = epg.genre_type;
 	  guideItem.iGenreSubType  = epg.genre_subtype;
+	  guideItem.strGenreDescription = "";
 	  guideItem.iParentalRating = epg.parental_rating;
 	  guideItem.startTime       = itemStart;
 	  guideItem.endTime         = itemEnd;

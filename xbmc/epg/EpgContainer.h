@@ -30,6 +30,7 @@
 #include "EpgDatabase.h"
 
 class CFileItemList;
+class CGUIDialogExtendedProgressBar;
 
 namespace EPG
 {
@@ -57,9 +58,11 @@ namespace EPG
     bool         m_bDatabaseLoaded;    /*!< true if we already loaded the EPG from the database */
     time_t       m_iLastEpgCleanup;    /*!< the time the EPG was cleaned up */
     time_t       m_iLastEpgUpdate;     /*!< the time the EPG was updated */
+    time_t       m_iLastEpgActiveTagCheck; /*!< the time the EPG checked for active tag updates */
     //@}
 
-    CCriticalSection m_critSection;    /*!< a critical section for changes to this container */
+    CGUIDialogExtendedProgressBar *m_progressDialog; /*!< the progress dialog that is visible when updating the first time */
+    CCriticalSection               m_critSection;    /*!< a critical section for changes to this container */
 
     /*!
      * @brief Load the EPG settings.
@@ -112,7 +115,6 @@ namespace EPG
      */
     virtual CEpg *CreateEpg(int iEpgId);
 
-  protected:
     /*!
      * @brief EPG update thread
      */
@@ -230,5 +232,16 @@ namespace EPG
      * @return The table or NULL if it wasn't found.
      */
     virtual CEpg *GetByIndex(unsigned int iIndex) const;
+
+    /*!
+     * @brief Notify EPG table observers when the currently active tag changed.
+     * @return True if the check was done, false if it was not the right time to check
+     */
+    virtual bool CheckPlayingEvents(void);
+
+    /*!
+     * @brief Close the progress bar if it's visible.
+     */
+    virtual void CloseUpdateDialog(void);
   };
 }

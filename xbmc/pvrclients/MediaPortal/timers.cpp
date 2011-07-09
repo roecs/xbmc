@@ -1,5 +1,5 @@
 /*
- *      Copyright (C) 2005-2010 Team XBMC
+ *      Copyright (C) 2005-2011 Team XBMC
  *      http://www.xbmc.org
  *
  *  This program is free software: you can redistribute it and/or modify
@@ -19,15 +19,14 @@
 
 #include <vector>
 #include <stdio.h>
+#include <stdlib.h>
 
 using namespace std;
 
+#include "os-dependent.h" //needed for snprintf
 #include "client.h"
 #include "timers.h"
 #include "utils.h"
-
-const time_t cUndefinedDate = 946681200;   ///> 01-01-2000 00:00:00 in time_t
-const int    cSecsInDay  = 86400;          ///> Amount of seconds in one day
 
 cTimer::cTimer()
 {
@@ -44,17 +43,19 @@ cTimer::cTimer()
   m_postrecordinterval = -1; // Use MediaPortal setting instead
   m_canceled           = cUndefinedDate;
   m_series             = false;
-  m_UTCdiff            = GetUTCdifftime();
 }
+
 
 cTimer::cTimer(const PVR_TIMER& timerinfo)
 {
   m_index = timerinfo.iClientIndex;
-  m_active = timerinfo.bIsActive;
+  m_active = (timerinfo.state == PVR_TIMER_STATE_SCHEDULED || timerinfo.state == PVR_TIMER_STATE_RECORDING);
   if(!m_active)
   {
     time(&m_canceled);
-  } else {
+  }
+  else
+  {
     // Don't know when it was cancelled, so assume that it was canceled now...
     // backend (TVServerXBMC) will only update the canceled date time when
     // this schedule was just canceled
@@ -62,13 +63,12 @@ cTimer::cTimer(const PVR_TIMER& timerinfo)
   }
  
   m_title = timerinfo.strTitle;
-  //m_title.Replace(",","");  //Remove commas from title field => still needed?
   m_directory = timerinfo.strDirectory;
   m_channel = timerinfo.iClientChannelUid;
   m_starttime = timerinfo.startTime;
   m_endtime = timerinfo.endTime;
   //m_firstday = timerinfo.firstday;
-  m_isrecording = timerinfo.bIsRecording;
+  m_isrecording = timerinfo.state == PVR_TIMER_STATE_RECORDING;
   m_priority = XBMC2MepoPriority(timerinfo.iPriority);
 
   SetKeepMethod(timerinfo.iLifetime);
@@ -81,8 +81,6 @@ cTimer::cTimer(const PVR_TIMER& timerinfo)
 
   m_prerecordinterval = timerinfo.iMarginStart;
   m_postrecordinterval = timerinfo.iMarginEnd;
-
-  m_UTCdiff = GetUTCdifftime();
 }
 
 
@@ -91,13 +89,18 @@ cTimer::~cTimer()
 }
 
 /**
- * @brief Fills the PVR_TIMERINFO_OLD struct with information from this timer
- * @param tag A reference to the PVR_TIMERINFO_OLD struct
+ * @brief Fills the PVR_TIMER struct with information from this timer
+ * @param tag A reference to the PVR_TIMER struct
  */
 void cTimer::GetPVRtimerinfo(PVR_TIMER &tag)
 {
   tag.iClientIndex      = m_index;
-  tag.bIsActive         = m_active;
+  if (m_active)
+    tag.state           = PVR_TIMER_STATE_SCHEDULED;
+  else if (IsRecording())
+    tag.state           = PVR_TIMER_STATE_RECORDING;
+  else
+    tag.state           = PVR_TIMER_STATE_CANCELLED;
   tag.iClientChannelUid = m_channel;
   tag.strTitle          = m_title.c_str();
   tag.strDirectory      = m_directory.c_str();
@@ -112,7 +115,6 @@ void cTimer::GetPVRtimerinfo(PVR_TIMER &tag)
   } else {
     tag.firstDay        = 0;
   }
-  tag.bIsRecording      = IsRecording();
   tag.iPriority         = Priority();
   tag.iLifetime         = GetLifetime();
   tag.bIsRepeating      = Repeat();
@@ -135,11 +137,6 @@ time_t cTimer::EndTime(void) const
 
 bool cTimer::ParseLine(const char *s)
 {
-  struct tm timeinfo;
-  int year, month ,day;
-  int hour, minute, second;
-  int count;
-
   vector<string> schedulefields;
   string data = s;
   uri::decode(data);
@@ -168,47 +165,12 @@ bool cTimer::ParseLine(const char *s)
     // field 17 = isrecording (True/False)
 
     m_index = atoi(schedulefields[0].c_str());
-
-    count = sscanf(schedulefields[1].c_str(), "%d-%d-%d %d:%d:%d", &year, &month, &day, &hour, &minute, &second);
-
-    if(count != 6)
-      return false;
-
-    //timeinfo = *localtime ( &rawtime );
-    timeinfo.tm_hour = hour;
-    timeinfo.tm_min = minute;
-    timeinfo.tm_sec = second;
-    timeinfo.tm_year = year - 1900;
-    timeinfo.tm_mon = month - 1;
-    timeinfo.tm_mday = day;
-    // Make the other fields empty:
-    timeinfo.tm_isdst = -1;
-    timeinfo.tm_wday = 0;
-    timeinfo.tm_yday = 0;
-
-    m_starttime = mktime (&timeinfo);
+    m_starttime = DateTimeToTimeT(schedulefields[1]);
 
     if( m_starttime < 0)
       return false;
 
-    count = sscanf(schedulefields[2].c_str(), "%d-%d-%d %d:%d:%d", &year, &month, &day, &hour, &minute, &second);
-
-    if( count != 6)
-      return false;
-
-    //timeinfo2 = *localtime ( &rawtime );
-    timeinfo.tm_hour = hour;
-    timeinfo.tm_min = minute;
-    timeinfo.tm_sec = second;
-    timeinfo.tm_year = year - 1900;
-    timeinfo.tm_mon = month - 1;
-    timeinfo.tm_mday = day;
-    // Make the other fields empty:
-    timeinfo.tm_isdst = -1;
-    timeinfo.tm_wday = 0;
-    timeinfo.tm_yday = 0;
-
-    m_endtime = mktime (&timeinfo);
+    m_endtime = DateTimeToTimeT(schedulefields[2]);
 
     if( m_endtime < 0)
       return false;
@@ -224,27 +186,10 @@ bool cTimer::ParseLine(const char *s)
     m_directory = schedulefields[10];
     
     if(schedulefields.size() >= 18)
-    { //TVServerXBMC build >= 100
+    {
+      //TVServerXBMC build >= 100
       m_keepmethod = (KeepMethodType) atoi(schedulefields[11].c_str());
-
-      count = sscanf(schedulefields[12].c_str(), "%d-%d-%d %d:%d:%d", &year, &month, &day, &hour, &minute, &second);
-
-      if(count != 6)
-        return false;
-
-      //timeinfo = *localtime ( &rawtime );
-      timeinfo.tm_hour = hour;
-      timeinfo.tm_min = minute;
-      timeinfo.tm_sec = second;
-      timeinfo.tm_year = year - 1900;
-      timeinfo.tm_mon = month - 1;
-      timeinfo.tm_mday = day;
-      // Make the other fields empty:
-      timeinfo.tm_isdst = -1;
-      timeinfo.tm_wday = 0;
-      timeinfo.tm_yday = 0;
-
-      m_keepdate = mktime (&timeinfo);
+      m_keepdate = DateTimeToTimeT(schedulefields[12]);
 
       if( m_keepdate < 0)
         return false;
@@ -260,30 +205,16 @@ bool cTimer::ParseLine(const char *s)
       }
       else
       {
-        count = sscanf(schedulefields[15].c_str(), "%d-%d-%d %d:%d:%d", &year, &month, &day, &hour, &minute, &second);
-
-        if(count != 6)
-          return false;
-
-        //timeinfo = *localtime ( &rawtime );
-        timeinfo.tm_hour = hour;
-        timeinfo.tm_min = minute;
-        timeinfo.tm_sec = second;
-        timeinfo.tm_year = year - 1900;
-        timeinfo.tm_mon = month - 1;
-        timeinfo.tm_mday = day;
-        // Make the other fields empty:
-        timeinfo.tm_isdst = -1;
-        timeinfo.tm_wday = 0;
-        timeinfo.tm_yday = 0;
-
+        m_canceled = DateTimeToTimeT(schedulefields[15]);
         m_active = false;
       }
 
       m_series = stringtobool(schedulefields[16]);
       m_isrecording = stringtobool(schedulefields[17]);
 
-    } else {
+    }
+    else
+    {
       m_keepmethod = UntilSpaceNeeded;
       m_keepdate = cUndefinedDate;
       m_prerecordinterval = -1;
@@ -483,17 +414,15 @@ std::string cTimer::UpdateScheduleCommand()
             endtime.tm_hour, endtime.tm_min, endtime.tm_sec);                  //End time
   }
 
-  //result = command;
-
   return command;
 }
 
 
 int cTimer::XBMC2MepoPriority(int xbmcprio)
 {
-  //From XBMC side: 0.99 where 0=lowest and 99=highest priority (like VDR). Default value: 50
-  //Meaning of the MediaPortal field is unknown to me. Default seems to be 0.
-  //TODO: figure out the mapping
+  // From XBMC side: 0.99 where 0=lowest and 99=highest priority (like VDR). Default value: 50
+  // Meaning of the MediaPortal field is unknown to me. Default seems to be 0.
+  // TODO: figure out the mapping
   return 0;
 }
 
@@ -503,7 +432,7 @@ int cTimer::Mepo2XBMCPriority(int mepoprio)
 }
 
 
-/**
+/*
  * @brief Convert a XBMC Lifetime value to MediaPortals keepMethod+keepDate settings
  * @param lifetime the XBMC lifetime value (in days) (following the VDR syntax)
  * Should be called after setting m_starttime !!
@@ -521,11 +450,13 @@ void cTimer::SetKeepMethod(int lifetime)
   {
     m_keepmethod = UntilSpaceNeeded;
     m_keepdate = cUndefinedDate;
-  } else if (lifetime == 99)
+  }
+  else if (lifetime == 99)
   {
     m_keepmethod = Forever;
     m_keepdate = cUndefinedDate;
-  } else
+  }
+  else
   {
     m_keepmethod = UntilKeepDate;
     m_keepdate = m_starttime + (lifetime * cSecsInDay);

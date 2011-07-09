@@ -29,8 +29,9 @@
 #include "guideprogram.h"
 
 #ifdef TSREADER
-#include "lib/tsreader/TSReader.h"
+//#include "lib/tsreader/TSReader.h"
 #include "KeepAliveThread.h"
+class CTsReader;
 #endif
 
 class cPVRClientForTheRecord
@@ -102,7 +103,7 @@ private:
   bool FetchRecordingDetails(const Json::Value& data, cRecording& recording);
   bool FetchGuideProgramDetails(std::string Id, cGuideProgram& guideprogram);
 
-  //int                     m_iCurrentChannel;
+  int                     m_iCurrentChannel;
   bool                    m_bConnected;
   //bool                    m_bStop;
   bool                    m_bTimeShiftStarted;

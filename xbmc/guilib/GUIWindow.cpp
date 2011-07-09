@@ -24,10 +24,10 @@
 #include "GUIWindowManager.h"
 #include "Key.h"
 #include "LocalizeStrings.h"
-#include "settings/Settings.h"
 #include "GUIControlFactory.h"
 #include "GUIControlGroup.h"
 #include "GUIControlProfiler.h"
+#include "settings/Settings.h"
 #ifdef PRE_SKIN_VERSION_9_10_COMPATIBILITY
 #include "GUIEditControl.h"
 #endif
@@ -53,7 +53,6 @@ CGUIWindow::CGUIWindow(int id, const CStdString &xmlFile)
   m_idRange = 1;
   m_lastControlID = 0;
   m_overlayState = OVERLAY_STATE_PARENT_WINDOW;   // Use parent or previous window's state
-  m_coordsRes = g_guiSettings.m_LookAndFeelResolution;
   m_isDialog = false;
   m_needsScaling = true;
   m_windowLoaded = false;
@@ -83,7 +82,6 @@ bool CGUIWindow::Load(const CStdString& strFileName, bool bContainsPath)
   int64_t start;
   start = CurrentHostCounter();
 #endif
-  RESOLUTION resToUse = RES_INVALID;
   CLog::Log(LOGINFO, "Loading skin file: %s", strFileName.c_str());
   
   // Find appropriate skin folder + resolution to load from
@@ -94,12 +92,9 @@ bool CGUIWindow::Load(const CStdString& strFileName, bool bContainsPath)
   else
   {
     // FIXME: strLowerPath needs to eventually go since resToUse can get incorrectly overridden
-    strLowerPath =  g_SkinInfo->GetSkinPath(CStdString(strFileName).ToLower(), &resToUse);
-    strPath = g_SkinInfo->GetSkinPath(strFileName, &resToUse);
+    strLowerPath =  g_SkinInfo->GetSkinPath(CStdString(strFileName).ToLower(), &m_coordsRes);
+    strPath = g_SkinInfo->GetSkinPath(strFileName, &m_coordsRes);
   }
-
-  if (!bContainsPath)
-    m_coordsRes = resToUse;
 
   bool ret = LoadXML(strPath.c_str(), strLowerPath.c_str());
 
@@ -176,7 +171,7 @@ bool CGUIWindow::Load(TiXmlDocument &xmlDoc)
     }
     else if (strValue == "animation" && pChild->FirstChild())
     {
-      CRect rect(0, 0, (float)g_settings.m_ResInfo[m_coordsRes].iWidth, (float)g_settings.m_ResInfo[m_coordsRes].iHeight);
+      CRect rect(0, 0, (float)m_coordsRes.iWidth, (float)m_coordsRes.iHeight);
       CAnimation anim;
       anim.Create(pChild, rect);
       m_animations.push_back(anim);
@@ -241,7 +236,7 @@ void CGUIWindow::LoadControl(TiXmlElement* pControl, CGUIControlGroup *pGroup)
   // get control type
   CGUIControlFactory factory;
 
-  CRect rect(0, 0, (float)g_settings.m_ResInfo[m_coordsRes].iWidth, (float)g_settings.m_ResInfo[m_coordsRes].iHeight);
+  CRect rect(0, 0, (float)m_coordsRes.iWidth, (float)m_coordsRes.iHeight);
   if (pGroup)
   {
     rect.x1 = pGroup->GetXPosition();
@@ -288,8 +283,15 @@ void CGUIWindow::OnWindowLoaded()
 
 void CGUIWindow::CenterWindow()
 {
-  m_posX = (g_settings.m_ResInfo[m_coordsRes].iWidth - GetWidth()) / 2;
-  m_posY = (g_settings.m_ResInfo[m_coordsRes].iHeight - GetHeight()) / 2;
+  m_posX = (m_coordsRes.iWidth - GetWidth()) / 2;
+  m_posY = (m_coordsRes.iHeight - GetHeight()) / 2;
+}
+
+void CGUIWindow::DoProcess(unsigned int currentTime, CDirtyRegionList &dirtyregions)
+{
+  g_graphicsContext.SetRenderingResolution(m_coordsRes, m_needsScaling);
+  g_graphicsContext.ResetWindowTransform();
+  CGUIControlGroup::DoProcess(currentTime, dirtyregions);
 }
 
 void CGUIWindow::Render()
@@ -302,14 +304,7 @@ void CGUIWindow::Render()
 
   g_graphicsContext.SetRenderingResolution(m_coordsRes, m_needsScaling);
 
-  m_renderTime = CTimeUtils::GetFrameTime();
-  // render our window animation - returns false if it needs to stop rendering
-  if (!RenderAnimation(m_renderTime))
-    return;
-
-  if (m_hasCamera)
-    g_graphicsContext.SetCameraPosition(m_camera);
-
+  g_graphicsContext.ResetWindowTransform();
   CGUIControlGroup::Render();
 
   if (CGUIControlProfiler::IsRunning()) CGUIControlProfiler::Instance().EndFrame();
@@ -434,7 +429,11 @@ void CGUIWindow::OnDeinitWindow(int nextWindowID)
       QueueAnimation(ANIM_TYPE_WINDOW_CLOSE);
       while (IsAnimating(ANIM_TYPE_WINDOW_CLOSE))
       {
-        g_windowManager.Process(true);
+        // TODO This shouldn't be handled like this
+        // The processing should be done from WindowManager and deinit
+        // should probably be called from there.
+        g_windowManager.Process(CTimeUtils::GetFrameTime());
+        g_windowManager.ProcessRenderLoop(true);
       }
     }
   }
@@ -555,7 +554,8 @@ bool CGUIWindow::OnMessage(CGUIMessage& message)
       {
         if (message.GetParam1() == GUI_MSG_PAGE_CHANGE ||
             message.GetParam1() == GUI_MSG_REFRESH_THUMBS ||
-            message.GetParam1() == GUI_MSG_REFRESH_LIST)
+            message.GetParam1() == GUI_MSG_REFRESH_LIST ||
+            message.GetParam1() == GUI_MSG_WINDOW_RESIZE)
         { // alter the message accordingly, and send to all controls
           for (iControls it = m_children.begin(); it != m_children.end(); ++it)
           {
@@ -563,12 +563,6 @@ bool CGUIWindow::OnMessage(CGUIMessage& message)
             CGUIMessage msg(message.GetParam1(), message.GetControlId(), control->GetID(), message.GetParam2());
             control->OnMessage(msg);
           }
-        }
-        if (message.GetParam1() == GUI_MSG_WINDOW_RESIZE)
-        {
-          // invalidate controls to get them to recalculate sizing information
-          SetInvalid();
-          return true;
         }
       }
     }
@@ -672,14 +666,15 @@ bool CGUIWindow::IsAnimating(ANIMATION_TYPE animType)
   return CGUIControlGroup::IsAnimating(animType);
 }
 
-bool CGUIWindow::RenderAnimation(unsigned int time)
+bool CGUIWindow::Animate(unsigned int currentTime)
 {
-  g_graphicsContext.ResetWindowTransform();
   if (m_animationsEnabled)
-    CGUIControlGroup::Animate(time);
+    return CGUIControlGroup::Animate(currentTime);
   else
+  {
     m_transform.Reset();
-  return true;
+    return false;
+  }
 }
 
 void CGUIWindow::DisableAnimations()
@@ -787,7 +782,7 @@ void CGUIWindow::SetDefaults()
   m_hasCamera = false;
   m_animationsEnabled = true;
   m_clearBackground = 0xff000000; // opaque black -> clear
-  m_hitRect.SetRect(0, 0, (float)g_settings.m_ResInfo[m_coordsRes].iWidth, (float)g_settings.m_ResInfo[m_coordsRes].iHeight);
+  m_hitRect.SetRect(0, 0, (float)m_coordsRes.iWidth, (float)m_coordsRes.iHeight);
 }
 
 CRect CGUIWindow::GetScaledBounds() const

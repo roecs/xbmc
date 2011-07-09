@@ -24,6 +24,7 @@
  */
 
 #include "tools.h"
+#include "libPlatform/os-dependent.h"
 
 // --- cTimeMs ---------------------------------------------------------------
 
@@ -91,4 +92,3 @@ uint64_t cTimeMs::Elapsed(void)
 {
   return Now() - begin;
 }
-

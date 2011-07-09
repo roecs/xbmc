@@ -57,7 +57,7 @@ namespace PVR
      * @brief Get the minimal database version that is required to operate correctly.
      * @return The minimal database version.
      */
-    virtual int GetMinVersion() const { return 12; };
+    virtual int GetMinVersion() const { return 15; };
 
     /*!
      * @brief Get the default sqlite database filename.
@@ -142,13 +142,13 @@ namespace PVR
     //@{
 
     bool RemoveChannelsFromGroup(const CPVRChannelGroup &group);
+    bool RemoveStaleChannelsFromGroup(const CPVRChannelGroup &group);
 
     /*!
      * @brief Remove all channel groups from the database
-     * @param bRadio Remove all radio channel groups if true. Remove TV channel groups otherwise.
      * @return True if all channel groups were removed.
      */
-    bool DeleteChannelGroups(bool bRadio = false);
+    bool DeleteChannelGroups(void);
 
     /*!
      * @brief Delete a channel group from the database.
@@ -174,9 +174,9 @@ namespace PVR
     /*!
      * @brief Add or update a channel group entry in the database.
      * @param group The group to persist.
-     * @return The database ID of the group.
+     * @return True if the group was persisted successfully, false otherwise.
      */
-    int Persist(CPVRChannelGroup *group);
+    bool Persist(CPVRChannelGroup &group);
 
     //@}
 
@@ -211,6 +211,8 @@ namespace PVR
      * @return The database ID of the client or -1 if it wasn't found.
      */
     int GetClientId(const CStdString &strClientUid);
+
+    bool PersistGroupMembers(CPVRChannelGroup &group);
 
     //@}
 

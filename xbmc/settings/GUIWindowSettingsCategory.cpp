@@ -618,7 +618,7 @@ void CGUIWindowSettingsCategory::CreateSettings()
       pControl->AddLabel(g_localizeStrings.Get(13509), RESAMPLE_REALLYHIGH);
       pControl->SetValue(pSettingInt->GetData());
     }
-    else if (strSetting.Equals("pvrmenu.defaultguideview"))
+    else if (strSetting.Equals("epg.defaultguideview"))
     {
       CSettingInt *pSettingInt = (CSettingInt*)pSetting;
       CGUISpinControlEx *pControl = (CGUISpinControlEx *)GetControl(GetSetting(strSetting)->GetID());
@@ -719,7 +719,8 @@ void CGUIWindowSettingsCategory::UpdateSettings()
       if ( remoteMode != APPLE_REMOTE_DISABLED )
       {
         g_guiSettings.SetBool("services.esenabled", true);
-        g_application.StartEventServer();
+        if (!g_application.StartEventServer())
+          g_application.m_guiDialogKaiToast.QueueNotification("DefaultIconWarning.png", g_localizeStrings.Get(33102), g_localizeStrings.Get(33100));
       }
 
       // if XBMC helper is running, prompt user before effecting change
@@ -795,7 +796,9 @@ void CGUIWindowSettingsCategory::UpdateSettings()
       CGUIControl *pControl = (CGUIControl *)GetControl(pSettingControl->GetID());
       if (pControl) pControl->SetEnabled(g_settings.GetMasterProfile().getLockMode() != LOCK_MODE_EVERYONE);
     }
-    else if (!strSetting.Equals("pvr.enabled") && strSetting.Left(4).Equals("pvrmanager."))
+    else if (!strSetting.Equals("pvrmanager.enabled") &&
+        (strSetting.Equals("pvrmanager.channelscan") || strSetting.Equals("pvrmanager.channelmanager") ||
+         strSetting.Equals("pvrmenu.searchicons")))
     {
       CGUIControl *pControl = (CGUIControl *)GetControl(pSettingControl->GetID());
       if (pControl) pControl->SetEnabled(g_guiSettings.GetBool("pvrmanager.enabled"));
@@ -848,13 +851,8 @@ void CGUIWindowSettingsCategory::UpdateSettings()
                                          g_guiSettings.GetString("audiooutput.audiodevice").find("wasapi:") == CStdString::npos);
     }
 #ifdef HAS_WEB_SERVER
-    else if (strSetting.Equals("services.webserverusername"))
-    {
-      CGUIEditControl *pControl = (CGUIEditControl *)GetControl(pSettingControl->GetID());
-      if (pControl)
-        pControl->SetEnabled(g_guiSettings.GetBool("services.webserver"));
-    }
-    else if (strSetting.Equals("services.webserverpassword"))
+    else if (strSetting.Equals("services.webserverusername") ||
+             strSetting.Equals("services.webserverpassword"))
     {
       CGUIEditControl *pControl = (CGUIEditControl *)GetControl(pSettingControl->GetID());
       if (pControl)
@@ -1050,13 +1048,6 @@ void CGUIWindowSettingsCategory::UpdateSettings()
           pControl->SetEnabled(addon->HasSettings());
       }
     }
-    else if (!strSetting.Equals("pvrmanager.enabled")
-             && !strSetting.Equals("pvrmanager.resetdb")
-             && strSetting.Left(3).Equals("pvr"))
-    {
-      CGUIControl *pControl = (CGUIControl *)GetControl(pSettingControl->GetID());
-      if (pControl) pControl->SetEnabled(g_guiSettings.GetBool("pvrmanager.enabled"));
-    }
 #if defined(_LINUX) && !defined(__APPLE__)
     else if (strSetting.Equals("audiooutput.custompassthrough"))
     {
@@ -1100,6 +1091,9 @@ void CGUIWindowSettingsCategory::OnClick(CBaseSettingControl *pSettingControl)
       if (g_weatherManager.GetSearchResults(strSearch, strResult))
       {
         ((CSettingString *)pSettingControl->GetSetting())->SetData(strResult);
+        // Update the labels on the location spinner
+        g_weatherManager.Reset();
+        // Refresh the weather using the new location
         g_weatherManager.Refresh();
       }
     }
@@ -1368,7 +1362,11 @@ void CGUIWindowSettingsCategory::OnSettingChanged(CBaseSettingControl *pSettingC
       ValidatePortNumber(pSettingControl, "8080", "80");
     g_application.StopWebServer();
     if (g_guiSettings.GetBool("services.webserver"))
-      g_application.StartWebServer();
+      if (!g_application.StartWebServer())
+      {
+        CGUIDialogOK::ShowAndGetInput(g_localizeStrings.Get(33101), "", g_localizeStrings.Get(33100), "");
+        g_guiSettings.SetBool("services.webserver", false);
+      }
   }
   else if (strSetting.Equals("services.webserverusername") || strSetting.Equals("services.webserverpassword"))
   {
@@ -1728,7 +1726,15 @@ void CGUIWindowSettingsCategory::OnSettingChanged(CBaseSettingControl *pSettingC
   {
 #ifdef HAS_EVENT_SERVER
     if (g_guiSettings.GetBool("services.esenabled"))
-      g_application.StartEventServer();
+    {
+      if (!g_application.StartEventServer())
+      {
+        CGUIDialogOK::ShowAndGetInput(g_localizeStrings.Get(33102), "", g_localizeStrings.Get(33100), "");
+        g_guiSettings.SetBool("services.esenabled", false);
+        CGUIControl *pControl = (CGUIControl *)GetControl(pSettingControl->GetID());
+        if (pControl) pControl->SetEnabled(false);
+      }
+    }
     else
     {
       if (!g_application.StopEventServer(true, true))
@@ -1739,10 +1745,15 @@ void CGUIWindowSettingsCategory::OnSettingChanged(CBaseSettingControl *pSettingC
       }
     }
 #endif
+#ifdef HAS_JSONRPC
     if (g_guiSettings.GetBool("services.esenabled"))
-      g_application.StartJSONRPCServer();
+    {
+      if (!g_application.StartJSONRPCServer())
+        CGUIDialogOK::ShowAndGetInput(g_localizeStrings.Get(33103), "", g_localizeStrings.Get(33100), "");
+    }
     else
       g_application.StopJSONRPCServer(false);
+#endif
   }
   else if (strSetting.Equals("services.esport"))
   {
@@ -1750,7 +1761,10 @@ void CGUIWindowSettingsCategory::OnSettingChanged(CBaseSettingControl *pSettingC
     ValidatePortNumber(pSettingControl, "9777", "9777");
     //restart eventserver without asking user
     if (g_application.StopEventServer(true, false))
-      g_application.StartEventServer();
+    {
+      if (!g_application.StartEventServer())
+        CGUIDialogOK::ShowAndGetInput(g_localizeStrings.Get(33102), "", g_localizeStrings.Get(33100), "");
+    }
 #if defined(__APPLE__) && !defined(__arm__)
     //reconfigure XBMCHelper for port changes
     XBMCHelper::GetInstance().Configure();
@@ -1763,7 +1777,10 @@ void CGUIWindowSettingsCategory::OnSettingChanged(CBaseSettingControl *pSettingC
     if (g_guiSettings.GetBool("services.esenabled"))
     {
       if (g_application.StopEventServer(true, true))
-        g_application.StartEventServer();
+      {
+        if (!g_application.StartEventServer())
+          CGUIDialogOK::ShowAndGetInput(g_localizeStrings.Get(33102), "", g_localizeStrings.Get(33100), "");
+      }
       else
       {
         g_guiSettings.SetBool("services.esenabled", true);
@@ -1772,10 +1789,15 @@ void CGUIWindowSettingsCategory::OnSettingChanged(CBaseSettingControl *pSettingC
       }
     }
 #endif
+#ifdef HAS_JSONRPC
     if (g_guiSettings.GetBool("services.esenabled"))
-      g_application.StartJSONRPCServer();
+    {
+      if (!g_application.StartJSONRPCServer())
+        CGUIDialogOK::ShowAndGetInput(g_localizeStrings.Get(33103), "", g_localizeStrings.Get(33100), "");
+    }
     else
       g_application.StopJSONRPCServer(false);
+#endif
   }
   else if (strSetting.Equals("services.esinitialdelay") ||
            strSetting.Equals("services.escontinuousdelay"))
@@ -1921,7 +1943,7 @@ void CGUIWindowSettingsCategory::OnSettingChanged(CBaseSettingControl *pSettingC
   {
     CUtil::DeleteVideoDatabaseDirectoryCache();
   }
-  else if (strSetting.Equals("pvrmenu.searchicons"))
+  else if (strSetting.Equals("pvrmenu.searchicons") && g_PVRManager.IsStarted())
   {
     g_PVRManager.SearchMissingChannelIcons();
   }
@@ -1935,12 +1957,12 @@ void CGUIWindowSettingsCategory::OnSettingChanged(CBaseSettingControl *pSettingC
     if (CGUIDialogYesNo::ShowAndGetInput(19098, 19188, 750, 0))
       g_PVRManager.ResetEPG();
   }
-  else if (strSetting.Equals("pvrmanager.channelscan"))
+  else if (strSetting.Equals("pvrmanager.channelscan") && g_PVRManager.IsStarted())
   {
     if (CGUIDialogYesNo::ShowAndGetInput(19098, 19118, 19194, 0))
       g_PVRManager.StartChannelScan();
   }
-  else if (strSetting.Equals("pvrmanager.channelmanager"))
+  else if (strSetting.Equals("pvrmanager.channelmanager") && g_PVRManager.IsStarted())
   {
     CGUIDialogPVRChannelManager *dialog = (CGUIDialogPVRChannelManager *)g_windowManager.GetWindow(WINDOW_DIALOG_PVR_CHANNEL_MANAGER);
     if (dialog)
@@ -2063,7 +2085,7 @@ void CGUIWindowSettingsCategory::FrameMove()
   CGUIWindow::FrameMove();
 }
 
-void CGUIWindowSettingsCategory::Render()
+void CGUIWindowSettingsCategory::DoProcess(unsigned int currentTime, CDirtyRegionList &dirtyregions)
 {
   // update alpha status of current button
   bool bAlphaFaded = false;
@@ -2083,7 +2105,7 @@ void CGUIWindowSettingsCategory::Render()
       bAlphaFaded = true;
     }
   }
-  CGUIWindow::Render();
+  CGUIWindow::DoProcess(currentTime, dirtyregions);
   if (bAlphaFaded)
   {
     control->SetFocus(false);
@@ -2092,6 +2114,11 @@ void CGUIWindowSettingsCategory::Render()
     else
       ((CGUIButtonControl *)control)->SetSelected(false);
   }
+}
+
+void CGUIWindowSettingsCategory::Render()
+{
+  CGUIWindow::Render();
   // render the error message if necessary
   if (m_strErrorMessage.size())
   {
@@ -2372,7 +2399,8 @@ DisplayMode CGUIWindowSettingsCategory::FillInScreens(CStdString strSetting, RES
   pControl->Clear();
 
   CStdString strScreen;
-  pControl->AddLabel(g_localizeStrings.Get(242), -1);
+  if (g_advancedSettings.m_canWindowed)
+    pControl->AddLabel(g_localizeStrings.Get(242), -1);
 
   for (int idx = 0; idx < g_Windowing.GetNumScreens(); idx++)
   {

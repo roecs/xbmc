@@ -26,7 +26,6 @@
 #include <vector>
 #include <map>
 
-#include "pvrclient-tvheadend_os.h"
 #include "utils/StdString.h"
 
 typedef struct htsmsg htsmsg_t;
@@ -161,11 +160,11 @@ struct SEvent
 };
 
 typedef enum recording_state {
-  ST_SCHEDULED,
-  ST_RECORDING,
-  ST_COMPLETED,
-  ST_ABORTED,
-  ST_INVALID
+  ST_INVALID   = 0,
+  ST_SCHEDULED = 1,
+  ST_RECORDING = 2,
+  ST_COMPLETED = 3,
+  ST_ABORTED   = 4
 } ERecordingState;
 
 struct SRecording

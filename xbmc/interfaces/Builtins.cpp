@@ -112,7 +112,6 @@ const BUILT_IN commands[] = {
   { "Suspend",                    false,  "Suspends the system" },
   { "RestartApp",                 false,  "Restart XBMC" },
   { "Minimize",                   false,  "Minimize XBMC" },
-  { "Credits",                    false,  "Run XBMCs Credits" },
   { "Reset",                      false,  "Reset the xbox (warm reboot)" },
   { "Mastermode",                 false,  "Control master mode" },
   { "ActivateWindow",             true,   "Activate the specified window" },
@@ -190,6 +189,7 @@ const BUILT_IN commands[] = {
   { "Addon.Default.Set",          true,   "Open a select dialog to allow choosing the default addon of the given type" },
   { "Addon.OpenSettings",         true,   "Open a settings dialog for the addon of the given id" },
   { "UpdateAddonRepos",           false,  "Check add-on repositories for updates" },
+  { "UpdateLocalAddons",          false,  "Check for local add-on changes" },
   { "ToggleDPMS",                 false,  "Toggle DPMS mode manually"},
 #if defined(HAS_LIRC) || defined(HAS_IRSERVERSUITE)
   { "LIRC.Stop",                  false,  "Removes XBMC as LIRC client" },
@@ -304,12 +304,6 @@ int CBuiltins::Execute(const CStdString& execString)
   else if (execute.Equals("takescreenshot"))
   {
     CUtil::TakeScreenshot();
-  }
-  else if (execute.Equals("credits"))
-  {
-#ifdef HAS_CREDITS
-    CUtil::RunCredits();
-#endif
   }
   else if (execute.Equals("reset")) //Will reset the xbox, aka soft reset
   {
@@ -1131,11 +1125,14 @@ int CBuiltins::Execute(const CStdString& execString)
       videoScan->Close(true);
     }
 
+    ADDON::CAddonMgr::Get().StopServices(true);
+
     g_application.getNetwork().NetworkMessage(CNetwork::SERVICES_DOWN,1);
     g_settings.LoadMasterForLogin();
     g_passwordManager.bMasterUser = false;
     g_windowManager.ActivateWindow(WINDOW_LOGIN_SCREEN);
-    g_application.StartEventServer(); // event server could be needed in some situations
+    if (!g_application.StartEventServer()) // event server could be needed in some situations
+      g_application.m_guiDialogKaiToast.QueueNotification("DefaultIconWarning.png", g_localizeStrings.Get(33102), g_localizeStrings.Get(33100));
   }
   else if (execute.Equals("pagedown"))
   {
@@ -1444,6 +1441,10 @@ int CBuiltins::Execute(const CStdString& execString)
   else if (execute.Equals("updateaddonrepos"))
   {
     CAddonInstaller::Get().UpdateRepos(true);
+  }
+  else if (execute.Equals("updatelocaladdons"))
+  {
+    CAddonMgr::Get().FindAddons();
   }
   else if (execute.Equals("toggledpms"))
   {

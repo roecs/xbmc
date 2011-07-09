@@ -31,12 +31,13 @@
 #include "pvr/addons/PVRClients.h"
 #include "epg/EpgContainer.h"
 #include "epg/EpgDatabase.h"
+#include "PVREpgSearchFilter.h"
 
 using namespace PVR;
 using namespace EPG;
 
-PVR::CPVREpg::CPVREpg(CPVRChannel *channel) :
-  CEpg(channel->ChannelID(), channel->ChannelName(), channel->EPGScraper())
+PVR::CPVREpg::CPVREpg(CPVRChannel *channel, bool bLoadedFromDb /* = false */) :
+  CEpg(channel->EpgID(), channel->ChannelName(), channel->EPGScraper(), bLoadedFromDb)
 {
   SetChannel(channel);
 }
@@ -48,25 +49,10 @@ bool PVR::CPVREpg::HasValidEntries(void) const
   return m_Channel != NULL && m_Channel->ChannelID() > 0 && CEpg::HasValidEntries();
 }
 
-void PVR::CPVREpg::Cleanup(const CDateTime &Time)
+bool PVR::CPVREpg::IsRemovableTag(const CEpgInfoTag *tag) const
 {
-  CSingleLock lock(m_critSection);
-
-  CDateTime firstDate = Time.GetAsUTCDateTime() - CDateTimeSpan(0, g_advancedSettings.m_iEpgLingerTime / 60, g_advancedSettings.m_iEpgLingerTime % 60, 0);
-
-  unsigned int iSize = size();
-  for (unsigned int iTagPtr = 0; iTagPtr < iSize; iTagPtr++)
-  {
-    CPVREpgInfoTag *tag = (CPVREpgInfoTag *) at(iTagPtr);
-    if ( tag && /* valid tag */
-        !tag->HasTimer() && /* no timer set */
-        tag->EndAsLocalTime() < firstDate)
-    {
-      DeleteInfoTag(tag);
-      iTagPtr--;
-      iSize--;
-    }
-  }
+  const CPVREpgInfoTag *epgTag = (CPVREpgInfoTag *) tag;
+  return (!epgTag || !epgTag->HasTimer());
 }
 
 void PVR::CPVREpg::Clear(void)
@@ -94,7 +80,7 @@ bool PVR::CPVREpg::UpdateFromScraper(time_t start, time_t end)
 
   if (m_Channel && m_Channel->EPGEnabled() && ScraperName() == "client")
   {
-    if (g_PVRClients->GetClientProperties(m_Channel->ClientID())->bSupportsEPG)
+    if (g_PVRClients->GetAddonCapabilities(m_Channel->ClientID())->bSupportsEPG)
     {
       CLog::Log(LOGINFO, "%s - updating EPG for channel '%s' from client '%i'",
           __FUNCTION__, m_Channel->ChannelName().c_str(), m_Channel->ClientID());
@@ -148,9 +134,40 @@ CEpgInfoTag *PVR::CPVREpg::CreateTag(void)
 bool PVR::CPVREpg::LoadFromClients(time_t start, time_t end)
 {
   bool bReturn(false);
-  CPVREpg tmpEpg(m_Channel);
-  if (tmpEpg.UpdateFromScraper(start, end))
-    bReturn = UpdateEntries(tmpEpg, !g_guiSettings.GetBool("epg.ignoredbforclient"));
+  if (m_Channel)
+  {
+    CPVREpg tmpEpg(m_Channel);
+    if (tmpEpg.UpdateFromScraper(start, end))
+      bReturn = UpdateEntries(tmpEpg, !g_guiSettings.GetBool("epg.ignoredbforclient"));
+  }
+  else
+  {
+    CLog::Log(LOGERROR, "PVREPG - %s - no channel tag set for table '%s' id %d",
+        __FUNCTION__, m_strName.c_str(), m_iEpgID);
+  }
 
   return bReturn;
+}
+
+int PVR::CPVREpg::Get(CFileItemList *results, const PVREpgSearchFilter &filter) const
+{
+  int iInitialSize = results->Size();
+
+  if (!HasValidEntries())
+    return -1;
+
+  CSingleLock lock(m_critSection);
+
+  for (unsigned int iTagPtr = 0; iTagPtr < size(); iTagPtr++)
+  {
+    CPVREpgInfoTag *tag = (CPVREpgInfoTag *) at(iTagPtr);
+    if (filter.FilterEntry(*tag))
+    {
+      CFileItemPtr entry(new CFileItem(*at(iTagPtr)));
+      entry->SetLabel2(at(iTagPtr)->StartAsLocalTime().GetAsLocalizedDateTime(false, false));
+      results->Add(entry);
+    }
+  }
+
+  return size() - iInitialSize;
 }

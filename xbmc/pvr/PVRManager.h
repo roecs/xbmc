@@ -46,7 +46,7 @@ namespace PVR
   #define g_PVRRecordings    g_PVRManager.Recordings()
   #define g_PVRClients       g_PVRManager.Clients()
 
-  class CPVRManager : public Observer, private CThread, public IJobCallback
+  class CPVRManager : public Observer, private CThread
   {
     friend class CPVRClients;
 
@@ -148,6 +148,13 @@ namespace PVR
      * @return The requested boolean or false if it wasn't found.
      */
     bool TranslateBoolInfo(DWORD dwInfo) const;
+
+    /*!
+     * @brief Show the player info.
+     * @param iTimeout Hide the player info after iTimeout seconds.
+     * @todo not really the right place for this :-)
+     */
+    void ShowPlayerInfo(int iTimeout);
 
     /*!
      * @brief Reset the TV database to it's initial state and delete all the data inside.
@@ -254,7 +261,7 @@ namespace PVR
      * @param bRadio True to get the current radio group, false to get the current TV group.
      * @return The current group or the group containing all channels if it's not set.
      */
-    const CPVRChannelGroup *GetPlayingGroup(bool bRadio = false);
+    CPVRChannelGroup *GetPlayingGroup(bool bRadio = false);
 
     /*!
      * @brief Let the background thread update the recordings list.
@@ -275,6 +282,11 @@ namespace PVR
      * @brief Let the background thread update the channel groups list.
      */
     void TriggerChannelGroupsUpdate(void);
+
+    /*!
+     * @brief Let the background thread save the current video settings.
+     */
+    void TriggerSaveChannelSettings(void);
 
     /*!
      * @brief Update the channel that is currently active.
@@ -334,13 +346,6 @@ namespace PVR
     void UpdateCurrentFile(void);
 
     /*!
-     * @brief Update the data in a pvr window if that window is currently visible.
-     * @param window The window to update.
-     * @param bResetContents True to reset the contents of the given window, false to just mark all the window's items invalid.
-     */
-    void UpdateWindow(PVRWindow window, bool bResetContents = true);
-
-    /*!
      * @brief Check whether names are still correct after the language settings changed.
      */
     void LocalizationChanged(void);
@@ -384,19 +389,27 @@ namespace PVR
      */
     void SearchMissingChannelIcons(void);
 
+    /*!
+     * @brief Check whether a group is selected.
+     * @param group The group to check.
+     * @return True if it's selected, false otherwise.
+     */
+    bool IsSelectedGroup(const CPVRChannelGroup &group) const;
+
+    /*!
+     * @brief Persist the current channel settings in the database.
+     */
+    void SaveCurrentChannelSettings(void);
+
   protected:
     /*!
      * @brief PVR update and control thread.
      */
     virtual void Process(void);
 
-    /*!
-     * @brief Disable the pvrmanager if no clients are enabled or active.
-     * @return True if no clients are enabled, false otherwise.
-     */
-    bool DisableIfNoClients(void);
-
   private:
+
+    void Cleanup(void);
 
     /*!
      * @brief Load at least one client and load all other PVR data after loading the client.
@@ -431,9 +444,11 @@ namespace PVR
     //!{
     const char *CharInfoNowRecordingTitle(void);
     const char *CharInfoNowRecordingChannel(void);
+    const char *CharInfoNowRecordingChannelIcon(void);
     const char *CharInfoNowRecordingDateTime(void);
     const char *CharInfoNextRecordingTitle(void);
     const char *CharInfoNextRecordingChannel(void);
+    const char *CharInfoNextRecordingChannelIcon(void);
     const char *CharInfoNextRecordingDateTime(void);
     const char *CharInfoNextTimer(void);
     const char *CharInfoPlayingDuration(void);
@@ -473,11 +488,6 @@ namespace PVR
     bool StartUpdateThreads(void);
 
     /*!
-     * @brief Persist the current channel settings in the database.
-     */
-    void SaveCurrentChannelSettings(void);
-
-    /*!
      * @brief Load the settings for the current channel from the database.
      */
     void LoadCurrentChannelSettings(void);
@@ -494,7 +504,9 @@ namespace PVR
      */
     void ShowBusyDialog(bool bShow);
 
-    void OnJobComplete(unsigned int jobID, bool success, CJob* job);
+    void ExecutePendingJobs(void);
+
+    bool IsJobPending(const char *strJobName) const;
 
     /** @name containers */
     //@{
@@ -507,10 +519,9 @@ namespace PVR
     //@}
 
     CCriticalSection                m_critSectionTriggers;         /*!< critical section for triggered updates */
-    bool                            m_bRecordingsUpdating;         /*!< true when recordings are being updated */
-    bool                            m_bTimersUpdating;             /*!< true when timers are being updated */
-    bool                            m_bChannelsUpdating;           /*!< true when channels are being updated */
-    bool                            m_bChannelGroupsUpdating;      /*!< true when channel groups are being updated */
+    HANDLE                          m_triggerEvent;                /*!< triggers an update */
+    std::vector<CJob *>             m_pendingUpdates;              /*!< vector of pending pvr updates */
+
     CFileItem *                     m_currentFile;                 /*!< the PVR file that is currently playing */
     CPVRDatabase *                  m_database;                    /*!< the database for all PVR related data */
     CCriticalSection                m_critSection;                 /*!< critical section for all changes to this class, except for changes to triggers */
@@ -562,6 +573,16 @@ namespace PVR
     CPVRChannelGroupsUpdateJob(void) {}
     virtual ~CPVRChannelGroupsUpdateJob() {}
     virtual const char *GetType() const { return "pvr-update-channelgroups"; }
+
+    virtual bool DoWork();
+  };
+
+  class CPVRChannelSettingsSaveJob : public CJob
+  {
+  public:
+    CPVRChannelSettingsSaveJob(void) {}
+    virtual ~CPVRChannelSettingsSaveJob() {}
+    virtual const char *GetType() const { return "pvr-save-channelsettings"; }
 
     virtual bool DoWork();
   };

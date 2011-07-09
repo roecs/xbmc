@@ -276,7 +276,7 @@ bool CGUIWindowVideoNav::GetDirectory(const CStdString &strDirectory, CFileItemL
   if (m_thumbLoader.IsLoading())
     m_thumbLoader.StopThread();
 
-  m_rootDir.SetCacheDirectory(DIR_CACHE_NEVER);
+  m_rootDir.SetCacheDirectory(DIR_CACHE_ONCE);
   items.ClearProperties();
 
   bool bResult = CGUIWindowVideoBase::GetDirectory(strDirectory, items);
@@ -419,25 +419,52 @@ void CGUIWindowVideoNav::LoadVideoInfo(CFileItemList &items)
                 !items.IsVirtualDirectoryRoot() &&
                 m_stackingAvailable);
 
+  CFileItemList dbItems;
+  if (content.IsEmpty())
+    m_database.GetPlayCounts(items);
+  else
+  {
+    m_database.GetItemsForPath(content, items.m_strPath, dbItems);
+    dbItems.SetFastLookup(true);
+  }
   for (int i = 0; i < items.Size(); i++)
   {
     CFileItemPtr pItem = items[i];
-    CFileItem item;
-    if (!content.IsEmpty() && m_database.GetItemForPath(content, pItem->m_strPath, item))
-    { // copy info across
-      pItem->UpdateInfo(item);
-      pItem->m_strPath = item.m_strPath;
-      // if we switch from a file to a folder item it means we really shouldn't be sorting files and
-      // folders separately
-      if (pItem->m_bIsFolder != item.m_bIsFolder)
-        items.SetSortIgnoreFolders(true);
-      pItem->m_bIsFolder = item.m_bIsFolder;
+    CFileItemPtr match;
+    if (!content.IsEmpty())
+      match = dbItems.Get(pItem->m_strPath);
+    if (match)
+    {
+      CStdString label (pItem->GetLabel ());
+      CStdString label2(pItem->GetLabel2());
+      pItem->UpdateInfo(*match);
+
+      if(g_settings.m_videoStacking && m_stackingAvailable)
+      {
+        if (match->m_bIsFolder)
+          pItem->m_strPath = match->GetVideoInfoTag()->m_strPath;
+        else
+          pItem->m_strPath = match->GetVideoInfoTag()->m_strFileNameAndPath;
+        // if we switch from a file to a folder item it means we really shouldn't be sorting files and
+        // folders separately
+        if (pItem->m_bIsFolder != match->m_bIsFolder)
+          items.SetSortIgnoreFolders(true);
+        pItem->m_bIsFolder = match->m_bIsFolder;
+      }
+      else
+      {
+        if (CFile::Exists(match->GetCachedFanart()))
+          pItem->SetProperty("fanart_image", match->GetCachedFanart());
+        pItem->SetLabel (label);
+        pItem->SetLabel2(label);
+      }
     }
     else
-    { // grab the playcount and clean the label
-      int playCount = m_database.GetPlayCount(*pItem);
-      if (playCount >= 0)
-        pItem->SetOverlayImage(CGUIListItem::ICON_OVERLAY_UNWATCHED, playCount > 0);
+    { // set the watched overlay (note: items in a folder with content set that aren't in the db
+      //                                won't get picked up here - in the future all items will be returned)
+      // and clean the label
+      if (pItem->HasVideoInfoTag())
+        pItem->SetOverlayImage(CGUIListItem::ICON_OVERLAY_UNWATCHED, pItem->GetVideoInfoTag()->m_playCount > 0);
       if (clean)
         pItem->CleanString();
     }
@@ -1007,7 +1034,7 @@ void CGUIWindowVideoNav::GetContextButtons(int itemNumber, CContextButtons &butt
           buttons.Add(CONTEXT_BUTTON_RENAME, 118);
         }
         // add "Set/Change content" to folders
-        if (item->m_bIsFolder && !item->IsPlayList() && !item->IsLiveTV() && !item->IsPlugin() && !item->IsAddonsPath())
+        if (item->m_bIsFolder && !item->IsPlayList() && !item->IsSmartPlayList() && !item->IsLiveTV() && !item->IsPlugin() && !item->IsAddonsPath())
         {
           CGUIDialogVideoScan *pScanDlg = (CGUIDialogVideoScan *)g_windowManager.GetWindow(WINDOW_DIALOG_VIDEO_SCAN);
           if (!pScanDlg || (pScanDlg && !pScanDlg->IsScanning()))

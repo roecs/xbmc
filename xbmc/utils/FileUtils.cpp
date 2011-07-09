@@ -15,7 +15,7 @@ using namespace std;
 
 bool CFileUtils::DeleteItem(const CFileItemPtr &item, bool force)
 {
-  if (!item)
+  if (!item || item->IsParentFolder())
     return false;
 
   CGUIDialogYesNo* pDialog = (CGUIDialogYesNo*)g_windowManager.GetWindow(WINDOW_DIALOG_YES_NO);
@@ -98,6 +98,6 @@ bool CFileUtils::SubtitleFileSizeAndHash(const CStdString &path, CStdString &str
   
   file.Close(); //close file
   strHash.Format("%"PRIx64"", hash); //format hash
-  strSize.Format("%d", fileSize);  // format size
+  strSize.Format("%"PRIu64"", fileSize);  // format size
   return true;
 }

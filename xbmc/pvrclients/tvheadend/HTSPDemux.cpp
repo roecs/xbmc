@@ -31,31 +31,36 @@ extern "C" {
 #include "libhts/sha1.h"
 }
 
-cHTSPDemux::cHTSPDemux()
-  : m_subs(0)
-  , m_channel(0)
-  , m_tag(0)
-  , m_StatusCount(0)
+CHTSPDemux::CHTSPDemux() :
+    m_bGotFirstIframe(false),
+    m_bIsRadio(false),
+    m_subs(0),
+    m_channel(0),
+    m_tag(0),
+    m_StatusCount(0)
 {
+  m_session = new CHTSPConnection();
   m_Streams.iStreamCount = 0;
 }
 
-cHTSPDemux::~cHTSPDemux()
+CHTSPDemux::~CHTSPDemux()
 {
   Close();
+  delete m_session;
 }
 
-bool cHTSPDemux::Open(const PVR_CHANNEL &channelinfo)
+bool CHTSPDemux::Open(const PVR_CHANNEL &channelinfo)
 {
   m_channel = channelinfo.iUniqueId;
+  m_bIsRadio = channelinfo.bIsRadio;
 
-  if(!m_session.Connect(g_strHostname, g_iPortHTSP, g_iConnectTimeout))
+  if (!m_session)
+    m_session = new CHTSPConnection();
+
+  if(!m_session->Connect())
     return false;
 
-  if(!g_strUsername.empty())
-    m_session.Auth(g_strUsername, g_strPassword);
-
-  if(!m_session.SendSubscribe(m_subs, m_channel))
+  if(!SendSubscribe(m_subs, m_channel))
     return false;
 
   m_StatusCount = 0;
@@ -74,12 +79,12 @@ bool cHTSPDemux::Open(const PVR_CHANNEL &channelinfo)
   return true;
 }
 
-void cHTSPDemux::Close()
+void CHTSPDemux::Close()
 {
-  m_session.Close();
+  m_session->Close();
 }
 
-bool cHTSPDemux::GetStreamProperties(PVR_STREAM_PROPERTIES* props)
+bool CHTSPDemux::GetStreamProperties(PVR_STREAM_PROPERTIES* props)
 {
   props->iStreamCount = m_Streams.iStreamCount;
   for (unsigned int i = 0; i < m_Streams.iStreamCount; i++)
@@ -99,17 +104,17 @@ bool cHTSPDemux::GetStreamProperties(PVR_STREAM_PROPERTIES* props)
   return (props->iStreamCount > 0);
 }
 
-void cHTSPDemux::Abort()
+void CHTSPDemux::Abort()
 {
   m_Streams.iStreamCount = 0;
-  m_session.Abort();
+  m_session->Abort();
 }
 
-DemuxPacket* cHTSPDemux::Read()
+DemuxPacket* CHTSPDemux::Read()
 {
   htsmsg_t *  msg;
   const char* method;
-  while((msg = m_session.ReadMessage(1000)))
+  while((msg = m_session->ReadMessage(1000)))
   {
     method = htsmsg_get_str(msg, "method");
     if(method == NULL)
@@ -135,9 +140,9 @@ DemuxPacket* cHTSPDemux::Read()
     else if(strcmp("subscriptionStatus", method) == 0)
       SubscriptionStatus(msg);
     else if(strcmp("queueStatus"       , method) == 0)
-      cHTSPSession::ParseQueueStatus(msg, m_QueueStatus);
+      CHTSPConnection::ParseQueueStatus(msg, m_QueueStatus);
     else if(strcmp("signalStatus"       , method) == 0)
-      cHTSPSession::ParseSignalStatus(msg, m_Quality);
+      CHTSPConnection::ParseSignalStatus(msg, m_Quality);
     else if(strcmp("muxpkt"            , method) == 0)
     {
       DemuxPacket *pkt = ParseMuxPacket(msg);
@@ -157,7 +162,7 @@ DemuxPacket* cHTSPDemux::Read()
   return NULL;
 }
 
-DemuxPacket *cHTSPDemux::ParseMuxPacket(htsmsg_t *msg)
+DemuxPacket *CHTSPDemux::ParseMuxPacket(htsmsg_t *msg)
 {
   DemuxPacket* pkt = NULL;
   uint32_t    index, duration, frametype;
@@ -170,11 +175,13 @@ DemuxPacket *cHTSPDemux::ParseMuxPacket(htsmsg_t *msg)
   frametypechar[0] = static_cast<char>( frametype );
 
   if(htsmsg_get_u32(msg, "stream" , &index)  ||
-     htsmsg_get_bin(msg, "payload", &bin, &binlen))
+     htsmsg_get_bin(msg, "payload", &bin, &binlen) ||
+     (!m_bGotFirstIframe && frametypechar[0] != 'I'))
   {
     return pkt;
   }
 
+  m_bGotFirstIframe = true;
   pkt = PVR->AllocateDemuxPacket(binlen);
   memcpy(pkt->pData, bin, binlen);
 
@@ -206,14 +213,14 @@ DemuxPacket *cHTSPDemux::ParseMuxPacket(htsmsg_t *msg)
   return pkt;
 }
 
-bool cHTSPDemux::SwitchChannel(const PVR_CHANNEL &channelinfo)
+bool CHTSPDemux::SwitchChannel(const PVR_CHANNEL &channelinfo)
 {
   XBMC->Log(LOG_DEBUG, "%s - changing to channel '%s'", __FUNCTION__, channelinfo.strChannelName);
 
-  if (!m_session.SendUnsubscribe(m_subs))
+  if (!SendUnsubscribe(m_subs))
     XBMC->Log(LOG_ERROR, "%s - failed to unsubscribe from previous channel", __FUNCTION__);
 
-  if (!m_session.SendSubscribe(m_subs+1, channelinfo.iUniqueId))
+  if (!SendSubscribe(m_subs+1, channelinfo.iUniqueId))
     XBMC->Log(LOG_ERROR, "%s - failed to set channel", __FUNCTION__);
   else
   {
@@ -235,7 +242,7 @@ bool cHTSPDemux::SwitchChannel(const PVR_CHANNEL &channelinfo)
   return false;
 }
 
-bool cHTSPDemux::GetSignalStatus(PVR_SIGNAL_STATUS &qualityinfo)
+bool CHTSPDemux::GetSignalStatus(PVR_SIGNAL_STATUS &qualityinfo)
 {
   if (m_SourceInfo.si_adapter.empty() || m_Quality.fe_status.empty())
     return false;
@@ -296,7 +303,7 @@ inline void HTSPSetDemuxStreamInfoLanguage(PVR_STREAM_PROPERTIES::PVR_STREAM &st
   }
 }
 
-void cHTSPDemux::SubscriptionStart(htsmsg_t *m)
+void CHTSPDemux::SubscriptionStart(htsmsg_t *m)
 {
   htsmsg_t       *streams;
   htsmsg_field_t *f;
@@ -307,6 +314,7 @@ void cHTSPDemux::SubscriptionStart(htsmsg_t *m)
   }
 
   m_Streams.iStreamCount = 0;
+  m_bGotFirstIframe = m_bIsRadio; // only wait for the first I frame when playing back a tv stream
 
   HTSMSG_FOREACH(f, streams)
   {
@@ -377,11 +385,11 @@ void cHTSPDemux::SubscriptionStart(htsmsg_t *m)
       m_Streams.stream[m_Streams.iStreamCount].iCodecId   = CODEC_ID_TEXT;
       HTSPSetDemuxStreamInfoLanguage(m_Streams.stream[m_Streams.iStreamCount], sub);
     }
-    else if(!strcmp(type, "TELETEXT"))
-    {
-      m_Streams.stream[m_Streams.iStreamCount].iCodecType = CODEC_TYPE_SUBTITLE;
-      m_Streams.stream[m_Streams.iStreamCount].iCodecId   = CODEC_ID_DVB_TELETEXT;
-    }
+//    else if(!strcmp(type, "TELETEXT"))
+//    {
+//      m_Streams.stream[m_Streams.iStreamCount].iCodecType = CODEC_TYPE_SUBTITLE;
+//      m_Streams.stream[m_Streams.iStreamCount].iCodecId   = CODEC_ID_DVB_TELETEXT;
+//    }
     else
     {
       bValidStream = false;
@@ -408,7 +416,7 @@ void cHTSPDemux::SubscriptionStart(htsmsg_t *m)
     }
   }
 
-  if (cHTSPSession::ParseSourceInfo(m, m_SourceInfo))
+  if (CHTSPConnection::ParseSourceInfo(m, m_SourceInfo))
   {
     XBMC->Log(LOG_DEBUG, "%s - subscription started on adapter %s, mux %s, network %s, provider %s, service %s"
         , __FUNCTION__, m_SourceInfo.si_adapter.c_str(), m_SourceInfo.si_mux.c_str(),
@@ -421,7 +429,7 @@ void cHTSPDemux::SubscriptionStart(htsmsg_t *m)
   }
 }
 
-void cHTSPDemux::SubscriptionStop  (htsmsg_t *m)
+void CHTSPDemux::SubscriptionStop  (htsmsg_t *m)
 {
   XBMC->Log(LOG_DEBUG, "%s - subscription ended on adapter %s", __FUNCTION__, m_SourceInfo.si_adapter.c_str());
   m_Streams.iStreamCount = 0;
@@ -441,7 +449,7 @@ void cHTSPDemux::SubscriptionStop  (htsmsg_t *m)
   m_SourceInfo.si_service = "";
 }
 
-void cHTSPDemux::SubscriptionStatus(htsmsg_t *m)
+void CHTSPDemux::SubscriptionStatus(htsmsg_t *m)
 {
   const char* status;
   status = htsmsg_get_str(m, "status");
@@ -454,4 +462,21 @@ void cHTSPDemux::SubscriptionStatus(htsmsg_t *m)
     XBMC->Log(LOG_DEBUG, "%s - %s", __FUNCTION__, status);
     XBMC->QueueNotification(QUEUE_INFO, status);
   }
+}
+
+bool CHTSPDemux::SendUnsubscribe(int subscription)
+{
+  htsmsg_t *m = htsmsg_create_map();
+  htsmsg_add_str(m, "method"        , "unsubscribe");
+  htsmsg_add_s32(m, "subscriptionId", subscription);
+  return m_session->ReadSuccess(m, true, "unsubscribe from channel");
+}
+
+bool CHTSPDemux::SendSubscribe(int subscription, int channel)
+{
+  htsmsg_t *m = htsmsg_create_map();
+  htsmsg_add_str(m, "method"        , "subscribe");
+  htsmsg_add_s32(m, "channelId"     , channel);
+  htsmsg_add_s32(m, "subscriptionId", subscription);
+  return m_session->ReadSuccess(m, true, "subscribe to channel");
 }

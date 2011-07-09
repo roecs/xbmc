@@ -24,6 +24,11 @@
 #include <mach-o/dyld.h>
 #endif
 
+#if defined(__FreeBSD__)
+#include <sys/param.h>
+#include <sys/sysctl.h>
+#endif
+
 #ifdef _LINUX
 #include <sys/types.h>
 #include <dirent.h>
@@ -39,7 +44,6 @@
 #include "storage/IoSupport.h"
 #include "filesystem/PVRDirectory.h"
 #include "filesystem/StackDirectory.h"
-#include "filesystem/VirtualPathDirectory.h"
 #include "filesystem/MultiPathDirectory.h"
 #include "filesystem/DirectoryCache.h"
 #include "filesystem/SpecialProtocol.h"
@@ -51,9 +55,6 @@
 #include "filesystem/MythDirectory.h"
 #ifdef HAS_UPNP
 #include "filesystem/UPnPDirectory.h"
-#endif
-#ifdef HAS_CREDITS
-#include "Credits.h"
 #endif
 #ifdef HAS_VIDEO_PLAYBACK
 #include "cores/VideoRenderers/RenderManager.h"
@@ -92,6 +93,7 @@
 #include "cores/dvdplayer/DVDSubtitles/DVDSubtitleTagSami.h"
 #include "cores/dvdplayer/DVDSubtitles/DVDSubtitleStream.h"
 #include "windowing/WindowingFactory.h"
+#include "video/VideoInfoTag.h"
 
 using namespace std;
 using namespace XFILE;
@@ -184,6 +186,10 @@ CStdString CUtil::GetTitleFromPath(const CStdString& strFileNameAndPath, bool bI
   // HDHomerun Devices
   else if (url.GetProtocol() == "hdhomerun" && strFilename.IsEmpty())
     strFilename = "HDHomerun Devices";
+
+  // Slingbox Devices
+  else if (url.GetProtocol() == "sling")
+    strFilename = "Slingbox";
 
   // ReplayTV Devices
   else if (url.GetProtocol() == "rtv")
@@ -398,70 +404,58 @@ void CUtil::GetQualifiedFilename(const CStdString &strBasePath, CStdString &strF
 {
   //Make sure you have a full path in the filename, otherwise adds the base path before.
   CURL plItemUrl(strFilename);
-  CURL plBaseUrl(strBasePath);
-  int iDotDotLoc, iBeginCut, iEndCut;
 
-  if (plBaseUrl.IsLocal()) //Base in local directory
-  {
-    if (plItemUrl.IsLocal() ) //Filename is local or not qualified
-    {
+  if (!plItemUrl.IsLocal())
+    return; // non-local path, don't do anything
+  else if (strFilename.size() > 1)
+  { // local path - see if it's fully qualified
 #ifdef _LINUX
-      if (!( (strFilename.c_str()[1] == ':') || (strFilename.c_str()[0] == '/') ) ) //Filename not fully qualified
+    if ( (strFilename[1] == ':') || (strFilename[0] == '/') )
 #else
-      if (!( strFilename.c_str()[1] == ':')) //Filename not fully qualified
+    if ( strFilename[1] == ':' )
 #endif
-      {
-        if (strFilename.c_str()[0] == '/' || strFilename.c_str()[0] == '\\' || URIUtils::HasSlashAtEnd(strBasePath))
-        {
-          strFilename = strBasePath + strFilename;
-          strFilename.Replace('/', '\\');
-        }
-        else
-        {
-          strFilename = strBasePath + '\\' + strFilename;
-          strFilename.Replace('/', '\\');
-        }
-      }
-    }
-    strFilename.Replace("\\.\\", "\\");
-    while ((iDotDotLoc = strFilename.Find("\\..\\")) > 0)
-    {
-      iEndCut = iDotDotLoc + 4;
-      iBeginCut = strFilename.Left(iDotDotLoc).ReverseFind('\\') + 1;
-      strFilename.Delete(iBeginCut, iEndCut - iBeginCut);
-    }
+      return;
   }
-  else //Base is remote
-  {
-    if (plItemUrl.IsLocal()) //Filename is local
-    {
-#ifdef _LINUX
-      if ( (strFilename.c_str()[1] == ':') || (strFilename.c_str()[0] == '/') )  //Filename not fully qualified
-#else
-      if (strFilename[1] == ':') // already fully qualified
-#endif
-        return;
-      if (strFilename.c_str()[0] == '/' || strFilename.c_str()[0] == '\\' || URIUtils::HasSlashAtEnd(strBasePath)) //Begins with a slash.. not good.. but we try to make the best of it..
 
-      {
-        strFilename = strBasePath + strFilename;
-        strFilename.Replace('\\', '/');
-      }
-      else
-      {
-        strFilename = strBasePath + '/' + strFilename;
-        strFilename.Replace('\\', '/');
-      }
-    }
-    strFilename.Replace("/./", "/");
-    while ((iDotDotLoc = strFilename.Find("/../")) > 0)
-    {
-      iEndCut = iDotDotLoc + 4;
-      iBeginCut = strFilename.Left(iDotDotLoc).ReverseFind('/') + 1;
-      strFilename.Delete(iBeginCut, iEndCut - iBeginCut);
-    }
+  // add to base path and then clean
+  strFilename = URIUtils::AddFileToFolder(strBasePath, strFilename);
+
+  // get rid of any /./ or \.\ that happen to be there
+  strFilename.Replace("\\.\\", "\\");
+  strFilename.Replace("/./", "/");
+
+  // now find any "\\..\\" and remove them via GetParentPath
+  int pos;
+  while ((pos = strFilename.Find("/../")) > 0)
+  {
+    CStdString basePath = strFilename.Left(pos+1);
+    strFilename = strFilename.Mid(pos+4);
+    basePath = URIUtils::GetParentPath(basePath);
+    strFilename = URIUtils::AddFileToFolder(basePath, strFilename);
+  }
+  while ((pos = strFilename.Find("\\..\\")) > 0)
+  {
+    CStdString basePath = strFilename.Left(pos+1);
+    strFilename = strFilename.Mid(pos+4);
+    basePath = URIUtils::GetParentPath(basePath);
+    strFilename = URIUtils::AddFileToFolder(basePath, strFilename);
   }
 }
+
+#ifdef UNIT_TESTING
+bool CUtil::TestGetQualifiedFilename()
+{
+  CStdString file = "../foo"; GetQualifiedFilename("smb://", file);
+  if (file != "foo") return false;
+  file = "C:\\foo\\bar"; GetQualifiedFilename("smb://", file);
+  if (file != "C:\\foo\\bar") return false;
+  file = "../foo/./bar"; GetQualifiedFilename("smb://my/path", file);
+  if (file != "smb://my/foo/bar") return false;
+  file = "smb://foo/bar/"; GetQualifiedFilename("upnp://", file);
+  if (file != "smb://foo/bar/") return false;
+  return true;
+}
+#endif
 
 void CUtil::RunShortcut(const char* szShortcutPath)
 {
@@ -789,7 +783,7 @@ bool CUtil::ThumbCached(const CStdString& strFileName)
   return CThumbnailCache::GetThumbnailCache()->IsCached(strFileName);
 }
 
-void CUtil::PlayDVD(const CStdString& strProtocol)
+void CUtil::PlayDVD(const CStdString& strProtocol, bool restart)
 {
 #if defined(HAS_DVDPLAYER) && defined(HAS_DVD_DRIVE)
   CIoSupport::Dismount("Cdrom0");
@@ -798,7 +792,10 @@ void CUtil::PlayDVD(const CStdString& strProtocol)
   strPath.Format("%s://1", strProtocol.c_str());
   CFileItem item(strPath, false);
   item.SetLabel(g_mediaManager.GetDiskLabel());
-  g_application.PlayFile(item);
+  item.GetVideoInfoTag()->m_strFileNameAndPath = "removable://"; // need to put volume label for resume point in videoInfoTag
+  item.GetVideoInfoTag()->m_strFileNameAndPath += g_mediaManager.GetDiskLabel();
+  if (!restart) item.m_lStartOffset = STARTOFFSET_RESUME;
+  g_application.PlayFile(item, restart);
 #endif
 }
 
@@ -1182,8 +1179,8 @@ bool CUtil::CreateDirectoryEx(const CStdString& strPath)
   // return true if directory already exist
   if (CDirectory::Exists(strPath)) return true;
 
-  // we currently only allow HD and smb paths
-  if (!URIUtils::IsHD(strPath) && !URIUtils::IsSmb(strPath))
+  // we currently only allow HD and smb and nfs paths
+  if (!URIUtils::IsHD(strPath) && !URIUtils::IsSmb(strPath) && !URIUtils::IsNfs(strPath))
   {
     CLog::Log(LOGERROR,"%s called with an unsupported path: %s", __FUNCTION__, strPath.c_str());
     return false;
@@ -1333,6 +1330,9 @@ bool CUtil::TestSplitExec()
   CUtil::SplitExecFunction("SetProperty(Foo,\"\")", function, params);
   if (function != "SetProperty" || params.size() != 2 || params[0] != "Foo" || params[1] != "")
    return false;
+  CUtil::SplitExecFunction("SetProperty(foo,ba(\"ba black )\",sheep))", function, params);
+  if (function != "SetProperty" || params.size() != 2 || params[0] != "foo" || params[1] != "ba(\"ba black )\",sheep)")
+    return false;
   return true;
 }
 #endif
@@ -1373,7 +1373,6 @@ void CUtil::SplitExecFunction(const CStdString &execString, CStdString &function
       if (ch == '\"' && !escaped)
       { // finished a quote - no need to add the end quote to our string
         inQuotes = false;
-        continue;
       }
     }
     else
@@ -1381,7 +1380,6 @@ void CUtil::SplitExecFunction(const CStdString &execString, CStdString &function
       if (ch == '\"' && !escaped)
       { // start of quote - no need to add the quote to our string
         inQuotes = true;
-        continue;
       }
       if (inFunction && ch == ')')
       { // end of a function
@@ -1395,6 +1393,9 @@ void CUtil::SplitExecFunction(const CStdString &execString, CStdString &function
       { // not in a function, so a comma signfies the end of this parameter
         if (whiteSpacePos)
           parameter = parameter.Left(whiteSpacePos);
+        // trim off start and end quotes
+        if (parameter.GetLength() > 1 && parameter[0] == '\"' && parameter[parameter.GetLength() - 1] == '\"')
+          parameter = parameter.Mid(1,parameter.GetLength() - 2);
         parameters.push_back(parameter);
         parameter.Empty();
         whiteSpacePos = 0;
@@ -1422,6 +1423,9 @@ void CUtil::SplitExecFunction(const CStdString &execString, CStdString &function
     CLog::Log(LOGWARNING, "%s(%s) - end of string while searching for ) or \"", __FUNCTION__, execString.c_str());
   if (whiteSpacePos)
     parameter = parameter.Left(whiteSpacePos);
+  // trim off start and end quotes
+  if (parameter.GetLength() > 1 && parameter[0] == '\"' && parameter[parameter.GetLength() - 1] == '\"')
+    parameter = parameter.Mid(1,parameter.GetLength() - 2);
   if (!parameter.IsEmpty() || parameters.size())
     parameters.push_back(parameter);
 }
@@ -1895,15 +1899,15 @@ bool CUtil::MakeShortenPath(CStdString StrInput, CStdString& StrOutput, int iTex
 
 bool CUtil::SupportsFileOperations(const CStdString& strPath)
 {
-  // currently only hd and smb support delete and rename
+  // currently only hd, smb and nfs support delete and rename
   if (URIUtils::IsHD(strPath))
     return true;
   if (URIUtils::IsSmb(strPath))
     return true;
   if (CUtil::IsTVRecording(strPath))
-  {
     return CPVRDirectory::SupportsFileOperations(strPath);
-  }
+  if (URIUtils::IsNfs(strPath))
+    return true;
   if (URIUtils::IsMythTV(strPath))
   {
     /*
@@ -2213,6 +2217,21 @@ CStdString CUtil::ResolveExecutablePath()
 
   GetDarwinExecutablePath(given_path, &path_size);
   strExecutablePath = given_path;
+#elif defined(__FreeBSD__)                                                                                                                                                                   
+  char buf[PATH_MAX];
+  size_t buflen;
+  int mib[4];
+
+  mib[0] = CTL_KERN;
+  mib[1] = KERN_PROC;
+  mib[2] = KERN_PROC_PATHNAME;
+  mib[3] = getpid();
+
+  buflen = sizeof(buf) - 1;
+  if(sysctl(mib, 4, buf, &buflen, NULL, 0) < 0)
+    strExecutablePath = "";
+  else
+    strExecutablePath = buf;
 #else
   /* Get our PID and build the name of the link in /proc */
   pid_t pid = getpid();
@@ -2267,6 +2286,7 @@ void CUtil::ScanForExternalSubtitles(const CStdString& strMovie, std::vector<CSt
   CFileItem item(strMovie, false);
   if (item.IsInternetStream()) return ;
   if (item.IsHDHomeRun()) return ;
+  if (item.IsSlingbox()) return ;
   if (item.IsPlayList()) return ;
   if (!item.IsVideo()) return ;
   

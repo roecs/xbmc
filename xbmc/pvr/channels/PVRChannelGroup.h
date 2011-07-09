@@ -23,6 +23,7 @@
 
 #include "FileItem.h"
 #include "PVRChannel.h"
+#include "utils/JobManager.h"
 
 namespace PVR
 {
@@ -40,20 +41,24 @@ namespace PVR
   /** A group of channels */
 
   class CPVRChannelGroup : private std::vector<PVRChannelGroupMember>,
-                           private Observer
+                           private Observer,
+                           public Observable,
+                           public IJobCallback
+
   {
     friend class CPVRChannelGroups;
     friend class CPVRChannelGroupInternal;
     friend class CPVRDatabase;
 
   private:
-    bool             m_bRadio;                    /*!< true if this container holds radio channels, false if it holds TV channels */
-    int              m_iGroupId;                  /*!< The ID of this group in the database */
-    CStdString       m_strGroupName;              /*!< The name of this group */
-    int              m_iSortOrder;                /*!< The sort order to use */
-    bool             m_bLoaded;                   /*!< True if this container is loaded, false otherwise */
-    bool             m_bChanged;                  /*!< true if anything changed in this group that hasn't been persisted, false otherwise */
-    bool             m_bUsingBackendChannelOrder; /*!< true to use the channel order from backends, false otherwise */
+    bool             m_bRadio;                      /*!< true if this container holds radio channels, false if it holds TV channels */
+    int              m_iGroupId;                    /*!< The ID of this group in the database */
+    CStdString       m_strGroupName;                /*!< The name of this group */
+    int              m_iSortOrder;                  /*!< The sort order to use */
+    bool             m_bLoaded;                     /*!< True if this container is loaded, false otherwise */
+    bool             m_bChanged;                    /*!< true if anything changed in this group that hasn't been persisted, false otherwise */
+    bool             m_bUsingBackendChannelOrder;   /*!< true to use the channel order from backends, false otherwise */
+    bool             m_bUsingBackendChannelNumbers; /*!< true to use the channel numbers from 1 backend, false otherwise */
     CCriticalSection m_critSection;
 
     /*!
@@ -73,6 +78,9 @@ namespace PVR
      * @return True if everything went well, false otherwise.
      */
     virtual bool UpdateGroupEntries(const CPVRChannelGroup &channels);
+
+    virtual bool AddAndUpdateChannels(const CPVRChannelGroup &channels, bool bUseBackendChannelNumbers);
+    virtual bool RemoveDeletedChannels(const CPVRChannelGroup &channels);
 
     /*!
      * @brief Remove invalid channels from this container.
@@ -105,13 +113,9 @@ namespace PVR
 
     /*!
      * @brief Remove invalid channels and updates the channel numbers.
+     * @return True if something changed, false otherwise.
      */
-    void Renumber(void);
-
-    /*!
-     * @return Cache all channel icons in this group if guisetting "pvrmenu.iconpath" is set.
-     */
-    void CacheIcons(void);
+    bool Renumber(void);
 
   public:
     /*!
@@ -143,6 +147,8 @@ namespace PVR
     virtual bool operator ==(const CPVRChannelGroup &right) const;
     virtual bool operator !=(const CPVRChannelGroup &right) const;
 
+    int Size(void) const { return size(); }
+
     /*!
      * @brief Refresh the channel list from the clients.
      */
@@ -154,6 +160,13 @@ namespace PVR
      * @return True if this group was updated, false otherwise.
      */
     virtual bool Update(const CPVRChannelGroup &group);
+
+    /*!
+     * @brief Change the channelnumber of a group. Used by CGUIDialogPVRChannelManager. Call SortByChannelNumber() and Renumber() after all changes are done.
+     * @param channel The channel to change the channel number for.
+     * @param iChannelNumber The new channel number.
+     */
+    virtual bool SetChannelNumber(CPVRChannel *channel, unsigned int iChannelNumber);
 
     /*!
      * @brief Move a channel from position iOldIndex to iNewIndex.
@@ -296,6 +309,13 @@ namespace PVR
     virtual const CPVRChannel *GetByChannelID(int iChannelID) const;
 
     /*!
+     * @brief Get a channel given it's EPG ID.
+     * @param iEpgID The channel EPG ID.
+     * @return The channel or NULL if it wasn't found.
+     */
+    virtual const CPVRChannel *GetByChannelEpgID(int iEpgID) const;
+
+    /*!
      * @brief Get a channel given it's unique ID.
      * @param iUniqueID The unique ID.
      * @return The channel or NULL if it wasn't found.
@@ -344,6 +364,13 @@ namespace PVR
     virtual const CPVRChannel *GetByIndex(unsigned int index) const;
 
     /*!
+     * @brief Get the current index in this group of a channel.
+     * @param channel The channel to get the index for.
+     * @return The index or -1 if it wasn't found.
+     */
+    virtual int GetIndex(const CPVRChannel &channel) const;
+
+    /*!
      * @brief Get the list of channels in a group.
      * @param results The file list to store the results in.
      * @param bGroupMembers If true, get the channels that are in this group. Get the channels that are not in this group otherwise.
@@ -379,5 +406,25 @@ namespace PVR
     virtual bool HasChanges(void) const;
 
     //@}
+
+    /*!
+     * @brief Reset the channel number cache if this is the selected group in the UI.
+     */
+    void ResetChannelNumberCache(void);
+
+    void OnJobComplete(unsigned int jobID, bool success, CJob* job) {}
+  };
+
+  class CPVRPersistGroupJob : public CJob
+  {
+  public:
+    CPVRPersistGroupJob(CPVRChannelGroup *group) { m_group = group; }
+    virtual ~CPVRPersistGroupJob() {}
+    virtual const char *GetType() const { return "pvr-channelgroup-persist"; }
+
+    virtual bool DoWork();
+
+  private:
+    CPVRChannelGroup *m_group;
   };
 }

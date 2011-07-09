@@ -44,7 +44,8 @@ struct sortEPGbyDate
   }
 };
 
-CEpg::CEpg(int iEpgID, const CStdString &strName /* = "" */, const CStdString &strScraperName /* = "" */) :
+CEpg::CEpg(int iEpgID, const CStdString &strName /* = "" */, const CStdString &strScraperName /* = "" */, bool bLoadedFromDb /* = false */) :
+    m_bChanged(!bLoadedFromDb),
     m_bInhibitSorting(false),
     m_iEpgID(iEpgID),
     m_strName(strName),
@@ -64,6 +65,28 @@ CEpg::~CEpg(void)
 
 /** @name Public methods */
 //@{
+
+void CEpg::SetName(const CStdString &strName)
+{
+  CSingleLock lock(m_critSection);
+
+  if (!m_strName.Equals(strName))
+  {
+    m_bChanged = true;
+    m_strName = strName;
+  }
+}
+
+void CEpg::SetScraperName(const CStdString &strScraperName)
+{
+  CSingleLock lock(m_critSection);
+
+  if (!m_strScraperName.Equals(strScraperName))
+  {
+    m_bChanged = true;
+    m_strScraperName = strScraperName;
+  }
+}
 
 bool CEpg::HasValidEntries(void) const
 {
@@ -198,12 +221,14 @@ void CEpg::RemoveTagsBetween(time_t start, time_t end, bool bRemoveFromDb /* = f
     if (tag)
     {
       bool bMatch(true);
-      tag->StartAsLocalTime().GetAsTime(tagBegin);
-      tag->EndAsLocalTime().GetAsTime(tagEnd);
+      tag->StartAsUTC().GetAsTime(tagBegin);
+      tag->EndAsUTC().GetAsTime(tagEnd);
 
       if (start > 0 && tagBegin < start)
         bMatch = false;
       if (end > 0 && tagEnd > end)
+        bMatch = false;
+      if (!IsRemovableTag(tag))
         bMatch = false;
 
       if (bMatch)
@@ -215,12 +240,18 @@ void CEpg::RemoveTagsBetween(time_t start, time_t end, bool bRemoveFromDb /* = f
     }
   }
 
+  Sort();
+  UpdateFirstAndLastDates();
+
   if (bRemoveFromDb)
   {
     CEpgDatabase *database = g_EpgContainer.GetDatabase();
     if (database && database->Open())
     {
-      database->Delete(*this, start, end);
+      time_t newStart, newEnd;
+      GetFirstDate().GetAsTime(newStart);
+      GetLastDate().GetAsTime(newEnd);
+      database->Delete(*this, newStart, newEnd);
       database->Close();
     }
   }
@@ -268,6 +299,22 @@ const CEpgInfoTag *CEpg::InfoTagNext(void) const
   }
 
   return NULL;
+}
+
+bool CEpg::CheckPlayingEvent(void)
+{
+  bool bChanged(false);
+  CSingleLock lock(m_critSection);
+  const CEpgInfoTag *currentEvent = m_nowActive;
+  const CEpgInfoTag *updatedEvent = InfoTagNow();
+
+  if ((!currentEvent && updatedEvent) || (currentEvent && !updatedEvent) || (currentEvent && *currentEvent != *updatedEvent))
+  {
+    SetChanged();
+    NotifyObservers("epg-current-event");
+    bChanged = true;
+  }
+  return bChanged;
 }
 
 const CEpgInfoTag *CEpg::GetTag(int uniqueID, const CDateTime &StartTime) const
@@ -450,7 +497,7 @@ bool CEpg::UpdateEntries(const CEpg &epg, bool bStoreInDb /* = true */)
   CSingleLock lock(m_critSection);
 
   /* remove tags from the current list that will be replaced */
-  RemoveTagsBetween(epg.GetFirstDate(), epg.GetLastDate(), bStoreInDb);
+  RemoveTagsBetween(epg.GetFirstDate().GetAsUTCDateTime(), epg.GetLastDate().GetAsUTCDateTime(), bStoreInDb);
 
   /* copy over tags */
   for (unsigned int iTagPtr = 0; iTagPtr < epg.size(); iTagPtr++)
@@ -482,6 +529,8 @@ bool CEpg::UpdateEntries(const CEpg &epg, bool bStoreInDb /* = true */)
       database->PersistLastEpgScanTime(m_iEpgID, true);
       database->Persist(*this, true);
       PersistTags(true);
+
+      lock.Leave();
       bReturn = database->CommitInsertQueries();
       database->Close();
     }
@@ -604,18 +653,20 @@ bool CEpg::Persist(bool bPersistTags /* = false */, bool bQueueWrite /* = false 
   }
 
   CSingleLock lock(m_critSection);
-
-  int iId = database->Persist(*this, bQueueWrite);
-  if (iId >= 0)
+  if (m_iEpgID <= 0 || m_bChanged)
   {
+    int iId = database->Persist(*this, bQueueWrite && m_iEpgID > 0);
     if (iId > 0)
+    {
       m_iEpgID = iId;
-
-    if (bPersistTags)
-      bReturn = PersistTags(bQueueWrite);
-    else
-      bReturn = true;
+      m_bChanged = false;
+    }
   }
+
+  if (bPersistTags)
+    bReturn = PersistTags(bQueueWrite);
+  else
+    bReturn = true;
 
   database->Close();
 
@@ -644,6 +695,7 @@ const CDateTime &CEpg::GetLastDate(void) const
 bool CEpg::Update(const CEpg &epg, bool bUpdateDb /* = false */)
 {
   bool bReturn = true;
+  CSingleLock lock(m_critSection);
 
   m_strName = epg.m_strName;
   m_strScraperName = epg.m_strScraperName;

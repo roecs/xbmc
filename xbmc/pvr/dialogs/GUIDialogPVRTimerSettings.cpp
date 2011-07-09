@@ -137,7 +137,8 @@ void CGUIDialogPVRTimerSettings::CreateSettings()
   m_settings.clear();
 
   // create our settings controls
-  AddBool(CONTROL_TMR_ACTIVE, 19074, &tag->m_bIsActive);
+  m_bTimerActive = tag->IsActive();
+  AddBool(CONTROL_TMR_ACTIVE, 19074, &m_bTimerActive);
   AddButton(CONTROL_TMR_NAME, 19075, &tag->m_strTitle, true);
   AddBool(CONTROL_TMR_RADIO, 19077, &tag->m_bIsRadio);
 
@@ -265,7 +266,7 @@ void CGUIDialogPVRTimerSettings::OnSettingChanged(SettingInfo &setting)
   }
   else if (setting.id == CONTROL_TMR_CHNAME_TV || setting.id == CONTROL_TMR_CHNAME_RADIO)
   {
-    const CPVRChannel* channeltag = ((CPVRChannelGroup *) g_PVRChannelGroups->GetGroupAll(tag->m_bIsRadio))->GetByChannelNumber(tag->m_iChannelNumber);
+    const CPVRChannel* channeltag = g_PVRChannelGroups->GetGroupAll(tag->m_bIsRadio)->GetByChannelNumber(tag->m_iChannelNumber);
 
     if (channeltag)
     {
@@ -373,4 +374,9 @@ void CGUIDialogPVRTimerSettings::OnOkay()
   CPVRTimerInfoTag* tag = m_timerItem->GetPVRTimerInfoTag();
   if (tag->m_strTitle == g_localizeStrings.Get(19056))
     tag->m_strTitle = g_PVRChannelGroups->GetByUniqueID(tag->m_iClientChannelUid, tag->m_iClientId)->ChannelName();
+
+  if (m_bTimerActive)
+    tag->m_state = PVR_TIMER_STATE_SCHEDULED;
+  else
+    tag->m_state = PVR_TIMER_STATE_CANCELLED;
 }

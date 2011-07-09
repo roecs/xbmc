@@ -19,8 +19,10 @@
  *
  */
 
+#include "Application.h"
 #include "FileItem.h"
 #include "settings/GUISettings.h"
+#include "dialogs/GUIDialogKaiToast.h"
 #include "dialogs/GUIDialogOK.h"
 #include "threads/SingleLock.h"
 #include "utils/log.h"
@@ -41,10 +43,15 @@ CPVRTimers::CPVRTimers(void)
   m_bIsUpdating = false;
 }
 
+CPVRTimers::~CPVRTimers(void)
+{
+  Unload();
+}
+
 int CPVRTimers::Load()
 {
   Unload();
-  g_PVREpg->AddObserver(this);
+  g_PVREpg->RegisterObserver(this);
   Update();
 
   return size();
@@ -53,6 +60,8 @@ int CPVRTimers::Load()
 void CPVRTimers::Unload()
 {
   CSingleLock lock(m_critSection);
+  g_PVREpg->UnregisterObserver(this);
+
   for (unsigned int iTimerPtr = 0; iTimerPtr < size(); iTimerPtr++)
     delete at(iTimerPtr);
   clear();
@@ -76,7 +85,7 @@ void CPVRTimers::Sort(void)
   sort(begin(), end(), sortByStartTime());
 }
 
-bool CPVRTimers::Update(bool bAsyncUpdate /* = false */)
+bool CPVRTimers::Update(void)
 {
   CSingleLock lock(m_critSection);
   if (m_bIsUpdating)
@@ -84,32 +93,11 @@ bool CPVRTimers::Update(bool bAsyncUpdate /* = false */)
   m_bIsUpdating = true;
   lock.Leave();
 
-  if (bAsyncUpdate)
-  {
-    StopThread();
-    Create();
-    SetName("XBMC PVR timers update");
-    SetPriority(-1);
-    return false;
-  }
-  else
-  {
-    return ExecuteUpdate();
-  }
-}
-
-bool CPVRTimers::ExecuteUpdate(void)
-{
   CLog::Log(LOGDEBUG, "CPVRTimers - %s - updating timers", __FUNCTION__);
   CPVRTimers PVRTimers_tmp;
   PVRTimers_tmp.LoadFromClients();
 
   return UpdateEntries(&PVRTimers_tmp);
-}
-
-void CPVRTimers::Process(void)
-{
-  ExecuteUpdate();
 }
 
 bool CPVRTimers::IsRecording(void)
@@ -146,9 +134,13 @@ bool CPVRTimers::UpdateEntries(CPVRTimers *timers)
     if (existingTimer)
     {
       /* if it's present, update the current tag */
+      bool bStateChanged(existingTimer->m_state != timer->m_state);
       if (existingTimer->UpdateEntry(*timer))
       {
         bChanged = true;
+
+        if (bStateChanged && g_PVRManager.IsStarted())
+          existingTimer->QueueNotification();
 
         CLog::Log(LOGINFO,"PVRTimers - %s - updated timer %d on client %d",
             __FUNCTION__, timer->m_iClientIndex, timer->m_iClientId);
@@ -162,6 +154,9 @@ bool CPVRTimers::UpdateEntries(CPVRTimers *timers)
       push_back(newTimer);
       bChanged = true;
       bAddedOrDeleted = true;
+
+      if (g_PVRManager.IsStarted())
+        newTimer->QueueNotification();
 
       CLog::Log(LOGINFO,"PVRTimers - %s - added timer %d on client %d",
           __FUNCTION__, timer->m_iClientIndex, timer->m_iClientId);
@@ -180,6 +175,13 @@ bool CPVRTimers::UpdateEntries(CPVRTimers *timers)
       /* timer was not found */
       CLog::Log(LOGINFO,"PVRTimers - %s - deleted timer %d on client %d",
           __FUNCTION__, timer->m_iClientIndex, timer->m_iClientId);
+
+      if (g_PVRManager.IsStarted() && g_guiSettings.GetBool("pvrrecord.timernotifications"))
+      {
+        CStdString strMessage;
+        strMessage.Format("%s: '%s'", g_localizeStrings.Get(19228), timer->m_strTitle.c_str());
+        g_application.m_guiDialogKaiToast.QueueNotification(CGUIDialogKaiToast::Info, g_localizeStrings.Get(19166), strMessage);
+      }
 
       CPVREpgInfoTag *epgTag = (CPVREpgInfoTag *) at(iTimerPtr)->m_epgInfo;
       if (epgTag)
@@ -201,13 +203,7 @@ bool CPVRTimers::UpdateEntries(CPVRTimers *timers)
     SetChanged();
     lock.Leave();
 
-    NotifyObservers("timers", false);
-
-    g_PVRManager.UpdateWindow(PVR_WINDOW_TIMERS, bAddedOrDeleted);
-    g_PVRManager.UpdateWindow(PVR_WINDOW_EPG, false);
-    g_PVRManager.UpdateWindow(PVR_WINDOW_RECORDINGS, bAddedOrDeleted);
-    g_PVRManager.UpdateWindow(PVR_WINDOW_CHANNELS_TV, false);
-    g_PVRManager.UpdateWindow(PVR_WINDOW_CHANNELS_RADIO, false);
+    NotifyObservers(bAddedOrDeleted ? "timers-reset" : "timers", false);
   }
 
   return bChanged;
@@ -402,20 +398,9 @@ bool CPVRTimers::DeleteTimersOnChannel(const CPVRChannel &channel, bool bDeleteR
 CPVRTimerInfoTag *CPVRTimers::InstantTimer(CPVRChannel *channel, bool bStartTimer /* = true */)
 {
   if (!channel)
-  {
-    if (!g_PVRManager.GetCurrentChannel(channel))
-      channel = (CPVRChannel *) g_PVRChannelGroups->GetGroupAllTV()->GetFirstChannel();
-
-    /* no channels present */
-    if (!channel)
-      return NULL;
-  }
+    return NULL;
 
   const CPVREpgInfoTag *epgTag = channel->GetEPGNow();
-  int iMarginEnd = g_guiSettings.GetInt("pvrrecord.marginend");
-  int iPriority = g_guiSettings.GetInt("pvrrecord.defaultpriority");
-  int iLifetime = g_guiSettings.GetInt("pvrrecord.defaultlifetime");
-  int iDuration = g_guiSettings.GetInt("pvrrecord.instantrecordtime");
 
   CPVRTimerInfoTag *newTimer = epgTag ? CPVRTimerInfoTag::CreateFromEpg(*epgTag) : NULL;
   if (!newTimer)
@@ -423,16 +408,12 @@ CPVRTimerInfoTag *CPVRTimers::InstantTimer(CPVRChannel *channel, bool bStartTime
     newTimer = new CPVRTimerInfoTag;
     /* set the timer data */
     newTimer->m_iClientIndex      = -1;
-    newTimer->m_bIsActive         = true;
     newTimer->m_strTitle          = channel->ChannelName();
     newTimer->m_strSummary        = g_localizeStrings.Get(19056);
-    newTimer->m_iMarginEnd        = iMarginEnd ? iMarginEnd : 5; /* use 5 minutes as default */
     newTimer->m_iChannelNumber    = channel->ChannelNumber();
     newTimer->m_iClientChannelUid = channel->UniqueID();
     newTimer->m_iClientId         = channel->ClientID();
     newTimer->m_bIsRadio          = channel->IsRadio();
-    newTimer->m_iPriority         = iPriority ? iPriority : 50;  /* default to 50 */
-    newTimer->m_iLifetime         = iLifetime ? iLifetime : 30;  /* default to 30 days */
 
     /* generate summary string */
     newTimer->m_strSummary.Format("%s %s %s %s %s",
@@ -443,8 +424,13 @@ CPVRTimerInfoTag *CPVRTimers::InstantTimer(CPVRChannel *channel, bool bStartTime
         newTimer->EndAsLocalTime().GetAsLocalizedTime("", false));
   }
 
-  newTimer->m_iMarginStart = 0;
-  newTimer->SetDuration(iDuration ? iDuration : 120); /* use 120 minutes as default */
+  CDateTime startTime;
+  newTimer->SetStartFromUTC(startTime);
+  newTimer->m_iMarginStart = 0; /* set the start margin to 0 for instant timers */
+
+  int iDuration = g_guiSettings.GetInt("pvrrecord.instantrecordtime");
+  CDateTime endTime = CDateTime::GetCurrentDateTime().GetAsUTCDateTime() + CDateTimeSpan(0, 0, iDuration ? iDuration : 120, 0);
+  newTimer->SetEndFromUTC(endTime);
 
   /* unused only for reference */
   newTimer->m_strFileNameAndPath = "pvr://timers/new";
@@ -479,7 +465,7 @@ bool CPVRTimers::AddTimer(const CFileItem &item)
 
 bool CPVRTimers::AddTimer(CPVRTimerInfoTag &item)
 {
-  if (!g_PVRClients->GetClientProperties(item.m_iClientId)->bSupportsTimers)
+  if (!g_PVRClients->GetAddonCapabilities(item.m_iClientId)->bSupportsTimers)
   {
     CGUIDialogOK::ShowAndGetInput(19033,0,19215,0);
     return false;
@@ -578,7 +564,7 @@ bool CPVRTimers::IsRecordingOnChannel(const CPVRChannel &channel) const
   {
     CPVRTimerInfoTag *timer = at(ptr);
 
-    if (timer->IsRecording() && timer->m_channel && *timer->m_channel == channel)
+    if (timer->IsRecording() && timer->m_iClientChannelUid == channel.UniqueID() && timer->m_iClientId == channel.ClientID())
     {
       bReturn = true;
       break;

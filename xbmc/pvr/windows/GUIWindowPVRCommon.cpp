@@ -36,6 +36,7 @@
 #include "pvr/timers/PVRTimers.h"
 #include "pvr/addons/PVRClients.h"
 #include "pvr/windows/GUIWindowPVR.h"
+#include "pvr/windows/GUIWindowPVRSearch.h"
 #include "pvr/recordings/PVRRecordings.h"
 #include "settings/GUISettings.h"
 #include "settings/Settings.h"
@@ -92,7 +93,8 @@ const char *CGUIWindowPVRCommon::GetName(void) const
 
 bool CGUIWindowPVRCommon::IsVisible(void) const
 {
-  return g_windowManager.GetActiveWindow() == WINDOW_PVR &&
+  return !g_application.IsPlayingFullScreenVideo() &&
+      g_windowManager.GetActiveWindow() == WINDOW_PVR &&
       IsActive();
 }
 
@@ -132,6 +134,19 @@ void CGUIWindowPVRCommon::SetInvalid()
 void CGUIWindowPVRCommon::OnInitWindow()
 {
   m_parent->m_viewControl.SetCurrentView(m_iControlList);
+}
+
+bool CGUIWindowPVRCommon::SelectPlayingFile(void)
+{
+  bool bReturn(false);
+
+  if (g_PVRManager.IsPlaying())
+  {
+    m_parent->m_viewControl.SetSelectedItem(g_application.CurrentFile());
+    bReturn = true;
+  }
+
+  return bReturn;
 }
 
 bool CGUIWindowPVRCommon::OnMessageFocus(CGUIMessage &message)
@@ -186,6 +201,7 @@ bool CGUIWindowPVRCommon::OnContextButton(int itemNumber, CONTEXT_BUTTON button)
       OnContextButtonSortByChannel(pItem.get(), button) ||
       OnContextButtonSortByName(pItem.get(), button) ||
       OnContextButtonSortByDate(pItem.get(), button) ||
+      OnContextButtonFind(pItem.get(), button) ||
       OnContextButtonMenuHooks(pItem.get(), button));
 }
 
@@ -340,6 +356,24 @@ bool CGUIWindowPVRCommon::ActionDeleteTimer(CFileItem *item)
   return g_PVRTimers->DeleteTimer(*item);
 }
 
+bool CGUIWindowPVRCommon::ShowNewTimerDialog(void)
+{
+  bool bReturn(false);
+
+  CPVRTimerInfoTag *newTimer = new CPVRTimerInfoTag;
+  CFileItem *newItem = new CFileItem(*newTimer);
+  if (ShowTimerSettings(newItem))
+  {
+    /* Add timer to backend */
+    bReturn = g_PVRTimers->AddTimer(*newItem);
+  }
+
+  delete newItem;
+  delete newTimer;
+
+  return bReturn;
+}
+
 bool CGUIWindowPVRCommon::ActionShowTimer(CFileItem *item)
 {
   bool bReturn = false;
@@ -349,20 +383,7 @@ bool CGUIWindowPVRCommon::ActionShowTimer(CFileItem *item)
      open settings for selected timer entry */
   if (item->m_strPath == "pvr://timers/add.timer")
   {
-    CPVRTimerInfoTag *newTimer = g_PVRTimers->InstantTimer(NULL, false);
-    if (newTimer)
-    {
-      CFileItem *newItem = new CFileItem(*newTimer);
-
-      if (ShowTimerSettings(newItem))
-      {
-        /* Add timer to backend */
-        bReturn = g_PVRTimers->AddTimer(*newItem);
-      }
-
-      delete newItem;
-      delete newTimer;
-    }
+    bReturn = ShowNewTimerDialog();
   }
   else
   {
@@ -635,8 +656,16 @@ bool CGUIWindowPVRCommon::PlayFile(CFileItem *item, bool bPlayMinimized /* = fal
   }
   else
   {
-    /* Play Live TV */
-    if (!g_application.PlayFile(*item, false))
+    bool bSwitchSuccessful(false);
+
+    /* try a fast switch */
+    if (item->IsPVRChannel() && (g_PVRManager.IsPlayingTV() || g_PVRManager.IsPlayingRadio()))
+      bSwitchSuccessful = g_application.m_pPlayer->SwitchChannel(*item->GetPVRChannelInfoTag());
+
+    if (!bSwitchSuccessful)
+      bSwitchSuccessful = g_application.PlayFile(*item, false);
+
+    if (!bSwitchSuccessful)
     {
       CGUIDialogOK::ShowAndGetInput(19033,0,19035,0);
       return false;
@@ -701,7 +730,7 @@ void CGUIWindowPVRCommon::ShowEPGInfo(CFileItem *item)
   CFileItem *tag = NULL;
   if (item->IsEPG())
   {
-    tag = item;
+    tag = new CFileItem(*item);
   }
   else if (item->IsPVRChannel())
   {
@@ -722,6 +751,8 @@ void CGUIWindowPVRCommon::ShowEPGInfo(CFileItem *item)
 
     pDlgInfo->SetProgInfo(tag);
     pDlgInfo->DoModal();
+
+    delete tag;
   }
 }
 
@@ -736,4 +767,32 @@ void CGUIWindowPVRCommon::ShowRecordingInfo(CFileItem *item)
 
   pDlgInfo->SetRecording(item);
   pDlgInfo->DoModal();
+}
+
+bool CGUIWindowPVRCommon::OnContextButtonFind(CFileItem *item, CONTEXT_BUTTON button)
+{
+  bool bReturn = false;
+
+  if (button == CONTEXT_BUTTON_FIND)
+  {
+    bReturn = true;
+    if (m_parent->m_windowSearch)
+    {
+      m_parent->m_windowSearch->m_searchfilter.Reset();
+      if (item->IsEPG())
+        m_parent->m_windowSearch->m_searchfilter.m_strSearchTerm = "\"" + item->GetEPGInfoTag()->Title() + "\"";
+      else if (item->IsPVRChannel() && item->GetPVRChannelInfoTag()->GetEPGNow())
+        m_parent->m_windowSearch->m_searchfilter.m_strSearchTerm = "\"" + item->GetPVRChannelInfoTag()->GetEPGNow()->Title() + "\"";
+      else if (item->IsPVRRecording())
+        m_parent->m_windowSearch->m_searchfilter.m_strSearchTerm = "\"" + item->GetPVRRecordingInfoTag()->m_strTitle + "\"";
+
+      m_parent->m_windowSearch->m_bSearchConfirmed = true;
+      m_parent->SetLabel(m_iControlButton, 0);
+      m_parent->SetActiveView(m_parent->m_windowSearch);
+      m_parent->m_windowSearch->UpdateData();
+      m_parent->SetLabel(m_iControlList, 0);
+    }
+  }
+
+  return bReturn;
 }

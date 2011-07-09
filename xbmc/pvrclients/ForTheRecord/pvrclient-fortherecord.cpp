@@ -19,6 +19,7 @@
 #include "client.h"
 //#include "timers.h"
 #include "channel.h"
+#include "activerecording.h"
 #include "upcomingrecording.h"
 #include "recordinggroup.h"
 #include "recordingsummary.h"
@@ -27,6 +28,10 @@
 #include "utils.h"
 #include "pvrclient-fortherecord.h"
 #include "fortherecordrpc.h"
+
+#ifdef TSREADER
+#include "lib/tsreader/TSReader.h"
+#endif
 
 using namespace std;
 
@@ -43,11 +48,17 @@ cPVRClientForTheRecord::cPVRClientForTheRecord()
   m_tsreader               = NULL;
   m_channel_id_offset      = 0;
   m_epg_id_offset          = 0;
+  m_iCurrentChannel        = 0;
 }
 
 cPVRClientForTheRecord::~cPVRClientForTheRecord()
 {
   XBMC->Log(LOG_DEBUG, "->~cPVRClientForTheRecord()");
+  // Check if we are still reading a TV/Radio stream and close it here
+  if (m_bTimeShiftStarted)
+  {
+    CloseLiveStream();
+  }
 }
 
 
@@ -187,24 +198,25 @@ PVR_ERROR cPVRClientForTheRecord::GetEpg(PVR_HANDLE handle, const PVR_CHANNEL &c
           if (epg.Parse(response[index]))
           {
             m_epg_id_offset++;
-            broadcast.iUniqueBroadcastId = m_epg_id_offset;
-            broadcast.strTitle           = epg.Title();
-            broadcast.iChannelNumber     = channel.iChannelNumber;
-            broadcast.startTime          = epg.StartTime();
-            broadcast.endTime            = epg.EndTime();
-            broadcast.strPlotOutline     = epg.Subtitle();
-            broadcast.strPlot            = epg.Description();
-            broadcast.strIconPath        = "";
-            broadcast.iGenreType         = 0;
-            broadcast.iGenreSubType      = 0;
-            broadcast.firstAired         = 0;
-            broadcast.iParentalRating    = 0;
-            broadcast.iStarRating        = 0;
-            broadcast.bNotify            = false;
-            broadcast.iSeriesNumber      = 0;
-            broadcast.iEpisodeNumber     = 0;
-            broadcast.iEpisodePartNumber = 0;
-            broadcast.strEpisodeName     = "";
+            broadcast.iUniqueBroadcastId  = m_epg_id_offset;
+            broadcast.strTitle            = epg.Title();
+            broadcast.iChannelNumber      = channel.iChannelNumber;
+            broadcast.startTime           = epg.StartTime();
+            broadcast.endTime             = epg.EndTime();
+            broadcast.strPlotOutline      = epg.Subtitle();
+            broadcast.strPlot             = epg.Description();
+            broadcast.strIconPath         = "";
+            broadcast.iGenreType          = 0;
+            broadcast.iGenreSubType       = 0;
+            broadcast.strGenreDescription = "";
+            broadcast.firstAired          = 0;
+            broadcast.iParentalRating     = 0;
+            broadcast.iStarRating         = 0;
+            broadcast.bNotify             = false;
+            broadcast.iSeriesNumber       = 0;
+            broadcast.iEpisodeNumber      = 0;
+            broadcast.iEpisodePartNumber  = 0;
+            broadcast.strEpisodeName      = "";
 
             PVR->TransferEpgEntry(handle, &broadcast);
           }
@@ -214,12 +226,12 @@ PVR_ERROR cPVRClientForTheRecord::GetEpg(PVR_HANDLE handle, const PVR_CHANNEL &c
     }
     else
     {
-      XBMC->Log(LOG_ERROR, "GetEPGData failed for channel id:%i", channel.iChannelNumber);
+      XBMC->Log(LOG_ERROR, "GetEPGData failed for channel id:%i", channel.iUniqueId);
     }
   }
   else
   {
-    XBMC->Log(LOG_ERROR, "Channel (%i) did not return a channel class.", channel.iChannelNumber);
+    XBMC->Log(LOG_ERROR, "Channel (%i) did not return a channel class.", channel.iUniqueId);
   }
 
   return PVR_ERROR_NO_ERROR;
@@ -352,17 +364,119 @@ PVR_ERROR cPVRClientForTheRecord::GetChannels(PVR_HANDLE handle, bool bRadio)
 
 int cPVRClientForTheRecord::GetChannelGroupsAmount(void)
 {
-  return PVR_ERROR_NOT_IMPLEMENTED;
+  Json::Value response;
+  int num = 0;
+  if (ForTheRecord::RequestTVChannelGroups(response) >= 0) num += response.size();
+  if (ForTheRecord::RequestRadioChannelGroups(response) >= 0) num += response.size();
+  return num;
 }
 
 PVR_ERROR cPVRClientForTheRecord::GetChannelGroups(PVR_HANDLE handle, bool bRadio)
 {
-  return PVR_ERROR_NOT_IMPLEMENTED;
+  Json::Value response;
+  int retval;
+  if (!bRadio)
+  {
+    retval = ForTheRecord::RequestTVChannelGroups(response);
+  }
+  else
+  {
+    retval = ForTheRecord::RequestRadioChannelGroups(response);
+  }
+  if (retval >= 0)
+  {
+    int size = response.size();
+
+    // parse channel group list
+    for (int index = 0; index < size; ++index)
+    {
+      std::string name = response[index]["GroupName"].asString();
+      std::string guid = response[index]["ChannelGroupId"].asString();
+      if (!bRadio)
+      {
+        XBMC->Log(LOG_DEBUG, "Found TV channel group %s: %s\n", guid.c_str(), name.c_str());
+      }
+      else
+      {
+        XBMC->Log(LOG_DEBUG, "Found Radio channel group %s: %s\n", guid.c_str(), name.c_str());
+      }
+      PVR_CHANNEL_GROUP tag;
+      memset(&tag, 0 , sizeof(PVR_CHANNEL_GROUP));
+
+      tag.bIsRadio     = bRadio;
+      tag.strGroupName = name.c_str();
+
+      PVR->TransferChannelGroup(handle, &tag);
+    }
+    return PVR_ERROR_NO_ERROR;
+  }
+  else
+  {
+    return PVR_ERROR_SERVER_ERROR;
+  }
 }
 
 PVR_ERROR cPVRClientForTheRecord::GetChannelGroupMembers(PVR_HANDLE handle, const PVR_CHANNEL_GROUP &group)
 {
-  return PVR_ERROR_NOT_IMPLEMENTED;
+  Json::Value response;
+  int retval;
+
+  // Step 1, find the GUID for this channelgroup
+  if (!group.bIsRadio)
+  {
+    retval = ForTheRecord::RequestTVChannelGroups(response);
+  }
+  else
+  {
+    retval = ForTheRecord::RequestRadioChannelGroups(response);
+  }
+  if (retval < 0)
+  {
+    XBMC->Log(LOG_ERROR, "Could not get Channelgroups from server.");
+    return PVR_ERROR_SERVER_ERROR;
+  }
+
+  std::string guid = "";
+  std::string name = "";
+  int size = response.size();
+  for (int index = 0; index < size; ++index)
+  {
+    name = response[index]["GroupName"].asString();
+    guid = response[index]["ChannelGroupId"].asString();
+    if (name == group.strGroupName) break;
+  }
+  if (name != group.strGroupName)
+  {
+    XBMC->Log(LOG_ERROR, "Channelgroup %s was not found while trying to retrieve the channelgroup members.", group.strGroupName);
+    return PVR_ERROR_SERVER_ERROR;
+  }
+
+  // Step 2 use the guid to retrieve the list of member channels
+  retval = ForTheRecord::RequestChannelGroupMembers(guid, response);
+  if (retval < 0)
+  {
+    XBMC->Log(LOG_ERROR, "Could not get members for Channelgroup \"%s\" (%s) from server.", name.c_str(), guid.c_str());
+    return PVR_ERROR_SERVER_ERROR;
+  }
+  size = response.size();
+  for (int index = 0; index < size; index++)
+  {
+    std::string channelId = response[index]["ChannelId"].asString();
+    cChannel* pChannel    = FetchChannel(channelId);
+
+    PVR_CHANNEL_GROUP_MEMBER tag;
+    memset(&tag,0 , sizeof(PVR_CHANNEL_GROUP_MEMBER));
+
+    tag.strGroupName     = group.strGroupName;
+    tag.iChannelUniqueId = pChannel->ID();
+    tag.iChannelNumber   = index+1;
+
+    XBMC->Log(LOG_DEBUG, "%s - add channel %s (%d) to group '%s' channel number %d",
+      __FUNCTION__, pChannel->Name(), tag.iChannelUniqueId, tag.strGroupName, tag.iChannelNumber);
+
+    PVR->TransferChannelGroupMember(handle, &tag);
+  }
+  return PVR_ERROR_NO_ERROR;
 }
 
 /************************************************************/
@@ -480,6 +594,8 @@ PVR_ERROR cPVRClientForTheRecord::DeleteRecording(const PVR_RECORDING &recinfo)
   std::string jsonval = writer.write(recordingname);
   if (ForTheRecord::DeleteRecording(jsonval) >= 0) 
   {
+    // Trigger XBMC to update it's list
+    PVR->TriggerRecordingUpdate();
     return PVR_ERROR_NO_ERROR;
   }
   else
@@ -515,44 +631,75 @@ int cPVRClientForTheRecord::GetNumTimers(void)
 
 PVR_ERROR cPVRClientForTheRecord::GetTimers(PVR_HANDLE handle)
 {
-  Json::Value response;
+  Json::Value activeRecordingsResponse, upcomingProgramsResponse;
   int         iNumberOfTimers = 0;
   PVR_TIMER   tag;
   int         numberoftimers;
 
   XBMC->Log(LOG_DEBUG, "%s", __FUNCTION__);
 
+  // retrieve the currently active recordings
+  int retval = ForTheRecord::GetActiveRecordings(activeRecordingsResponse);
+
   // pick up the upcoming recordings
-  int retval = ForTheRecord::GetUpcomingPrograms(response);
+  retval = ForTheRecord::GetUpcomingPrograms(upcomingProgramsResponse);
   if (retval < 0) 
   {
     return PVR_ERROR_SERVER_ERROR;
   }
 
   memset(&tag, 0 , sizeof(tag));
-  numberoftimers = response.size();
+  numberoftimers = upcomingProgramsResponse.size();
 
   for (int i = 0; i < numberoftimers; i++)
   {
     cUpcomingRecording upcomingrecording;
-    if (upcomingrecording.Parse(response[i]))
+    if (upcomingrecording.Parse(upcomingProgramsResponse[i]))
     {
       tag.iClientIndex      = iNumberOfTimers;
-      tag.bIsActive         = true;
       cChannel* pChannel    = FetchChannel(upcomingrecording.ChannelId());
       tag.iClientChannelUid = pChannel->ID();
-      tag.firstDay          = 0;
-      tag.iMarginStart      = upcomingrecording.PreRecordSeconds() / 60;
-      tag.iMarginEnd        = upcomingrecording.PostRecordSeconds() / 60;
       tag.startTime         = upcomingrecording.StartTime();
       tag.endTime           = upcomingrecording.StopTime();
-      tag.bIsRecording      = upcomingrecording.IsRecording();
+      // build the XBMC PVR State
+      if (upcomingrecording.IsCancelled())
+      {
+        tag.state             = PVR_TIMER_STATE_CANCELLED;
+      }
+      else
+      {
+        tag.state             = PVR_TIMER_STATE_SCHEDULED;
+        if (activeRecordingsResponse.size() > 0)
+        {
+          // Is the this upcoming program in the list of active recordings?
+          for (Json::Value::UInt j = 0; j < activeRecordingsResponse.size(); j++)
+          {
+            cActiveRecording activerecording;
+            if (activerecording.Parse(activeRecordingsResponse[j]))
+            {
+              if (upcomingrecording.UpcomingProgramId() == activerecording.UpcomingProgramId())
+              {
+                tag.state = PVR_TIMER_STATE_RECORDING;
+                break;
+              }
+            }
+          }
+        }
+      }
+
       tag.strTitle          = upcomingrecording.Title().c_str();
       tag.strDirectory      = "";
+      tag.strSummary        = "";
       tag.iPriority         = 0;
       tag.iLifetime         = 0;
       tag.bIsRepeating      = false;
+      tag.firstDay          = 0;
       tag.iWeekdays         = 0;
+      tag.iEpgUid           = 0;
+      tag.iMarginStart      = upcomingrecording.PreRecordSeconds() / 60;
+      tag.iMarginEnd        = upcomingrecording.PostRecordSeconds() / 60;
+      tag.iGenreType        = 0;
+      tag.iGenreSubType     = 0;
 
       PVR->TransferTimerEntry(handle, &tag);
       iNumberOfTimers++;
@@ -571,16 +718,42 @@ PVR_ERROR cPVRClientForTheRecord::AddTimer(const PVR_TIMER &timerinfo)
 {
   XBMC->Log(LOG_DEBUG, "AddTimer()");
 
-  // re-synthesize the FTR startime, stoptime and channel GUID
-  time_t starttime = timerinfo.startTime;
+  // re-synthesize the FTR channel GUID
   cChannel* pChannel = FetchChannel(timerinfo.iClientChannelUid);
 
-  int retval = ForTheRecord::AddOneTimeSchedule(pChannel->Guid(), starttime, timerinfo.strTitle, timerinfo.iMarginStart * 60, timerinfo.iMarginEnd * 60);
+  Json::Value addScheduleResponse;
+  int retval = ForTheRecord::AddOneTimeSchedule(pChannel->Guid(), timerinfo.startTime, timerinfo.strTitle, timerinfo.iMarginStart * 60, timerinfo.iMarginEnd * 60, addScheduleResponse);
   if (retval < 0) 
   {
     return PVR_ERROR_SERVER_ERROR;
   }
 
+  std::string scheduleid = addScheduleResponse["ScheduleId"].asString();
+
+  // Ok, we created a schedule, but did that lead to an upcoming recording?
+  Json::Value upcomingProgramsResponse;
+  retval = ForTheRecord::GetUpcomingProgramsForSchedule(addScheduleResponse, upcomingProgramsResponse);
+
+  // We should have at least one upcoming program for this schedule, otherwise nothing will be recorded
+  if (retval <= 0)
+  {
+    XBMC->Log(LOG_INFO, "The new schedule does not lead to an upcoming program, removing schedule and adding a manual one.");
+    // remove the added (now stale) schedule, ignore failure (what are we to do anyway?)
+    ForTheRecord::DeleteSchedule(scheduleid);
+
+    // Okay, add a manual schedule (forced recording) but now we need to add pre- and post-recording ourselves
+    time_t manualStartTime = timerinfo.startTime - (timerinfo.iMarginStart * 60);
+    time_t manualEndTime = timerinfo.endTime + (timerinfo.iMarginEnd * 60);
+    retval = ForTheRecord::AddManualSchedule(pChannel->Guid(), manualStartTime, manualEndTime - manualStartTime, timerinfo.strTitle, timerinfo.iMarginStart * 60, timerinfo.iMarginEnd * 60, addScheduleResponse);
+    if (retval < 0)
+    {
+      XBMC->Log(LOG_ERROR, "A manual schedule could not be added.");
+      return PVR_ERROR_SERVER_ERROR;
+    }
+  }
+
+  // Trigger an update of the PVR timers
+  PVR->TriggerTimerUpdate();
   return PVR_ERROR_NO_ERROR;
 }
 
@@ -672,44 +845,61 @@ cChannel* cPVRClientForTheRecord::FetchChannel(std::string channelid)
 
 bool cPVRClientForTheRecord::OpenLiveStream(const PVR_CHANNEL &channelinfo)
 {
-  XBMC->Log(LOG_DEBUG, "->OpenLiveStream(%i)", channelinfo.iChannelNumber);
+  XBMC->Log(LOG_DEBUG, "->OpenLiveStream(%i)", channelinfo.iUniqueId);
 
   cChannel* channel = FetchChannel(channelinfo.iUniqueId);
 
   if (channel)
   {
     std::string filename;
-    XBMC->Log(LOG_INFO, "Tune XBMC channel: %i", channelinfo.iChannelNumber);
+    XBMC->Log(LOG_INFO, "Tune XBMC channel: %i", channelinfo.iUniqueId);
     XBMC->Log(LOG_INFO, "Corresponding ForTheRecord channel: %s", channel->Guid().c_str());
 
-    ForTheRecord::TuneLiveStream(channel->Guid(), channel->Type(), filename);
-
-    if (filename.length() == 0)
+    if (m_keepalive.IsThreadRunning())
     {
-      XBMC->Log(LOG_ERROR, "Could not start the timeshift for channel %i (%s)", channelinfo.iChannelNumber, channel->Guid().c_str());
+      long hr = m_keepalive.StopThread();
+      if (hr != S_OK && hr != S_FALSE)
+      {
+        XBMC->Log(LOG_ERROR, "Stop keepalive thread failed with %x.", hr);
+      }
+    }
+    int retval = ForTheRecord::TuneLiveStream(channel->Guid(), channel->Type(), filename);
+
+    if (retval < 0 || filename.length() == 0)
+    {
+      XBMC->Log(LOG_ERROR, "Could not start the timeshift for channel %i (%s)", channelinfo.iUniqueId, channel->Guid().c_str());
       return false;
     }
 
     XBMC->Log(LOG_INFO, "Live stream file: %s", filename.c_str());
     m_bTimeShiftStarted = true;
+    m_iCurrentChannel = channelinfo.iUniqueId;
+    if (m_keepalive.StartThread() != S_OK)
+    {
+      XBMC->Log(LOG_ERROR, "Start keepalive thread failed.");
+    }
 
 #ifdef TSREADER
     if (m_tsreader != NULL)
     {
-      m_keepalive.StopThread(0);
-      m_tsreader->Close();
-      delete m_tsreader;
-      m_tsreader = new CTsReader();
+      XBMC->Log(LOG_DEBUG, "Re-using existing TsReader...");
+      m_tsreader->OnZap();
+      usleep(100000);
     } else {
       m_tsreader = new CTsReader();
+      // Open Timeshift buffer
+      // TODO: rtsp support
+      XBMC->Log(LOG_DEBUG, "Open TsReader");
+      m_tsreader->Open(filename.c_str());
     }
 
-    // Open Timeshift buffer
-    // TODO: rtsp support
-    m_tsreader->Open(filename.c_str());
-    m_keepalive.StartThread();
 #endif
     return true;
+  }
+  else
+  {
+    XBMC->Log(LOG_ERROR, "Could not get ForTheRecord channel guid for channel %i.", channelinfo.iUniqueId);
+    return false;
   }
 
   return false;
@@ -724,16 +914,17 @@ int cPVRClientForTheRecord::ReadLiveStream(unsigned char* pBuffer, unsigned int 
   unsigned char* bufptr = pBuffer;
 
   //XBMC->Log(LOG_DEBUG, "->ReadLiveStream(buf_size=%i)", buf_size);
+  if (!m_tsreader)
+    return -1;
 
   while (read_done < (unsigned long) iBufferSize)
   {
     read_wanted = iBufferSize - read_done;
-    if (!m_tsreader)
-      return -1;
 
-    if (m_tsreader->Read(bufptr, read_wanted, &read_wanted) > 0)
+    long lRc = 0;
+    if ((lRc = m_tsreader->Read(bufptr, read_wanted, &read_wanted)) > 0)
     {
-      usleep(20000);
+      usleep(400000);
       read_timeouts++;
       return read_wanted;
     }
@@ -741,7 +932,7 @@ int cPVRClientForTheRecord::ReadLiveStream(unsigned char* pBuffer, unsigned int 
 
     if ( read_done < (unsigned long) iBufferSize )
     {
-      if (read_timeouts > 50)
+      if (read_timeouts > 25)
       {
         XBMC->Log(LOG_INFO, "No data in 1 second");
         read_timeouts = 0;
@@ -749,7 +940,7 @@ int cPVRClientForTheRecord::ReadLiveStream(unsigned char* pBuffer, unsigned int 
       }
       bufptr += read_wanted;
       read_timeouts++;
-      usleep(20000);
+      usleep(40000);
     }
   }
   read_timeouts = 0;
@@ -762,20 +953,30 @@ int cPVRClientForTheRecord::ReadLiveStream(unsigned char* pBuffer, unsigned int 
 void cPVRClientForTheRecord::CloseLiveStream()
 {
   string result;
+  XBMC->Log(LOG_INFO, "CloseLiveStream");
+
+  if (m_keepalive.IsThreadRunning())
+  {
+    long hr = m_keepalive.StopThread();
+    if (hr != S_OK && hr != S_FALSE)
+    {
+      XBMC->Log(LOG_ERROR, "Stop keepalive thread failed with %x.", hr);
+    }
+  } 
 
   if (m_bTimeShiftStarted)
   {
 #ifdef TSREADER
     if (m_tsreader)
     {
+      XBMC->Log(LOG_DEBUG, "Close TsReader");
       m_tsreader->Close();
       delete_null(m_tsreader);
     }
-    m_keepalive.StopThread();
 #endif
     ForTheRecord::StopLiveStream();
-    XBMC->Log(LOG_INFO, "CloseLiveStream");
     m_bTimeShiftStarted = false;
+    m_iCurrentChannel = 0;
   } else {
     XBMC->Log(LOG_DEBUG, "CloseLiveStream: Nothing to do.");
   }
@@ -784,13 +985,16 @@ void cPVRClientForTheRecord::CloseLiveStream()
 
 bool cPVRClientForTheRecord::SwitchChannel(const PVR_CHANNEL &channelinfo)
 {
+  XBMC->Log(LOG_DEBUG, "->SwitchChannel(%i)", channelinfo.iUniqueId);
+
+  //CloseLiveStream();
   return OpenLiveStream(channelinfo);
 }
 
 
 int cPVRClientForTheRecord::GetCurrentClientChannel()
 {
-  return 0;
+  return m_iCurrentChannel;
 }
 
 PVR_ERROR cPVRClientForTheRecord::SignalStatus(PVR_SIGNAL_STATUS &signalStatus)

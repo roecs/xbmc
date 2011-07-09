@@ -39,8 +39,7 @@ namespace PVR
 
   class CPVRTimers : public std::vector<CPVRTimerInfoTag *>,
                      public Observer,
-                     public Observable,
-                     private CThread
+                     public Observable
   {
   private:
     CCriticalSection m_critSection;
@@ -53,11 +52,10 @@ namespace PVR
     int LoadFromClients(void);
 
     void Sort(void);
-    virtual bool ExecuteUpdate(void);
-    virtual void Process(void);
 
   public:
     CPVRTimers(void);
+    virtual ~CPVRTimers(void);
 
     /**
      * Load the timers from the clients.
@@ -72,9 +70,8 @@ namespace PVR
 
     /**
      * @brief refresh the channel list from the clients.
-     * @param bAsyncUpdate Try to update the timers async.
      */
-    bool Update(bool bAsyncUpdate = false);
+    bool Update(void);
 
     /**
      * Update a timer entry in this container.

@@ -23,11 +23,12 @@
 #include "PVRRecording.h"
 #include "XBDateTime.h"
 #include "threads/Thread.h"
+#include "utils/Observer.h"
 
 namespace PVR
 {
   class CPVRRecordings : public std::vector<CPVRRecording *>,
-                         private CThread
+                         public Observable
   {
   private:
     CCriticalSection m_critSection;
@@ -39,9 +40,6 @@ namespace PVR
     virtual bool IsDirectoryMember(const CStdString &strDirectory, const CStdString &strEntryDirectory, bool bDirectMember = true) const;
     virtual void GetContents(const CStdString &strDirectory, CFileItemList *results) const;
     virtual void GetSubDirectories(const CStdString &strBase, CFileItemList *results, bool bAutoSkip = true) const;
-
-    virtual void ExecuteUpdate(void);
-    virtual void Process(void);
 
   public:
     CPVRRecordings(void);
@@ -55,9 +53,8 @@ namespace PVR
 
     /**
      * @brief refresh the recordings list from the clients.
-     * @param bAsyncUpdate Try to update the recordings async.
      */
-    void Update(bool bAsyncUpdate = false);
+    void Update(void);
 
     int GetNumRecordings();
     int GetRecordings(CFileItemList* results);

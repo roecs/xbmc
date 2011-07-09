@@ -1,6 +1,6 @@
 #pragma once
 /*
- *      Copyright (C) 2005-2010 Team XBMC
+ *      Copyright (C) 2005-2011 Team XBMC
  *      http://www.xbmc.org
  *
  *  This Program is free software; you can redistribute it and/or modify
@@ -88,12 +88,16 @@ class cTimer
 
   private:
     int SchedRecType2RepeatFlags(ScheduleRecordingType schedtype);
+
+    /**
+     * @brief Convert a XBMC Lifetime value to MediaPortals keepMethod+keepDate settings
+     * @param lifetime the XBMC lifetime value (in days) (following the VDR syntax)
+     * Should be called after setting m_starttime !!
+     */
     void SetKeepMethod(int lifetime);
     int GetLifetime(void);
     int XBMC2MepoPriority(int xbmcprio);
     int Mepo2XBMCPriority(int mepoprio);
-
-    time_t      m_UTCdiff;
 
     // MediaPortal database fields:
     int         m_index;               ///> MediaPortal id_Schedule
@@ -121,5 +125,8 @@ class cTimer
     bool        m_ismanual;
     bool        m_isrecording;
 };
+
+const time_t cUndefinedDate = 946681200;   ///> 01-01-2000 00:00:00 in time_t
+const int    cSecsInDay  = 86400;          ///> Amount of seconds in one day
 
 #endif //__TIMERS_H

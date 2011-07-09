@@ -1,5 +1,5 @@
 /*
- *      Copyright (C) 2005-2010 Team XBMC
+ *      Copyright (C) 2005-2011 Team XBMC
  *      http://www.xbmc.org
  *
  *  This program is free software: you can redistribute it and/or modify
@@ -16,14 +16,12 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
  */
-
-#include "os-dependent.h"
-#include "xbmc_pvr_types.h"
 #include "libXBMC_addon.h"
 #include "utils.h"
+#include <string>
+#include "libTcpSocket/os-dependent_socket.h"
 #include "client.h"
 #include "Socket.h"
-#include <string>
 
 using namespace std;
 
@@ -87,7 +85,7 @@ bool Socket::close()
 {
   if (is_valid())
   {
-    closesocket(_sd);
+    tcp_close(_sd);
     _sd = INVALID_SOCKET;
     osCleanup();
     return true;

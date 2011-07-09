@@ -38,6 +38,17 @@ CGUIWindowPVRTimers::CGUIWindowPVRTimers(CGUIWindowPVR *parent) :
 {
 }
 
+CGUIWindowPVRTimers::~CGUIWindowPVRTimers(void)
+{
+  g_PVRTimers->UnregisterObserver(this);
+}
+
+void CGUIWindowPVRTimers::ResetObservers(void)
+{
+  CSingleLock lock(m_critSection);
+  g_PVRTimers->RegisterObserver(this);
+}
+
 void CGUIWindowPVRTimers::GetContextButtons(int itemNumber, CContextButtons &buttons) const
 {
   if (itemNumber < 0 || itemNumber >= m_parent->m_vecItems->Size())
@@ -93,6 +104,8 @@ void CGUIWindowPVRTimers::UpdateData(void)
   m_bIsFocusing = true;
   m_bUpdateRequired = false;
 
+  g_PVRTimers->RegisterObserver(this);
+
   /* lock the graphics context while updating */
   CSingleLock graphicsLock(g_graphicsContext);
 
@@ -105,7 +118,6 @@ void CGUIWindowPVRTimers::UpdateData(void)
   m_parent->m_vecItems->Sort(m_iSortMethod, m_iSortOrder);
   m_parent->m_viewControl.SetItems(*m_parent->m_vecItems);
   m_parent->m_viewControl.SetSelectedItem(m_iSelected);
-  graphicsLock.Leave();
 
   m_parent->SetLabel(CONTROL_LABELHEADER, g_localizeStrings.Get(19025));
   m_parent->SetLabel(CONTROL_LABELGROUP, "");
@@ -164,14 +176,14 @@ bool CGUIWindowPVRTimers::OnContextButtonActivate(CFileItem *item, CONTEXT_BUTTO
 
     CPVRTimerInfoTag *timer = item->GetPVRTimerInfoTag();
     int iLabelId;
-    if (timer->m_bIsActive)
+    if (timer->IsActive())
     {
-      timer->m_bIsActive = false;
+      timer->m_state = PVR_TIMER_STATE_CANCELLED;
       iLabelId = 13106;
     }
     else
     {
-      timer->m_bIsActive = true;
+      timer->m_state = PVR_TIMER_STATE_SCHEDULED;
       iLabelId = 305;
     }
 
@@ -187,14 +199,7 @@ bool CGUIWindowPVRTimers::OnContextButtonAdd(CFileItem *item, CONTEXT_BUTTON but
   bool bReturn = false;
 
   if (button == CONTEXT_BUTTON_ADD)
-  {
-    bReturn = true;
-    CPVRTimerInfoTag *newtimer = g_PVRTimers->InstantTimer(NULL, false);
-    CFileItem *item = new CFileItem(*newtimer);
-
-    if (ShowTimerSettings(item))
-      g_PVRTimers->AddTimer(*item);
-  }
+    bReturn = ShowNewTimerDialog();
 
   return bReturn;
 }
@@ -261,4 +266,22 @@ bool CGUIWindowPVRTimers::OnContextButtonRename(CFileItem *item, CONTEXT_BUTTON 
   }
 
   return bReturn;
+}
+
+void CGUIWindowPVRTimers::Notify(const Observable &obs, const CStdString& msg)
+{
+  if (msg.Equals("timers"))
+  {
+    if (IsVisible())
+      SetInvalid();
+    else
+      m_bUpdateRequired = true;
+  }
+  else if (msg.Equals("timers-reset"))
+  {
+    if (IsVisible())
+      UpdateData();
+    else
+      m_bUpdateRequired = true;
+  }
 }

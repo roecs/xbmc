@@ -30,6 +30,11 @@ class TiXmlElement;
 class CStreamDetails;
 class CAction;
 
+namespace PVR
+{
+  class CPVRChannel;
+}
+
 class IPlayerCallback
 {
 public:
@@ -133,7 +138,6 @@ public:
   virtual float GetActualFPS() { return 0.0f; };
   virtual void SeekTime(__int64 iTime = 0){};
   virtual __int64 GetTime(){ return 0;};
-  virtual void ResetTime() {};
   virtual int GetTotalTime(){ return 0;};
   virtual int GetAudioBitrate(){ return 0;}
   virtual int GetVideoBitrate(){ return 0;}
@@ -168,6 +172,7 @@ public:
   
   virtual CStdString GetPlayingTitle() { return ""; };
 
+  virtual bool SwitchChannel(const PVR::CPVRChannel &channel) { return false; }
 protected:
   IPlayerCallback& m_callback;
 };

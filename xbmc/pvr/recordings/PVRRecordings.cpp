@@ -132,7 +132,10 @@ void CPVRRecordings::GetSubDirectories(const CStdString &strBase, CFileItemList 
     }
   }
 
-  if (bAutoSkip && results->Size() == 1)
+  CFileItemList files;
+  GetContents(strBase, &files);
+
+  if (bAutoSkip && results->Size() == 1 && files.Size() == 0)
   {
     CStdString strGetPath;
     strGetPath.Format("%s/%s/", strUseBase.c_str(), results->Get(0)->GetLabel());
@@ -145,10 +148,7 @@ void CPVRRecordings::GetSubDirectories(const CStdString &strBase, CFileItemList 
     return;
   }
 
-  if (results->Size() == 0)
-  {
-    GetContents(strUseBase, results);
-  }
+  results->Append(files);
 }
 
 int CPVRRecordings::Load(void)
@@ -163,7 +163,7 @@ void CPVRRecordings::Unload()
   Clear();
 }
 
-void CPVRRecordings::Update(bool bAsyncUpdate /* = false */)
+void CPVRRecordings::Update(void)
 {
   CSingleLock lock(m_critSection);
   if (m_bIsUpdating)
@@ -171,34 +171,15 @@ void CPVRRecordings::Update(bool bAsyncUpdate /* = false */)
   m_bIsUpdating = true;
   lock.Leave();
 
-  if (bAsyncUpdate)
-  {
-    StopThread();
-    Create();
-    SetName("XBMC PVR recordings update");
-    SetPriority(-1);
-  }
-  else
-  {
-    ExecuteUpdate();
-  }
-}
-
-void CPVRRecordings::ExecuteUpdate(void)
-{
   CLog::Log(LOGDEBUG, "CPVRRecordings - %s - updating recordings", __FUNCTION__);
   UpdateFromClients();
 
-  CSingleLock lock(m_critSection);
+  lock.Enter();
   m_bIsUpdating = false;
+  SetChanged();
   lock.Leave();
 
-  g_PVRManager.UpdateWindow(PVR_WINDOW_RECORDINGS);
-}
-
-void CPVRRecordings::Process(void)
-{
-  ExecuteUpdate();
+  NotifyObservers("recordings-reset");
 }
 
 int CPVRRecordings::GetNumRecordings()

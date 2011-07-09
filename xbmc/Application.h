@@ -39,7 +39,6 @@ namespace ADDON
 #include "dialogs/GUIDialogKaiToast.h"
 #include "dialogs/GUIDialogVolumeBar.h"
 #include "dialogs/GUIDialogMuteBug.h"
-#include "windows/GUIWindowPointer.h"   // Mouse pointer
 
 #include "cores/IPlayer.h"
 #include "cores/playercorefactory/PlayerCoreFactory.h"
@@ -59,9 +58,6 @@ namespace ADDON
 #ifdef HAS_PERFORMANCE_SAMPLE
 #include "utils/PerformanceStats.h"
 #endif
-#ifdef _LINUX
-#include "linux/LinuxResourceCounter.h"
-#endif
 #include "windowing/XBMC_events.h"
 #include "threads/Thread.h"
 
@@ -75,7 +71,6 @@ class CKaraokeLyricsManager;
 class CApplicationMessenger;
 class DPMSSupport;
 class CSplash;
-class CGUITextLayout;
 
 class CBackgroundPlayer : public CThread
 {
@@ -103,9 +98,9 @@ public:
 
   void StartServices();
   void StopServices();
-  void StartWebServer();
+  bool StartWebServer();
   void StopWebServer();
-  void StartJSONRPCServer();
+  bool StartJSONRPCServer();
   void StopJSONRPCServer(bool bWait);
   void StartUPnP();
   void StopUPnP(bool bWait);
@@ -115,7 +110,7 @@ public:
   void StopUPnPServer();
   void StartPVRManager();
   void StopPVRManager();
-  void StartEventServer();
+  bool StartEventServer();
   bool StopEventServer(bool bWait, bool promptuser);
   void RefreshEventServer();
   void StartDbusServer();
@@ -161,7 +156,6 @@ public:
   bool OnKey(const CKey& key);
   bool OnAppCommand(const CAction &action);
   bool OnAction(const CAction &action);
-  void RenderMemoryStatus();
   void CheckShutdown();
   // Checks whether the screensaver and / or DPMS should become active.
   void CheckScreenSaverAndDPMS();
@@ -181,6 +175,7 @@ public:
   int GetAudioDelay() const;
   void SetPlaySpeed(int iSpeed);
   void ResetScreenSaverTimer();
+  void StopScreenSaverTimer();
   // Wakes up from the screensaver and / or DPMS. Returns true if woken up.
   bool WakeUpScreenSaverAndDPMS();
   bool WakeUpScreenSaver();
@@ -193,7 +188,6 @@ public:
 
   void SeekPercentage(float percent);
   void SeekTime( double dTime = 0.0 );
-  void ResetPlayTime();
 
   void StopShutdownTimer();
   void ResetShutdownTimers();
@@ -225,7 +219,6 @@ public:
   CGUIDialogSeekBar m_guiDialogSeekBar;
   CGUIDialogKaiToast m_guiDialogKaiToast;
   CGUIDialogMuteBug m_guiDialogMuteBug;
-  CGUIWindowPointer m_guiPointer;
 
 #ifdef HAS_DVD_DRIVE
   MEDIA_DETECT::CAutorun m_Autorun;
@@ -355,8 +348,6 @@ protected:
   bool m_bTestMode;
   bool m_bSystemScreenSaverEnable;
   
-  CGUITextLayout *m_debugLayout;
-
 #if defined(HAS_SDL) || defined(HAS_XBMC_MUTEX)
   int        m_frameCount;
   SDL_mutex* m_frameMutex;
@@ -396,9 +387,6 @@ protected:
 #endif
 #ifdef HAS_PERFORMANCE_SAMPLE
   CPerformanceStats m_perfStats;
-#endif
-#ifdef _LINUX
-  CLinuxResourceCounter m_resourceCounter;
 #endif
 
 #ifdef HAS_EVENT_SERVER

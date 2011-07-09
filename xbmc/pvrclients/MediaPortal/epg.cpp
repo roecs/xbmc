@@ -1,5 +1,5 @@
 /*
- *      Copyright (C) 2005-2010 Team XBMC
+ *      Copyright (C) 2005-2011 Team XBMC
  *      http://www.xbmc.org
  *
  *  This program is free software: you can redistribute it and/or modify
@@ -22,15 +22,16 @@
 
 using namespace std;
 
+#include "xbmc_pvr_types.h"
 #include "epg.h"
 #include "utils.h"
 #include "client.h"
 
-//Copied from PVREpg.h:
-//subtypes derived from English strings.xml and CPVREpgInfoTag::ConvertGenreIdToString
-//TODO: Finish me... This list is not yet complete
-#define EPG_EVENT_CONTENTMASK_MOVIEDRAMA                     0x10
-//Subtypes MOVIE/DRAMA
+// For the main EPG event types, see xbmc_pvr_types.h
+// Subtypes below are derived from English strings.xml and CEpg::ConvertGenreIdToString()
+// TODO: Finish me... This list is not yet complete
+// EPG_EVENT_CONTENTMASK_MOVIEDRAMA                  0x10
+// Subtypes MOVIE/DRAMA
 #define DETECTIVE_THRILLER                           0x01
 #define ADVENTURE_WESTERN_WAR                        0x02
 #define SF_FANTASY_HORROR                            0x03
@@ -40,32 +41,32 @@ using namespace std;
 #define SERIOUS_CLASSICAL_RELIGIOUS_HISTORICAL_DRAMA 0x07
 #define ADULTMOVIE_DRAMA                             0x08
 
-#define EPG_EVENT_CONTENTMASK_NEWSCURRENTAFFAIRS             0x20
-//subtypes:
+// EPG_EVENT_CONTENTMASK_NEWSCURRENTAFFAIRS          0x20
+// subtypes:
 #define NEWS_WEATHER_REPORT                          0x01
 #define NEWS_MAGAZINE                                0x02
 #define DOCUMENTARY                                  0x03
 #define DISCUSSION_INTERVIEW_DEBATE                  0x04
 
-#define EPG_EVENT_CONTENTMASK_SHOW                           0x30
-//subtypes:
+// EPG_EVENT_CONTENTMASK_SHOW                        0x30
+// subtypes:
 #define GAMESHOW_QUIZ_CONTEST                        0x01
 #define VARIETY_SHOW                                 0x02
 #define TALK_SHOW                                    0x03
 
-#define EPG_EVENT_CONTENTMASK_SPORTS                         0x40
+// EPG_EVENT_CONTENTMASK_SPORTS                      0x40
 
-#define EPG_EVENT_CONTENTMASK_CHILDRENYOUTH                  0x50
-//subtypes
+// EPG_EVENT_CONTENTMASK_CHILDRENYOUTH               0x50
+// subtypes
 #define PRESCHOOL_CHILD_PROGRAM                      0x01
 #define ENTERTAINMENT_6TO14                          0x02
 #define ENTERTAINMENT_10TO16                         0x03
 #define INFO_EDUC_SCHOOL_PROGRAM                     0x04
 #define CARTOONS_PUPPETS                             0x05
 
-#define EPG_EVENT_CONTENTMASK_MUSICBALLETDANCE               0x60
-#define EPG_EVENT_CONTENTMASK_ARTSCULTURE                    0x70
-//subtypes
+// EPG_EVENT_CONTENTMASK_MUSICBALLETDANCE            0x60
+// EPG_EVENT_CONTENTMASK_ARTSCULTURE                 0x70
+// subtypes
 #define PERFORMING_ARTS                              0x01
 #define FINE_ARTS                                    0x02
 #define RELIGION                                     0x03
@@ -78,14 +79,14 @@ using namespace std;
 #define ARTS_CULTURE_MAGAZINES                       0x10
 #define FASHION                                      0x11
 
-#define EPG_EVENT_CONTENTMASK_SOCIALPOLITICALECONOMICS       0x80
-//subtype
+// EPG_EVENT_CONTENTMASK_SOCIALPOLITICALECONOMICS    0x80
+// subtype
 #define MAGAZINES_REPORTS_DOCUMENTARY                0x01
 #define ECONOMICS_SOCIAL_ADVISORY                    0x02
 #define REMARKABLE_PEOPLE                            0x03
 
-#define EPG_EVENT_CONTENTMASK_EDUCATIONALSCIENCE             0x90
-//subtypes
+// EPG_EVENT_CONTENTMASK_EDUCATIONALSCIENCE          0x90
+// subtypes
 #define NATURE_ANIMALS_ENVIRONMENT                   0x01
 #define TECHNOLOGY_NATURAL_SCIENCES                  0x02
 #define MEDICINE_PHYSIOLOGY_PSYCHOLOGY               0x03
@@ -94,19 +95,13 @@ using namespace std;
 #define FURTHER_EDUCATION                            0x06
 #define LANGUAGES                                    0x07
 
-#define EPG_EVENT_CONTENTMASK_LEISUREHOBBIES                 0xA0
-#define EPG_EVENT_CONTENTMASK_SPECIAL                        0xB0
-#define EPG_EVENT_CONTENTMASK_USERDEFINED                    0xF0
+// EPG_EVENT_CONTENTMASK_LEISUREHOBBIES              0xA0
+// EPG_EVENT_CONTENTMASK_SPECIAL                     0xB0
+// EPG_EVENT_CONTENTMASK_USERDEFINED                 0xF0
 
 cEpg::cEpg()
 {
-  m_uid             = 0;
-  m_StartTime       = 0;
-  m_EndTime         = 0;
-  m_Duration        = 0;
-  m_genre_type      = 0;
-  m_genre_subtype   = 0;
-  m_UTCdiff = GetUTCdifftime();
+  Reset();
 }
 
 cEpg::~cEpg()
@@ -119,29 +114,30 @@ void cEpg::Reset()
   m_title.clear();
   m_shortText.clear();
   m_description.clear();
+  m_episodePart.clear();
 
+  m_uid             = 0;
   m_StartTime       = 0;
   m_EndTime         = 0;
+  m_originalAirDate = 0;
   m_Duration        = 0;
   m_genre_type      = 0;
   m_genre_subtype   = 0;
-  m_uid             = 0;
+  m_seriesNumber    = 0;
+  m_episodeNumber   = 0;
+  m_starRating      = 0;
+  m_parentalRating  = 0;
 }
 
 bool cEpg::ParseLine(string& data)
 {
-  struct tm timeinfo;
-  int year, month ,day;
-  int hour, minute, second;
-  int count;
-
   try
   {
     vector<string> epgfields;
 
     Tokenize(data, epgfields, "|");
 
-    if( epgfields.size() == 5 )
+    if( epgfields.size() >= 5 )
     {
       //XBMC->Log(LOG_DEBUG, "%s: %s", epgfields[0].c_str(), epgfields[2].c_str());
       // field 0 = start date + time
@@ -149,24 +145,18 @@ bool cEpg::ParseLine(string& data)
       // field 2 = title
       // field 3 = description
       // field 4 = genre string
+      // field 5 = idProgram (int)
+      // field 6 = idChannel (int)
+      // field 7 = seriesNum (string)
+      // field 8 = episodeNumber (string)
+      // field 9 = episodeName (string)
+      // field 10 = episodePart (string)
+      // field 11 = originalAirDate (date + time)
+      // field 12 = classification (string)
+      // field 13 = starRating (int)
+      // field 14 = parentalRating (int)
 
-      count = sscanf(epgfields[0].c_str(), "%d-%d-%d %d:%d:%d", &year, &month, &day, &hour, &minute, &second);
-
-      if( count != 6)
-        return false;
-
-      timeinfo.tm_hour = hour;
-      timeinfo.tm_min = minute;
-      timeinfo.tm_sec = second;
-      timeinfo.tm_year = year - 1900;
-      timeinfo.tm_mon = month - 1;
-      timeinfo.tm_mday = day;
-      // Make the other fields empty:
-      timeinfo.tm_isdst = -1;
-      timeinfo.tm_wday = 0;
-      timeinfo.tm_yday = 0;
-
-      m_StartTime = mktime (&timeinfo);// + m_UTCdiff; //m_StartTime should be localtime, MP TV returns UTC
+      m_StartTime = DateTimeToTimeT(epgfields[0]);
 
       if(m_StartTime < 0)
       {
@@ -174,37 +164,41 @@ bool cEpg::ParseLine(string& data)
         return false;
       }
 
-      count = sscanf(epgfields[1].c_str(), "%d-%d-%d %d:%d:%d", &year, &month, &day, &hour, &minute, &second);
-
-      if(count != 6)
-        return false;
-
-      timeinfo.tm_hour = hour;
-      timeinfo.tm_min = minute;
-      timeinfo.tm_sec = second;
-      timeinfo.tm_year = year - 1900;
-      timeinfo.tm_mon = month - 1;
-      timeinfo.tm_mday = day;
-      // Make the other fields empty:
-      timeinfo.tm_isdst = -1;
-      timeinfo.tm_wday = 0;
-      timeinfo.tm_yday = 0;
-
-      m_EndTime = mktime (&timeinfo);// + m_UTCdiff; //m_EndTime should be localtime, MP TV returns UTC
+      m_EndTime = DateTimeToTimeT(epgfields[1]);
 
       if( m_EndTime < 0)
       {
-        XBMC->Log(LOG_ERROR, "cEpg::ParseLine: Unable to convert end time '%s' into date+time", epgfields[0].c_str());
+        XBMC->Log(LOG_ERROR, "cEpg::ParseLine: Unable to convert end time '%s' into date+time", epgfields[1].c_str());
         return false;
       }
 
       m_Duration  = m_EndTime - m_StartTime;
-      m_uid       = 0;
 
       m_title = epgfields[2];
       m_description = epgfields[3];
       m_shortText = epgfields[2];
       SetGenre(epgfields[4], 0, 0);
+
+      if( epgfields.size() >= 15 )
+      {
+        // Since TVServerXBMC v1.x.x.104
+        m_uid = (unsigned int) atol(epgfields[5].c_str());
+        m_seriesNumber = atoi(epgfields[7].c_str());
+        m_episodeNumber = atoi(epgfields[8].c_str());
+        m_episodeName = epgfields[9];
+        m_episodePart = epgfields[10];
+        m_starRating = atoi(epgfields[13].c_str());
+        m_parentalRating = atoi(epgfields[14].c_str());
+
+        //originalAirDate
+        m_originalAirDate = DateTimeToTimeT(epgfields[11]);
+
+        if(  m_originalAirDate < 0)
+        {
+          XBMC->Log(LOG_ERROR, "cEpg::ParseLine: Unable to convert original air date '%s' into date+time", epgfields[11].c_str());
+          return false;
+        }
+      }
 
       return true;
     }
@@ -274,8 +268,8 @@ void cEpg::SetGenre(string& Genre, int genreType, int genreSubType)
       m_genre_type = EPG_EVENT_CONTENTMASK_MUSICBALLETDANCE;
     } else {
       //XBMC->Log(LOG_DEBUG, "epg::setgenre: TODO mapping of MPTV's '%s' genre.", Genre.c_str());
-      m_genre_type     = genreType;
-      m_genre_subtype  = genreSubType;
+      m_genre_type     = EPG_GENRE_USE_STRING;
+      m_genre_subtype  = 0;
     }
   } else {
     m_genre_type = 0;

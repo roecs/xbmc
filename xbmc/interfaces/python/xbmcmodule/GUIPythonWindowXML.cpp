@@ -51,7 +51,6 @@ CGUIPythonWindowXML::CGUIPythonWindowXML(int id, CStdString strXML, CStdString s
   m_threadState = NULL;
   m_actionEvent = CreateEvent(NULL, true, false, NULL);
   m_loadOnDemand = false;
-  m_coordsRes = RES_PAL_4x3;
   m_scriptPath = strFallBackPath;
 }
 
@@ -345,10 +344,10 @@ void CGUIPythonWindowXML::FreeResources(bool forceUnLoad /*= FALSE */)
   CGUIMediaWindow::FreeResources(forceUnLoad);
 }
 
-void CGUIPythonWindowXML::Render()
+void CGUIPythonWindowXML::Process(unsigned int currentTime, CDirtyRegionList &regions)
 {
   g_TextureManager.AddTexturePath(m_mediaDir);
-  CGUIMediaWindow::Render();
+  CGUIMediaWindow::Process(currentTime, regions);
   g_TextureManager.RemoveTexturePath(m_mediaDir);
 }
 

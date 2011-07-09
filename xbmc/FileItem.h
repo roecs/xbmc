@@ -132,9 +132,9 @@ public:
   bool IsOnDVD() const;
   bool IsOnLAN() const;
   bool IsHD() const;
+  bool IsNfs() const;  
   bool IsRemote() const;
   bool IsSmb() const;
-  bool IsXBMS() const;
   bool IsURL() const;
   bool IsDAAP() const;
   bool IsStack() const;
@@ -156,6 +156,7 @@ public:
   bool IsTuxBox() const;
   bool IsMythTV() const;
   bool IsHDHomeRun() const;
+  bool IsSlingbox() const;
   bool IsVTP() const;
   bool IsPVR() const;
   bool IsLiveTV() const;

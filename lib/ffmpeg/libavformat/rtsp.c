@@ -322,7 +322,7 @@ static void sdp_parse_line(AVFormatContext *s, SDPParseState *s1,
         if (!strcmp(ff_rtp_enc_name(rtsp_st->sdp_payload_type), "MP2T")) {
             /* no corresponding stream */
         } else {
-            st = av_new_stream(s, 0);
+            st = av_new_stream(s, rt->nb_rtsp_streams - 1);
             if (!st)
                 return;
             rtsp_st->stream_index = st->index;
@@ -744,9 +744,9 @@ static void rtsp_parse_rtp_info(RTSPState *rt, const char *p)
         if (!strcmp(key, "url"))
             av_strlcpy(url, value, sizeof(url));
         else if (!strcmp(key, "seq"))
-            seq = strtol(value, NULL, 10);
+            seq = strtoul(value, NULL, 10);
         else if (!strcmp(key, "rtptime"))
-            rtptime = strtol(value, NULL, 10);
+            rtptime = strtoul(value, NULL, 10);
         if (*p == ',') {
             handle_rtp_info(rt, url, seq, rtptime);
             url[0] = '\0';
@@ -808,6 +808,10 @@ void ff_rtsp_parse_line(RTSPMessageHeader *reply, const char *buf,
         p += strspn(p, SPACE_CHARS);
         if (method && !strcmp(method, "PLAY"))
             rtsp_parse_rtp_info(rt, p);
+    } else if (av_stristart(p, "Public:", &p) && rt) {
+        if (strstr(p, "GET_PARAMETER") &&
+            method && !strcmp(method, "OPTIONS"))
+            rt->get_parameter_supported = 1;
     }
 }
 
@@ -1684,7 +1688,7 @@ int ff_rtsp_fetch_packet(AVFormatContext *s, AVPacket *pkt)
     case RTSP_LOWER_TRANSPORT_UDP:
     case RTSP_LOWER_TRANSPORT_UDP_MULTICAST:
         len = udp_read_packet(s, &rtsp_st, rt->recvbuf, RECVBUF_SIZE, wait_end);
-        if (len >=0 && rtsp_st->transport_priv && rt->transport == RTSP_TRANSPORT_RTP)
+        if (len > 0 && rtsp_st->transport_priv && rt->transport == RTSP_TRANSPORT_RTP)
             rtp_check_and_send_back_rr(rtsp_st->transport_priv, len);
         break;
     }

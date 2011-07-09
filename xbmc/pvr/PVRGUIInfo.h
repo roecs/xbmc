@@ -54,13 +54,20 @@ namespace PVR
      * @brief Get the total duration of the currently playing LiveTV item.
      * @return The total duration in milliseconds or NULL if no channel is playing.
      */
-    int GetTotalTime(void) const;
+    int GetDuration(void) const;
 
     /*!
      * @brief Get the current position in milliseconds since the start of a LiveTV item.
      * @return The position in milliseconds or NULL if no channel is playing.
      */
     int GetStartTime(void) const;
+
+    /*!
+     * @brief Show the player info.
+     * @param iTimeout Hide the player info after iTimeout seconds.
+     * @todo not really the right place for this :-)
+     */
+    void ShowPlayerInfo(int iTimeout);
 
   private:
     void ResetProperties(void);
@@ -76,12 +83,15 @@ namespace PVR
     bool AddonInfoToggle(void);
     bool TimerInfoToggle(void);
     void UpdateTimersToggle(void);
+    void ToggleShowInfo(void);
 
     void CharInfoActiveTimerTitle(CStdString &strValue) const;
     void CharInfoActiveTimerChannelName(CStdString &strValue) const;
+    void CharInfoActiveTimerChannelIcon(CStdString &strValue) const;
     void CharInfoActiveTimerDateTime(CStdString &strValue) const;
     void CharInfoNextTimerTitle(CStdString &strValue) const;
     void CharInfoNextTimerChannelName(CStdString &strValue) const;
+    void CharInfoNextTimerChannelIcon(CStdString &strValue) const;
     void CharInfoNextTimerDateTime(CStdString &strValue) const;
     void CharInfoPlayingDuration(CStdString &strValue) const;
     void CharInfoPlayingTime(CStdString &strValue) const;
@@ -111,10 +121,12 @@ namespace PVR
     //@{
     CStdString                      m_strActiveTimerTitle;
     CStdString                      m_strActiveTimerChannelName;
+    CStdString                      m_strActiveTimerChannelIcon;
     CStdString                      m_strActiveTimerTime;
     CStdString                      m_strNextTimerInfo;
     CStdString                      m_strNextRecordingTitle;
     CStdString                      m_strNextRecordingChannelName;
+    CStdString                      m_strNextRecordingChannelIcon;
     CStdString                      m_strNextRecordingTime;
     bool                            m_bHasRecordings;
     unsigned int                    m_iTimerAmount;
@@ -129,6 +141,7 @@ namespace PVR
     CStdString                      m_strBackendRecordings;
     CStdString                      m_strBackendChannels;
     CStdString                      m_strTotalDiskspace;
+    unsigned int                    m_iDuration;
     //@}
 
     PVR_SIGNAL_STATUS               m_qualityInfo;       /*!< stream quality information */
@@ -136,6 +149,7 @@ namespace PVR
     unsigned int                    m_iAddonInfoToggleCurrent;
     unsigned int                    m_iTimerInfoToggleStart;
     unsigned int                    m_iTimerInfoToggleCurrent;
+    unsigned int                    m_iToggleShowInfo;
     mutable const CPVREpgInfoTag *  m_playingEpgTag;
 
     CCriticalSection                m_critSection;

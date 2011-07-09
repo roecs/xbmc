@@ -159,7 +159,6 @@ CFileItem::CFileItem(const CPVREpgInfoTag& tag)
   SetLabel(tag.Title());
   m_strLabel2 = tag.Plot();
 
-  FillInDefaultIcon();
   if (!tag.Icon().IsEmpty())
   {
     SetThumbnailImage(tag.Icon());
@@ -184,8 +183,8 @@ CFileItem::CFileItem(const CEpgInfoTag& tag)
   *GetEPGInfoTag() = tag;
   SetLabel(tag.Title());
   m_strLabel2 = tag.Plot();
+  m_dateTime = tag.StartAsLocalTime();
 
-  FillInDefaultIcon();
   if (!tag.Icon().IsEmpty())
   {
     SetThumbnailImage(tag.Icon());
@@ -229,7 +228,6 @@ CFileItem::CFileItem(const CPVRChannel& channel)
     }
   }
 
-  FillInDefaultIcon();
   if (!channel.IconPath().IsEmpty())
   {
     SetThumbnailImage(channel.IconPath());
@@ -254,8 +252,6 @@ CFileItem::CFileItem(const CPVRRecording& record)
   *GetPVRRecordingInfoTag() = record;
   SetLabel(record.m_strTitle);
   m_strLabel2 = record.m_strPlot;
-
-  FillInDefaultIcon();
 }
 
 CFileItem::CFileItem(const CPVRTimerInfoTag& timer)
@@ -275,8 +271,13 @@ CFileItem::CFileItem(const CPVRTimerInfoTag& timer)
   *GetPVRTimerInfoTag() = timer;
   SetLabel(timer.m_strTitle);
   m_strLabel2 = timer.m_strSummary;
+  m_dateTime = timer.StartAsLocalTime();
 
-  FillInDefaultIcon();
+  if (!timer.ChannelIcon().IsEmpty())
+  {
+    SetThumbnailImage(timer.ChannelIcon());
+    SetIconImage(timer.ChannelIcon());
+  }
 }
 
 CFileItem::CFileItem(const CArtist& artist)
@@ -408,6 +409,11 @@ CFileItem::CFileItem(const CMediaSource& share)
   m_iDriveType = share.m_iDriveType;
   m_strThumbnailImage = share.m_strThumbnailImage;
   SetLabelPreformated(true);
+  if (IsDVD())
+  {
+    GetVideoInfoTag()->m_strFileNameAndPath = "removable://";
+    GetVideoInfoTag()->m_strFileNameAndPath += share.strStatus; // share.strStatus contains disc volume label
+  }
 }
 
 CFileItem::~CFileItem(void)
@@ -751,7 +757,7 @@ bool CFileItem::IsVideo() const
   if (HasMusicInfoTag()) return false;
   if (HasPictureInfoTag()) return false;
 
-  if (IsHDHomeRun() || IsTuxBox() || URIUtils::IsDVD(m_strPath))
+  if (IsHDHomeRun() || IsTuxBox() || URIUtils::IsDVD(m_strPath) || IsSlingbox())
     return true;
 
   CStdString extension;
@@ -1043,6 +1049,11 @@ bool CFileItem::IsOnDVD() const
   return URIUtils::IsOnDVD(m_strPath) || m_iDriveType == CMediaSource::SOURCE_TYPE_DVD;
 }
 
+bool CFileItem::IsNfs() const
+{
+  return URIUtils::IsNfs(m_strPath);
+}
+
 bool CFileItem::IsOnLAN() const
 {
   return URIUtils::IsOnLAN(m_strPath);
@@ -1086,6 +1097,11 @@ bool CFileItem::IsMythTV() const
 bool CFileItem::IsHDHomeRun() const
 {
   return URIUtils::IsHDHomeRun(m_strPath);
+}
+
+bool CFileItem::IsSlingbox() const
+{
+  return URIUtils::IsSlingbox(m_strPath);
 }
 
 bool CFileItem::IsVTP() const
@@ -2312,6 +2328,7 @@ void CFileItemList::Stack()
       // 1. rars and zips may be on slow sources? is this supposed to be allowed?
       if( !item->IsRemote()
         || item->IsSmb()
+        || item->IsNfs() 
         || URIUtils::IsInRAR(item->m_strPath)
         || URIUtils::IsInZIP(item->m_strPath)
         )
@@ -2655,8 +2672,8 @@ bool CFileItemList::AlwaysCache() const
     return CMusicDatabaseDirectory::CanCache(m_strPath);
   if (IsVideoDb())
     return CVideoDatabaseDirectory::CanCache(m_strPath);
-//  if (IsEPG())
-//    return true; // always cache
+  if (IsEPG())
+    return true; // always cache
   return false;
 }
 

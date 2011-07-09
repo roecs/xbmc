@@ -63,6 +63,10 @@ struct DemuxPacket;
 
 /*! @name PVR entry content event types */
 //@{
+/* These IDs come from the DVB-SI EIT table "content descriptor"
+ * Also known under the name "E-book genre assignments"
+ */
+#define EPG_EVENT_CONTENTMASK_UNDEFINED                0x00
 #define EPG_EVENT_CONTENTMASK_MOVIEDRAMA               0x10
 #define EPG_EVENT_CONTENTMASK_NEWSCURRENTAFFAIRS       0x20
 #define EPG_EVENT_CONTENTMASK_SHOW                     0x30
@@ -76,7 +80,8 @@ struct DemuxPacket;
 #define EPG_EVENT_CONTENTMASK_SPECIAL                  0xB0
 #define EPG_EVENT_CONTENTMASK_USERDEFINED              0xF0
 //@}
-
+/* Set EPGTAG.iGenreType to EPG_GENRE_USE_STRING to transfer genre strings to XBMC */
+#define EPG_GENRE_USE_STRING                          0x100
 
 /* using the default avformat's MAX_STREAMS value to be safe */
 #define PVR_STREAM_MAX_STREAMS 20
@@ -101,7 +106,7 @@ extern "C" {
   typedef enum
   {
     PVR_ERROR_NO_ERROR          = 0,
-    PVR_ERROR_UNKOWN            = -1,
+    PVR_ERROR_UNKNOWN           = -1,
     PVR_ERROR_NOT_IMPLEMENTED   = -2,
     PVR_ERROR_SERVER_ERROR      = -3,
     PVR_ERROR_SERVER_TIMEOUT    = -4,
@@ -114,6 +119,19 @@ extern "C" {
   } PVR_ERROR;
 
   /*!
+   * @brief PVR timer states
+   */
+  typedef enum
+  {
+    PVR_TIMER_STATE_INVALID   = 0,
+    PVR_TIMER_STATE_SCHEDULED = 1, /*!< @brief the timer is scheduled for recording */
+    PVR_TIMER_STATE_RECORDING = 2, /*!< @brief the timer is currently recordings */
+    PVR_TIMER_STATE_COMPLETED = 3, /*!< @brief the recording completed successfully */
+    PVR_TIMER_STATE_ABORTED   = 4, /*!< @brief recording started, but was aborted */
+    PVR_TIMER_STATE_CANCELLED = 5  /*!< @brief the timer was scheduled, but was cancelled */
+  } PVR_TIMER_STATE;
+
+  /*!
    * @brief Properties passed to the Create() method of an add-on.
    */
   typedef struct PVR_PROPERTIES
@@ -124,24 +142,10 @@ extern "C" {
   } PVR_PROPERTIES;
 
   /*!
-   * @brief PVR add-on event codes, sent via PVRManager callback.
-   */
-  typedef enum
-  {
-    PVR_EVENT_UNKNOWN               = 0,
-    PVR_EVENT_CLOSE                 = 1,
-    PVR_EVENT_RECORDINGS_CHANGE     = 2,
-    PVR_EVENT_CHANNELS_CHANGE       = 3,
-    PVR_EVENT_TIMERS_CHANGE         = 4,
-    PVR_EVENT_CHANNEL_GROUPS_CHANGE = 5
-  } PVR_EVENT;
-
-  /*!
    * @brief PVR add-on capabilities. All capabilities are set to "false" as default.
    */
   typedef struct PVR_ADDON_CAPABILITIES
   {
-    bool bSupportsChannelLogo;          /*!< @brief (optional) true if this add-on supports channel logos */
     bool bSupportsChannelSettings;      /*!< @brief (optional) true if this add-on supports changing channel settings on the backend */
     bool bSupportsTimeshift;            /*!< @brief (optional) true if the backend will handle timeshift. false if XBMC should handle it. */
     bool bSupportsEPG;                  /*!< @brief (optional) true if the add-on provides EPG information */
@@ -253,6 +257,7 @@ extern "C" {
     const char *  strIconPath;         /*!< @brief (optional) icon path */
     int           iGenreType;          /*!< @brief (optional) genre type */
     int           iGenreSubType;       /*!< @brief (optional) genre sub type */
+    const char *  strGenreDescription; /*!< @brief (optional) genre. Will be used only when iGenreType = EPG_GENRE_USE_STRING */
     time_t        firstAired;          /*!< @brief (optional) first aired in UTC */
     int           iParentalRating;     /*!< @brief (optional) parental rating */
     int           iStarRating;         /*!< @brief (optional) star rating */
@@ -267,25 +272,24 @@ extern "C" {
    * @brief Representation of a timer event.
    */
   typedef struct PVR_TIMER {
-    unsigned int  iClientIndex;        /*!< @brief (required) the index of this timer given by the client */
-    int           iClientChannelUid;   /*!< @brief (required) unique identifier of the channel to record on */
-    time_t        startTime;           /*!< @brief (required) start time of the recording in UTC */
-    time_t        endTime;             /*!< @brief (required) end time of the recording in UTC */
-    bool          bIsActive;           /*!< @brief (required) true if this timer is active, false if it's inactive */
-    const char *  strTitle;            /*!< @brief (optional) title of this timer */
-    const char *  strDirectory;        /*!< @brief (optional) the directory where the recording will be stored in */
-    const char *  strSummary;          /*!< @brief (optional) the summary for this timer */
-    bool          bIsRecording;        /*!< @brief (optional) true if this timer is currently recording, false otherwise */
-    int           iPriority;           /*!< @brief (optional) the priority of this timer */
-    int           iLifetime;           /*!< @brief (optional) lifetimer of this timer in days */
-    bool          bIsRepeating;        /*!< @brief (optional) true if this is a recurring timer */
-    time_t        firstDay;            /*!< @brief (optional) the first day this recording is active in case of a repeating event */
-    int           iWeekdays;           /*!< @brief (optional) weekday mask */
-    int           iEpgUid;             /*!< @brief (optional) epg event id */
-    unsigned int  iMarginStart;        /*!< @brief (optional) if set, the backend starts the recording iMarginStart minutes before startTime. */
-    unsigned int  iMarginEnd;          /*!< @brief (optional) if set, the backend ends the recording iMarginEnd minutes after endTime. */
-    int           iGenreType;          /*!< @brief (optional) genre type */
-    int           iGenreSubType;       /*!< @brief (optional) genre sub type */
+    unsigned int    iClientIndex;      /*!< @brief (required) the index of this timer given by the client */
+    int             iClientChannelUid; /*!< @brief (required) unique identifier of the channel to record on */
+    time_t          startTime;         /*!< @brief (required) start time of the recording in UTC */
+    time_t          endTime;           /*!< @brief (required) end time of the recording in UTC */
+    PVR_TIMER_STATE state;             /*!< @brief (required) the state of this timer */
+    const char *    strTitle;          /*!< @brief (optional) title of this timer */
+    const char *    strDirectory;      /*!< @brief (optional) the directory where the recording will be stored in */
+    const char *    strSummary;        /*!< @brief (optional) the summary for this timer */
+    int             iPriority;         /*!< @brief (optional) the priority of this timer */
+    int             iLifetime;         /*!< @brief (optional) lifetimer of this timer in days */
+    bool            bIsRepeating;      /*!< @brief (optional) true if this is a recurring timer */
+    time_t          firstDay;          /*!< @brief (optional) the first day this recording is active in case of a repeating event */
+    int             iWeekdays;         /*!< @brief (optional) weekday mask */
+    int             iEpgUid;           /*!< @brief (optional) epg event id */
+    unsigned int    iMarginStart;      /*!< @brief (optional) if set, the backend starts the recording iMarginStart minutes before startTime. */
+    unsigned int    iMarginEnd;        /*!< @brief (optional) if set, the backend ends the recording iMarginEnd minutes after endTime. */
+    int             iGenreType;        /*!< @brief (optional) genre type */
+    int             iGenreSubType;     /*!< @brief (optional) genre sub type */
   } ATTRIBUTE_PACKED PVR_TIMER;
 
   /*!
@@ -300,7 +304,7 @@ extern "C" {
     const char *  strPlot;              /*!< @brief (optional) plot */
     const char *  strChannelName;       /*!< @brief (optional) channel name */
     time_t        recordingTime;        /*!< @brief (optional) start time of the recording */
-    int           iDuration;            /*!< @brief (optional) duration of the recording */
+    int           iDuration;            /*!< @brief (optional) duration of the recording in seconds */
     int           iPriority;            /*!< @brief (optional) priority of this recording (from 0 - 100) */
     int           iLifetime;            /*!< @brief (optional) life time in days of this recording */
     int           iGenreType;           /*!< @brief (optional) genre type */

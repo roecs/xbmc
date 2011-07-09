@@ -33,10 +33,10 @@ void CDemuxStreamVideoPVRClient::GetStreamInfo(std::string& strInfo)
   switch (codec)
   {
     case CODEC_ID_MPEG2VIDEO:
-      strInfo = "MPEG2VIDEO";
+      strInfo = "mpeg2video";
       break;
     case CODEC_ID_H264:
-      strInfo = "H264";
+      strInfo = "h264";
       break;
     default:
       break;
@@ -48,19 +48,19 @@ void CDemuxStreamAudioPVRClient::GetStreamInfo(std::string& strInfo)
   switch (codec)
   {
     case CODEC_ID_AC3:
-      strInfo = "AC3";
+      strInfo = "ac3";
       break;
     case CODEC_ID_EAC3:
-      strInfo = "EAC3";
+      strInfo = "eac3";
       break;
     case CODEC_ID_MP2:
-      strInfo = "MPEG2AUDIO";
+      strInfo = "mpeg2audio";
       break;
     case CODEC_ID_AAC:
-      strInfo = "AAC";
+      strInfo = "aac";
       break;
     case CODEC_ID_DTS:
-      strInfo = "DTS";
+      strInfo = "dts";
       break;
     default:
       break;
@@ -211,6 +211,8 @@ void CDVDDemuxPVRClient::RequestStreams()
 
 void CDVDDemuxPVRClient::UpdateStreams(PVR_STREAM_PROPERTIES *props)
 {
+  bool bGotVideoStream(false);
+
   for (unsigned int i = 0; i < props->iStreamCount; ++i)
   {
     if (m_streams[props->stream[i].iStreamIndex] == NULL ||
@@ -231,12 +233,25 @@ void CDVDDemuxPVRClient::UpdateStreams(PVR_STREAM_PROPERTIES *props)
     }
     else if (m_streams[props->stream[i].iStreamIndex]->type == STREAM_VIDEO)
     {
+      if (bGotVideoStream)
+      {
+        CLog::Log(LOGDEBUG, "CDVDDemuxPVRClient - %s - skip video stream", __FUNCTION__);
+        continue;
+      }
+
       CDemuxStreamVideoPVRClient* st = (CDemuxStreamVideoPVRClient*) m_streams[props->stream[i].iStreamIndex];
+      if (st->iWidth <= 0 || st->iHeight <= 0)
+      {
+        CLog::Log(LOGWARNING, "CDVDDemuxPVRClient - %s - invalid stream data", __FUNCTION__);
+        continue;
+      }
+
       st->iFpsScale       = props->stream[i].iFPSScale;
       st->iFpsRate        = props->stream[i].iFPSRate;
       st->iHeight         = props->stream[i].iHeight;
       st->iWidth          = props->stream[i].iWidth;
       st->fAspect         = props->stream[i].fAspect;
+      bGotVideoStream = true;
     }
     else if (m_streams[props->stream[i].iStreamIndex]->type == STREAM_SUBTITLE)
     {

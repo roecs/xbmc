@@ -26,6 +26,7 @@
 #include "interfaces/AnnouncementManager.h"
 #include "utils/log.h"
 #include "settings/AdvancedSettings.h"
+#include "utils/Variant.h"
 
 using namespace ANNOUNCEMENT;
 
@@ -61,26 +62,25 @@ void CGUIWindowHome::Announce(EAnnouncementFlag flag, const char *sender, const 
 
   if (flag & VideoLibrary)
   {
-    if ((strcmp(message, "UpdateVideo") == 0) ||
-        (strcmp(message, "RemoveVideo") == 0))
-      ra_flag |= (Video | Totals);
-
-    if (strcmp(message, "NewPlayCount") == 0)
-      ra_flag |= Totals;
+    if ((strcmp(message, "OnUpdate") == 0) ||
+        (strcmp(message, "OnRemove") == 0))
+    {
+      if (data.isMember("playcount"))
+        ra_flag |= Totals;
+      else
+        ra_flag |= (Video | Totals);
+    }
   }
   else if (flag & AudioLibrary)
   {
-    if ((strcmp(message, "UpdateAudio") == 0) ||
-        (strcmp(message, "RemoveAudio") == 0))
-      ra_flag |= ( Audio | Totals );
-
-    if (strcmp(message, "NewPlayCount") == 0)
-      ra_flag |= Totals;
-  }
-  else if (flag & System)
-  {
-    if (strcmp(message, "ProfileChange") == 0)
-      ra_flag |= (Video | Audio | Totals);
+    if ((strcmp(message, "OnUpdate") == 0) ||
+        (strcmp(message, "OnRemove") == 0))
+    {
+      if (data.isMember("playcount"))
+        ra_flag |= Totals;
+      else
+        ra_flag |= ( Audio | Totals );
+    }
   }
 
   // add the job immediatedly if the home window is active
@@ -97,4 +97,26 @@ void CGUIWindowHome::AddRecentlyAddedJobs(int flag)
   if (flag != 0)
     CJobManager::GetInstance().AddJob(new CRecentlyAddedJob(flag), NULL);
   m_updateRA = 0;
+}
+
+bool CGUIWindowHome::OnMessage(CGUIMessage& message)
+{
+  switch ( message.GetMessage() )
+  {
+  case GUI_MSG_NOTIFY_ALL:
+    if (message.GetParam1() == GUI_MSG_WINDOW_RESET)
+    {
+      if (IsActive())
+        AddRecentlyAddedJobs(Video | Audio | Totals);
+      else
+        m_updateRA |= (Video | Audio | Totals);
+      return true;
+    }
+    break;
+
+  default:
+    break;
+  }
+
+  return CGUIWindow::OnMessage(message);
 }

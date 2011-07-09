@@ -27,6 +27,7 @@
 
 namespace PVR
 {
+  struct PVREpgSearchFilter;
   class CPVREpgContainer;
 
   /** PVR EPG class */
@@ -59,25 +60,21 @@ namespace PVR
      */
     bool Update(const CEpg &epg, bool bUpdateDb = false);
 
+    bool IsRemovableTag(const EPG::CEpgInfoTag *tag) const;
+
   public:
     /*!
      * @brief Create a new EPG instance for a channel.
      * @param channel The channel to create the EPG for.
+     * @param bLoadedFromDb True if this table was loaded from the database, false otherwise.
      */
-    CPVREpg(CPVRChannel *channel);
+    CPVREpg(CPVRChannel *channel, bool bLoadedFromDb = false);
 
     /*!
      * @brief Check whether this EPG contains valid entries.
      * @return True if it has valid entries, false if not.
      */
     bool HasValidEntries(void) const;
-
-    /*!
-     * @brief Remove all entries from this EPG that finished before the given time
-     *        and that have no timers set.
-     * @param Time Delete entries with an end time before this time.
-     */
-    void Cleanup(const CDateTime &Time);
 
     /*!
      * @brief Remove all entries from this EPG.
@@ -98,5 +95,15 @@ namespace PVR
      * @return True if this is a table for a radio channel, false if it's for TV.
      */
     bool IsRadio(void) const;
+
+    /*!
+     * @brief Get all EPG entries that and apply a filter.
+     * @param results The file list to store the results in.
+     * @param filter The filter to apply.
+     * @return The amount of entries that were added.
+     */
+    int Get(CFileItemList *results, const PVREpgSearchFilter &filter) const;
+
+    int Get(CFileItemList *results) const { return CEpg::Get(results); };
   };
 }

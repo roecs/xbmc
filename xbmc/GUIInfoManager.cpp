@@ -257,9 +257,11 @@ int CGUIInfoManager::TranslateSingleString(const CStdString &strCondition)
     else if (strTest.Equals("pvr.nowrecordingtitle")) ret = PVR_NOW_RECORDING_TITLE;
     else if (strTest.Equals("pvr.nowrecordingdatetime")) ret = PVR_NOW_RECORDING_DATETIME;
     else if (strTest.Equals("pvr.nowrecordingchannel")) ret = PVR_NOW_RECORDING_CHANNEL;
+    else if (strTest.Equals("pvr.nowrecordingchannelicon")) ret = PVR_NOW_RECORDING_CHAN_ICO;
     else if (strTest.Equals("pvr.nextrecordingtitle")) ret = PVR_NEXT_RECORDING_TITLE;
     else if (strTest.Equals("pvr.nextrecordingdatetime")) ret = PVR_NEXT_RECORDING_DATETIME;
     else if (strTest.Equals("pvr.nextrecordingchannel")) ret = PVR_NEXT_RECORDING_CHANNEL;
+    else if (strTest.Equals("pvr.nextrecordingchannelicon")) ret = PVR_NEXT_RECORDING_CHAN_ICO;
     else if (strTest.Equals("pvr.backendname")) ret = PVR_BACKEND_NAME;
     else if (strTest.Equals("pvr.backendversion")) ret = PVR_BACKEND_VERSION;
     else if (strTest.Equals("pvr.backendhost")) ret = PVR_BACKEND_HOST;
@@ -293,10 +295,6 @@ int CGUIInfoManager::TranslateSingleString(const CStdString &strCondition)
     else if (strTest.Equals("pvr.actstreamprogrsnr")) ret = PVR_ACTUAL_STREAM_SNR_PROGR;
     else if (strTest.Equals("pvr.actstreamisencrypted")) ret = PVR_ACTUAL_STREAM_ENCRYPTED;
     else if (strTest.Equals("pvr.actstreamencryptionname")) ret = PVR_ACTUAL_STREAM_CRYPTION;
-  }
-  else if (strCategory.Equals("addon"))
-  {
-    if (strTest.Equals("addon.rating")) ret = ADDON_STAR_RATING;
   }
   else if (strCategory.Equals("bar"))
   {
@@ -424,6 +422,7 @@ int CGUIInfoManager::TranslateSingleString(const CStdString &strCondition)
     else if (strTest.Equals("system.ismaster")) ret = SYSTEM_ISMASTER;
     else if (strTest.Equals("system.internetstate")) ret = SYSTEM_INTERNET_STATE;
     else if (strTest.Equals("system.loggedon")) ret = SYSTEM_LOGGEDON;
+    else if (strTest.Equals("system.showexitbutton")) ret = SYSTEM_SHOW_EXIT_BUTTON;
     else if (strTest.Equals("system.hasdrivef")) ret = SYSTEM_HAS_DRIVE_F;
     else if (strTest.Equals("system.hasdriveg")) ret = SYSTEM_HAS_DRIVE_G;
     else if (strTest.Equals("system.kernelversion")) ret = SYSTEM_KERNEL_VERSION;
@@ -1087,6 +1086,8 @@ TIME_FORMAT CGUIInfoManager::TranslateTimeFormat(const CStdString &format)
   else if (format.Equals("(hh:mm)")) return TIME_FORMAT_HH_MM;
   else if (format.Equals("(mm:ss)")) return TIME_FORMAT_MM_SS;
   else if (format.Equals("(hh:mm:ss)")) return TIME_FORMAT_HH_MM_SS;
+  else if (format.Equals("(h)")) return TIME_FORMAT_H;
+  else if (format.Equals("(h:mm:ss)")) return TIME_FORMAT_H_MM_SS;
   return TIME_FORMAT_GUESS;
 }
 
@@ -1123,12 +1124,14 @@ CStdString CGUIInfoManager::GetLabel(int info, int contextWindow)
 
   switch (info)
   {
-  case PVR_NOW_RECORDING_CHANNEL:
-  case PVR_NOW_RECORDING_DATETIME:
-  case PVR_NOW_RECORDING_TITLE:
   case PVR_NEXT_RECORDING_CHANNEL:
+  case PVR_NEXT_RECORDING_CHAN_ICO:
   case PVR_NEXT_RECORDING_DATETIME:
   case PVR_NEXT_RECORDING_TITLE:
+  case PVR_NOW_RECORDING_CHANNEL:
+  case PVR_NOW_RECORDING_CHAN_ICO:
+  case PVR_NOW_RECORDING_DATETIME:
+  case PVR_NOW_RECORDING_TITLE:
   case PVR_BACKEND_NAME:
   case PVR_BACKEND_VERSION:
   case PVR_BACKEND_HOST:
@@ -1139,19 +1142,22 @@ CStdString CGUIInfoManager::GetLabel(int info, int contextWindow)
   case PVR_BACKEND_NUMBER:
   case PVR_TOTAL_DISKSPACE:
   case PVR_NEXT_TIMER:
-  case PVR_PLAYING_TIME:
   case PVR_PLAYING_DURATION:
+  case PVR_PLAYING_TIME:
+  case PVR_PLAYING_PROGRESS:
   case PVR_ACTUAL_STREAM_CLIENT:
   case PVR_ACTUAL_STREAM_DEVICE:
   case PVR_ACTUAL_STREAM_STATUS:
+  case PVR_ACTUAL_STREAM_SIG:
+  case PVR_ACTUAL_STREAM_SNR:
+  case PVR_ACTUAL_STREAM_SIG_PROGR:
+  case PVR_ACTUAL_STREAM_SNR_PROGR:
   case PVR_ACTUAL_STREAM_BER:
   case PVR_ACTUAL_STREAM_UNC:
   case PVR_ACTUAL_STREAM_VIDEO_BR:
   case PVR_ACTUAL_STREAM_AUDIO_BR:
   case PVR_ACTUAL_STREAM_DOLBY_BR:
   case PVR_ACTUAL_STREAM_CRYPTION:
-  case PVR_ACTUAL_STREAM_SIG:
-  case PVR_ACTUAL_STREAM_SNR:
     g_PVRManager.TranslateCharInfo(info, strLabel);
     break;
   case WEATHER_CONDITIONS:
@@ -1961,11 +1967,13 @@ bool CGUIInfoManager::GetBool(int condition1, int contextWindow, const CGUIListI
     bReturn = g_settings.GetMasterProfile().getLockMode() != LOCK_MODE_EVERYONE && g_passwordManager.bMasterUser;
   else if (condition == SYSTEM_LOGGEDON)
     bReturn = !(g_windowManager.GetActiveWindow() == WINDOW_LOGIN_SCREEN);
+  else if (condition == SYSTEM_SHOW_EXIT_BUTTON)
+    bReturn = g_advancedSettings.m_showExitButton;
   else if (condition == SYSTEM_HAS_LOGINSCREEN)
     bReturn = g_settings.UsingLoginScreen();
   else if (condition == WEATHER_IS_FETCHED)
     bReturn = g_weatherManager.IsFetched();
-  else if (condition >= PVR_IS_RECORDING && condition <= PVR_IS_RECORDING+20)
+  else if (condition >= PVR_CONDITIONS_START && condition <= PVR_CONDITIONS_END)
     bReturn = g_PVRManager.TranslateBoolInfo(condition);
 
   else if (condition == SYSTEM_INTERNET_STATE)
@@ -2767,7 +2775,7 @@ CStdString CGUIInfoManager::GetMultiInfoLabel(const GUIInfo &info, int contextWi
     AddonPtr addon;
     if (info.GetData2() == 0)
       CAddonMgr::Get().GetAddon(const_cast<CGUIInfoManager*>(this)->GetLabel(info.GetData1(), contextWindow),addon);
-    else 
+    else
       CAddonMgr::Get().GetAddon(m_stringParameters[info.GetData1()],addon);
     if (addon && info.m_info == SYSTEM_ADDON_TITLE)
       return addon->Name();
@@ -2950,9 +2958,13 @@ CStdString CGUIInfoManager::LocalizeTime(const CDateTime &time, TIME_FORMAT form
   case TIME_FORMAT_HH_MM:
     return time.GetAsLocalizedTime(use12hourclock ? "h:mm" : "HH:mm", false);
   case TIME_FORMAT_HH_MM_XX:
-      return time.GetAsLocalizedTime(use12hourclock ? "h:mm xx" : "HH:mm", false);      
+      return time.GetAsLocalizedTime(use12hourclock ? "h:mm xx" : "HH:mm", false);
   case TIME_FORMAT_HH_MM_SS:
     return time.GetAsLocalizedTime("", true);
+  case TIME_FORMAT_H:
+    return time.GetAsLocalizedTime("h", false);
+  case TIME_FORMAT_H_MM_SS:
+    return time.GetAsLocalizedTime("h:mm:ss", true);
   default:
     break;
   }
@@ -3199,9 +3211,9 @@ CStdString CGUIInfoManager::GetMusicTagLabel(int info, const CFileItem *item) co
   case MUSICPLAYER_GENRE:
     if (tag.GetGenre().size()) { return tag.GetGenre(); }
     break;
-  case MUSICPLAYER_LYRICS: 
-    if (tag.GetLyrics().size()) { return tag.GetLyrics(); } 
-   	break;
+  case MUSICPLAYER_LYRICS:
+    if (tag.GetLyrics().size()) { return tag.GetLyrics(); }
+  break;
   case MUSICPLAYER_TRACK_NUMBER:
     {
       CStdString strTrack;
@@ -3412,7 +3424,7 @@ CStdString CGUIInfoManager::GetVideoLabel(int item)
         CStdString strYear;
         if (m_currentFile->GetVideoInfoTag()->m_iSpecialSortEpisode > 0)
           strYear.Format("S%i", m_currentFile->GetVideoInfoTag()->m_iEpisode);
-        else if(m_currentFile->GetVideoInfoTag()->m_iEpisode > 0) 
+        else if(m_currentFile->GetVideoInfoTag()->m_iEpisode > 0)
           strYear.Format("%i", m_currentFile->GetVideoInfoTag()->m_iEpisode);
         return strYear;
       }
@@ -3568,6 +3580,11 @@ void CGUIInfoManager::SetCurrentSong(CFileItem &item)
   }
   else
     m_currentFile->SetMusicThumb();
+    if (!m_currentFile->HasProperty("fanart_image"))
+    {
+      if (m_currentFile->CacheLocalFanart())
+        m_currentFile->SetProperty("fanart_image", m_currentFile->GetCachedFanart());
+    }
   m_currentFile->FillInDefaultIcon();
 
   CMusicInfoLoader::LoadAdditionalTagInfo(m_currentFile);
@@ -3578,29 +3595,15 @@ void CGUIInfoManager::SetCurrentMovie(CFileItem &item)
   CLog::Log(LOGDEBUG,"CGUIInfoManager::SetCurrentMovie(%s)",item.m_strPath.c_str());
   *m_currentFile = item;
 
-  if (!m_currentFile->HasPVRChannelInfoTag() && (!m_currentFile->HasVideoInfoTag() || m_currentFile->GetVideoInfoTag()->IsEmpty()))
+  /* also call GetMovieInfo() when a VideoInfoTag is already present or additional info won't be present in the tag */
+  if (!m_currentFile->HasPVRChannelInfoTag())
   {
     CVideoDatabase dbs;
-    dbs.Open();
-    if (dbs.HasMovieInfo(item.m_strPath))
+    if (dbs.Open())
     {
-      dbs.GetMovieInfo(item.m_strPath, *m_currentFile->GetVideoInfoTag());
-      CLog::Log(LOGDEBUG,"%s, got movie info!", __FUNCTION__);
-      CLog::Log(LOGDEBUG,"  Title = %s", m_currentFile->GetVideoInfoTag()->m_strTitle.c_str());
+      dbs.LoadVideoInfo(item.m_strPath, *m_currentFile->GetVideoInfoTag());
+      dbs.Close();
     }
-    else if (dbs.HasEpisodeInfo(item.m_strPath))
-    {
-      dbs.GetEpisodeInfo(item.m_strPath, *m_currentFile->GetVideoInfoTag());
-      CLog::Log(LOGDEBUG,"%s, got episode info!", __FUNCTION__);
-      CLog::Log(LOGDEBUG,"  Title = %s", m_currentFile->GetVideoInfoTag()->m_strTitle.c_str());
-    }
-    else if (dbs.HasMusicVideoInfo(item.m_strPath))
-    {
-      dbs.GetMusicVideoInfo(item.m_strPath, *m_currentFile->GetVideoInfoTag());
-      CLog::Log(LOGDEBUG,"%s, got music video info!", __FUNCTION__);
-      CLog::Log(LOGDEBUG,"  Title = %s", m_currentFile->GetVideoInfoTag()->m_strTitle.c_str());
-    }
-    dbs.Close();
   }
 
   // Find a thumb for this file.
@@ -4147,7 +4150,6 @@ CStdString CGUIInfoManager::GetItemLabel(const CFileItem *item, int info) const
       }
       else if (item->HasVideoInfoTag())
       {
-        duration = item->GetVideoInfoTag()->m_strRuntime;
         if (item->GetVideoInfoTag()->m_streamDetails.GetVideoDuration() > 0)
           duration.Format("%i", item->GetVideoInfoTag()->m_streamDetails.GetVideoDuration() / 60);
         else if (!item->GetVideoInfoTag()->m_strRuntime.IsEmpty())
@@ -4245,7 +4247,7 @@ CStdString CGUIInfoManager::GetItemLabel(const CFileItem *item, int info) const
       else if (item->IsVideoDb() && item->HasVideoInfoTag())
       {
         if( item->m_bIsFolder )
-	  path = item->GetVideoInfoTag()->m_strPath;
+          path = item->GetVideoInfoTag()->m_strPath;
         else
           URIUtils::GetParentPath(item->GetVideoInfoTag()->m_strFileNameAndPath, path);
       }
@@ -4307,7 +4309,7 @@ CStdString CGUIInfoManager::GetItemLabel(const CFileItem *item, int info) const
     break;
   case LISTITEM_WRITER:
     if (item->HasVideoInfoTag())
-      return item->GetVideoInfoTag()->m_strWritingCredits;;
+      return item->GetVideoInfoTag()->m_strWritingCredits;
     break;
   case LISTITEM_TAGLINE:
     if (item->HasVideoInfoTag())
@@ -4508,14 +4510,6 @@ CStdString CGUIInfoManager::GetItemImage(const CFileItem *item, int info) const
       { // song rating.
         rating.Format("rating%c.png", item->GetMusicInfoTag()->GetRating());
       }
-      return rating;
-    }
-    break;
-  case ADDON_STAR_RATING:
-    {
-      CStdString rating;
-      //TODO need to check item is an addon
-      rating.Format("rating%d.png", item->GetPropertyInt("Addon.Rating"));
       return rating;
     }
     break;

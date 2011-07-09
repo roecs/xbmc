@@ -35,8 +35,7 @@ private:
   int prerecordseconds;
   int postrecordseconds;
   std::string title;
-  bool isactive;
-  bool isrecording;
+  bool iscancelled;
   std::string upcomingprogramid;
   std::string scheduleid;
 public:
@@ -51,8 +50,7 @@ public:
   int PreRecordSeconds(void) const { return prerecordseconds; }
   int PostRecordSeconds(void) const { return postrecordseconds; }
   const std::string& Title(void) const { return title; }
-  bool IsActive(void) const { return isactive; }
-  bool IsRecording(void) const { return isrecording; }
+  bool IsCancelled(void) const { return iscancelled; }
   const std::string& UpcomingProgramId(void) const { return upcomingprogramid; }
   const std::string& ScheduleId(void) const { return scheduleid; }
 };

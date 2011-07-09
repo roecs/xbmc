@@ -18,11 +18,11 @@
  */
 #ifdef TSREADER
 
+#include "RTSPClient.h"
 #include "client.h"
 #include "FileReader.h"
-#include "RTSPClient.h"
 #include "MemoryBuffer.h"
-#include "StdString.h"
+#include "utils/StdString.h"
 
 class CTsReader
 {

@@ -48,6 +48,11 @@ class CDemuxStreamVideo;
 class CDemuxStreamAudio;
 class CStreamInfo;
 
+namespace PVR
+{
+  class CPVRChannel;
+}
+
 #define DVDSTATE_NORMAL           0x00000001 // normal dvd state
 #define DVDSTATE_STILL            0x00000002 // currently displaying a still frame
 #define DVDSTATE_WAIT             0x00000003 // waiting for demuxer read error
@@ -219,14 +224,18 @@ public:
 
   virtual CStdString GetPlayingTitle();
 
+  virtual bool SwitchChannel(const PVR::CPVRChannel &channel);
+
   enum ECacheState
   { CACHESTATE_DONE = 0
   , CACHESTATE_FULL     // player is filling up the demux queue
+  , CACHESTATE_PVR      // player is waiting for some data in each buffer
   , CACHESTATE_INIT     // player is waiting for first packet of each stream
   , CACHESTATE_PLAY     // player is waiting for players to not be stalled
+  , CACHESTATE_FLUSH    // temporary state player will choose startup between init or full
   };
 
-  virtual bool IsCaching() const { return m_caching == CACHESTATE_FULL; }
+  virtual bool IsCaching() const { return m_caching == CACHESTATE_FULL || m_caching == CACHESTATE_PVR; }
   virtual int GetCacheLevel() const ;
 
   virtual int OnDVDNavResult(void* pData, int iMessage);
@@ -254,6 +263,8 @@ protected:
   void ProcessSubData(CDemuxStream* pStream, DemuxPacket* pPacket);
   void ProcessTeletextData(CDemuxStream* pStream, DemuxPacket* pPacket);
 
+  bool ShowPVRChannelInfo();
+
   int  AddSubtitleFile(const std::string& filename, const std::string& subfilename = "", CDemuxStream::EFlags flags = CDemuxStream::FLAG_NONE);
 
   /**
@@ -264,6 +275,11 @@ protected:
   void SetCaching(ECacheState state);
 
   __int64 GetTotalTimeInMsec();
+
+  double GetQueueTime();
+  bool GetCachingTimes(double& play_left, double& cache_left, double& file_offset);
+
+
   void FlushBuffers(bool queued, double pts = DVD_NOPTS_VALUE, bool accurate = true);
 
   void HandleMessages();
@@ -293,11 +309,13 @@ protected:
 
   bool m_bAbortRequest;
 
-  std::string m_filename; // holds the actual filename
-  std::string m_mimetype;  // hold a hint to what content file contains (mime type)
-  ECacheState m_caching;
-  CFileItem   m_item;
-  long        m_ChannelEntryTimeOut;
+  std::string  m_filename; // holds the actual filename
+  std::string  m_mimetype;  // hold a hint to what content file contains (mime type)
+  ECacheState  m_caching;
+  CFileItem    m_item;
+  unsigned int m_scanStart;
+  long         m_ChannelEntryTimeOut;
+
 
   CCurrentStream m_CurrentAudio;
   CCurrentStream m_CurrentVideo;
@@ -366,9 +384,10 @@ protected:
       recording     = false;
       demux_video   = "";
       demux_audio   = "";
-      file_length   = 0;
-      file_position = 0;
-      file_buffered = 0;
+      cache_bytes   = 0;
+      cache_level   = 0.0;
+      cache_delay   = 0.0;
+      cache_offset  = 0.0;
     }
 
     double timestamp;         // last time of update
@@ -390,9 +409,10 @@ protected:
     std::string demux_video;
     std::string demux_audio;
 
-    __int64 file_length;
-    __int64 file_position;
-    __int64 file_buffered;
+    __int64 cache_bytes;   // number of bytes current's cached
+    double  cache_level;   // current estimated required cache level
+    double  cache_delay;   // time until cache is expected to reach estimated level
+    double  cache_offset;  // percentage of file ahead of current position
   } m_State;
   CCriticalSection m_StateSection;
 

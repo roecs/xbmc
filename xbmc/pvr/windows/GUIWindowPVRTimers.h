@@ -22,22 +22,25 @@
  */
 
 #include "GUIWindowPVRCommon.h"
+#include "utils/Observer.h"
 
 namespace PVR
 {
   class CGUIWindowPVR;
 
-  class CGUIWindowPVRTimers : public CGUIWindowPVRCommon
+  class CGUIWindowPVRTimers : public CGUIWindowPVRCommon, private Observer
   {
     friend class CGUIWindowPVR;
 
   public:
     CGUIWindowPVRTimers(CGUIWindowPVR *parent);
-    virtual ~CGUIWindowPVRTimers(void) {};
+    virtual ~CGUIWindowPVRTimers(void);
 
     virtual void GetContextButtons(int itemNumber, CContextButtons &buttons) const;
     virtual bool OnContextButton(int itemNumber, CONTEXT_BUTTON button);
     virtual void UpdateData(void);
+    virtual void Notify(const Observable &obs, const CStdString& msg);
+    virtual void ResetObservers(void);
 
   private:
     virtual bool OnClickButton(CGUIMessage &message);

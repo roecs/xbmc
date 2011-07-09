@@ -6,8 +6,8 @@
 #
 
 LIBS   = -ldl
-LIBDIR = ../../../addons/pvr.mythtv
-LIB    = ../../../addons/pvr.mythtv/XBMC_Mythtv.pvr
+LIBDIR = @abs_top_srcdir@/addons/pvr.mythtv
+LIB    = @abs_top_srcdir@/addons/pvr.mythtv/XBMC_Mythtv.pvr
 
 SRCS=client.cpp \
 	MythXml.cpp
@@ -15,7 +15,7 @@ SRCS=client.cpp \
 include ../Makefile.include
 
 clean:
-	-rm -f $(OBJS) $(LIB) *~
+	-rm -f $(OBJS) $(LIB) *.P *~
 	$(MAKE) -C libmythxml clean
 
 INCLUDES += -I../../linux

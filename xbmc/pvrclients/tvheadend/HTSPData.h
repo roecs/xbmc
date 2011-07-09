@@ -23,18 +23,18 @@
 
 #include "client.h"
 #include "thread.h"
-#include "HTSPSession.h"
+#include "HTSPConnection.h"
 
-class cHTSPData : public cThread
+class CHTSPData : public cThread
 {
 public:
-  cHTSPData();
-  ~cHTSPData();
+  CHTSPData();
+  ~CHTSPData();
 
-  bool Open(const std::string &strHostname, unsigned int iPort, const std::string &strUsername, const std::string &strPassword, long iTimeout);
+  bool Open();
   void Close();
-  bool CheckConnection(void)   { return m_session.CheckConnection(); }
-  bool IsConnected(void) const { return m_session.IsConnected(); }
+  bool CheckConnection(void);
+  bool IsConnected(void) const { return m_session->IsConnected(); }
 
   /*!
    * @brief Send a message to the backend and read the result.
@@ -42,11 +42,11 @@ public:
    * @return The returned message or NULL if an error occured or nothing was received.
    */
   htsmsg_t *   ReadResult(htsmsg_t *message);
-  int          GetProtocol(void) const   { return m_session.GetProtocol(); }
-  const char * GetServerName(void) const { return m_session.GetServerName(); }
-  const char * GetVersion(void) const    { return m_session.GetVersion(); }
+  int          GetProtocol(void) const   { return m_session->GetProtocol(); }
+  const char * GetServerName(void) const { return m_session->GetServerName(); }
+  const char * GetVersion(void) const    { return m_session->GetVersion(); }
   bool         GetDriveSpace(long long *total, long long *used);
-  bool         GetTime(time_t *localTime, int *gmtOffset);
+  bool         GetBackendTime(time_t *utcTime, int *gmtOffset);
   unsigned int GetNumChannels(void);
   PVR_ERROR    GetChannels(PVR_HANDLE handle, bool bRadio);
   PVR_ERROR    GetEpg(PVR_HANDLE handle, const PVR_CHANNEL &channel, time_t iStart, time_t iEnd);
@@ -79,15 +79,17 @@ private:
   SChannels GetChannels(STag &tag);
   STags GetTags();
   bool GetEvent(SEvent& event, uint32_t id);
+  bool SendEnableAsync();
   SRecordings GetDVREntries(bool recorded, bool scheduled);
 
-  cHTSPSession    m_session;
-  cCondWait       m_started;
-  cMutex          m_Mutex;
-  SChannels       m_channels;
-  STags           m_tags;
-  SEvents         m_events;
-  SMessages       m_queue;
-  SRecordings     m_recordings;
-  int             m_iReconnectRetries;
+  CHTSPConnection *m_session;
+  cCondWait        m_started;
+  cMutex           m_Mutex;
+  SChannels        m_channels;
+  STags            m_tags;
+  SEvents          m_events;
+  SMessages        m_queue;
+  SRecordings      m_recordings;
+  int              m_iReconnectRetries;
 };
+

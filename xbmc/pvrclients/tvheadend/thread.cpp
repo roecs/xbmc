@@ -29,9 +29,12 @@
 #include <malloc.h>
 #endif
 
+#if !defined(__WINDOWS__)
+#include <sys/signal.h>
+#endif
+
 #include <stdarg.h>
 #include <stdlib.h>
-#include "utils/StdString.h"
 
 static bool GetAbsTime(struct timespec *Abstime, int MillisecondsFromNow)
 {
@@ -75,16 +78,21 @@ void cCondWait::SleepMs(int TimeoutMs)
 bool cCondWait::Wait(int TimeoutMs)
 {
   pthread_mutex_lock(&mutex);
-  if (!signaled) {
-     if (TimeoutMs) {
-        struct timespec abstime;
-        if (GetAbsTime(&abstime, TimeoutMs)) {
-           while (!signaled) {
-                 if (pthread_cond_timedwait(&cond, &mutex, &abstime) == ETIMEDOUT)
-                    break;
-                 }
-           }
+  if (!signaled)
+  {
+    if (TimeoutMs)
+	{
+      struct timespec abstime;
+      if (GetAbsTime(&abstime, TimeoutMs))
+	  {
+        while (!signaled)
+        {
+		  int iResult = pthread_cond_timedwait(&cond, &mutex, &abstime);
+		  if (iResult != 0)
+            break;
         }
+      }
+     }
      else
         pthread_cond_wait(&cond, &mutex);
      }

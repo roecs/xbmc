@@ -27,6 +27,7 @@
 #include <stdio.h>
 #include "curl/curl.h"
 #include "client.h"
+#include "pvrclient-fortherecord.h"
 #include "utils.h"
 #include "fortherecordrpc.h"
 
@@ -222,49 +223,67 @@ namespace ForTheRecord
    * \brief Get the list with channel groups from 4TR
    * \param channelType The channel type (Television or Radio)
    */
-  int RequestChannelGroups(enum ChannelType channelType)
+  int RequestChannelGroups(enum ChannelType channelType, Json::Value& response)
   {
-    Json::Value root;
     int retval = -1;
         
     if (channelType == Television)
     {
-      retval = ForTheRecordJSONRPC("ForTheRecord/Scheduler/ChannelGroups/Television", "?visibleOnly=false", root);
+      retval = ForTheRecordJSONRPC("ForTheRecord/Scheduler/ChannelGroups/Television", "?visibleOnly=false", response);
     }
     else if (channelType == Radio)
     {
-      retval = ForTheRecordJSONRPC("ForTheRecord/Scheduler/ChannelGroups/Radio", "?visibleOnly=false", root);        
+      retval = ForTheRecordJSONRPC("ForTheRecord/Scheduler/ChannelGroups/Radio", "?visibleOnly=false", response);
     }
         
     if(retval >= 0)
     {
-      if( root.type() == Json::arrayValue)
+      if( response.type() == Json::arrayValue)
       {
-        int size = root.size();
-
-        // parse channel group list
-        for ( int index =0; index < size; ++index )
-        {
-          std::string name = root[index]["GroupName"].asString();
-          std::string guid = root[index]["ChannelGroupId"].asString();
-          if (channelType == Television)
-          {
-            XBMC->Log(LOG_DEBUG, "Found TV channel group %s: %s\n", guid.c_str(), name.c_str());
-          }
-          else if (channelType == Radio)
-          {
-            XBMC->Log(LOG_DEBUG, "Found Radio channel group %s: %s\n", guid.c_str(), name.c_str());
-          }
-        }
+        int size = response.size();
         return size;
-      } else {
+      }
+      else
+      {
         XBMC->Log(LOG_DEBUG, "Unknown response format. Expected Json::arrayValue\n");
         return -1;
       }
     }
     else
     {
-      XBMC->Log(LOG_DEBUG, "RequestChannelList failed. Return value: %i\n", retval);
+      XBMC->Log(LOG_DEBUG, "RequestChannelGroups failed. Return value: %i\n", retval);
+    }
+
+    return retval;
+  }
+
+  /*
+   * \brief Get the list with channels for the given channel group from 4TR
+   * \param channelGroupId GUID of the channel group
+   */
+  int RequestChannelGroupMembers(const std::string& channelGroupId, Json::Value& response)
+  {
+    int retval = -1;
+
+    std::string command = "ForTheRecord/Scheduler/ChannelsInGroup/" + channelGroupId;
+    retval = ForTheRecordJSONRPC(command, "", response);
+
+    if(retval >= 0)
+    {
+      if( response.type() == Json::arrayValue)
+      {
+        int size = response.size();
+        return size;
+      }
+      else
+      {
+        XBMC->Log(LOG_DEBUG, "Unknown response format. Expected Json::arrayValue\n");
+        return -1;
+      }
+    }
+    else
+    {
+      XBMC->Log(LOG_ERROR, "RequestChannelGroupMembers failed. Return value: %i\n", retval);
     }
         
     return retval;
@@ -273,17 +292,17 @@ namespace ForTheRecord
   /*
    * \brief Get the list with TV channel groups from 4TR
    */
-  int RequestTVChannelGroups()
+  int RequestTVChannelGroups(Json::Value& response)
   {
-    return RequestChannelGroups(Television);
+    return RequestChannelGroups(Television, response);
   }
     
   /*
    * \brief Get the list with Radio channel groups from 4TR
    */
-  int RequestRadioChannelGroups()
+  int RequestRadioChannelGroups(Json::Value& response)
   {
-    return RequestChannelGroups(Radio);
+    return RequestChannelGroups(Radio, response);
   }
 
   /*
@@ -376,14 +395,25 @@ namespace ForTheRecord
 
   int TuneLiveStream(const std::string& channel_id, ChannelType channeltype, std::string& stream)
   {
-    // Send only a channel object in json format, no LiveStream object.
+    // Send the channel object in json format, *and* a LiveStream object when there is a current 
+    // LiveStream present.
     // FTR will answer with a LiveStream object.
+    stream = "";
 
     char command[512];
       
-    snprintf(command, 512, "{\"Channel\":{\"BroadcastStart\":\"\",\"BroadcastStop\":\"\",\"ChannelId\":\"%s\",\"ChannelType\":%i,\"DefaultPostRecordSeconds\":0,\"DefaultPreRecordSeconds\":0,\"DisplayName\":\"\",\"GuideChannelId\":\"00000000-0000-0000-0000-000000000000\",\"LogicalChannelNumber\":0,\"Sequence\":0,\"Version\":0,\"VisibleInGuide\":true}}",
+    snprintf(command, 512, "{\"Channel\":{\"BroadcastStart\":\"\",\"BroadcastStop\":\"\",\"ChannelId\":\"%s\",\"ChannelType\":%i,\"DefaultPostRecordSeconds\":0,\"DefaultPreRecordSeconds\":0,\"DisplayName\":\"\",\"GuideChannelId\":\"00000000-0000-0000-0000-000000000000\",\"LogicalChannelNumber\":0,\"Sequence\":0,\"Version\":0,\"VisibleInGuide\":true},\"LiveStream\":",
       channel_id.c_str(), channeltype);
     std::string arguments = command;
+    if (!g_current_livestream.empty())
+    {
+      Json::FastWriter writer;
+      arguments.append(writer.write(g_current_livestream)).append("}");
+    }
+    else
+    {
+      arguments.append("null}");
+    }
 
     XBMC->Log(LOG_DEBUG, "ForTheRecord/Control/TuneLiveStream, body [%s]", arguments.c_str());
 
@@ -394,12 +424,39 @@ namespace ForTheRecord
     {
       if (response.type() == Json::objectValue)
       {
-        //printValueTree(response);
-        g_current_livestream = response["LiveStream"];
+        // First analyse the return code from the server
+        ForTheRecord::LiveStreamResult livestreamresult = (ForTheRecord::LiveStreamResult) response["LiveStreamResult"].asInt();
+        XBMC->Log(LOG_DEBUG, "TuneLiveStream result %d.", livestreamresult);
+        if (livestreamresult != ForTheRecord::Succeed)
+        {
+          XBMC->Log(LOG_ERROR, "TuneLiveStream result %d.", livestreamresult);
+          return E_FAILED;
+        }
+
+        // Ok, pick up the returned LiveStream object
+        Json::Value livestream = response["LiveStream"];
+        if (livestream != Json::nullValue)
+        {
+          g_current_livestream = livestream;
+        }
+        else
+        {
+          XBMC->Log(LOG_DEBUG, "No LiveStream received from server.");
+          return E_FAILED;
+        }
         stream = g_current_livestream["TimeshiftFile"].asString();
         //stream = g_current_livestream["RtspUrl"].asString();
         XBMC->Log(LOG_DEBUG, "Tuned live stream: %s\n", stream.c_str());
       }
+      else
+      {
+        XBMC->Log(LOG_DEBUG, "Unknown response format. Expected Json::objectValue");
+        return E_FAILED;
+      }
+    }
+    else
+    {
+      XBMC->Log(LOG_ERROR, "TuneLiveStream failed");
     }
     return retval;
   }
@@ -628,7 +685,7 @@ namespace ForTheRecord
     retval = ForTheRecordJSONRPC(command, "", response);
 
     if(retval >= 0)
-    {           
+    {
       if( response.type() == Json::arrayValue)
       {
         int size = response.size();
@@ -657,11 +714,11 @@ namespace ForTheRecord
 
     XBMC->Log(LOG_DEBUG, "GetUpcomingPrograms");
 
-    // http://madcat:49943/ForTheRecord/Scheduler/UpcomingPrograms/82?includeCancelled=false
-    retval = ForTheRecordJSONRPC("ForTheRecord/Scheduler/UpcomingPrograms/82?includeCancelled=false", "", response);
+    // http://madcat:49943/ForTheRecord/Scheduler/UpcomingPrograms/82?includeCancelled=true
+    retval = ForTheRecordJSONRPC("ForTheRecord/Scheduler/UpcomingPrograms/82?includeCancelled=true", "", response);
 
     if(retval >= 0)
-    {           
+    {
       if( response.type() == Json::arrayValue)
       {
         int size = response.size();
@@ -681,6 +738,39 @@ namespace ForTheRecord
     return retval;
   }
 
+    /**
+   * \brief Fetch the list of currently active recordings
+   */
+  int GetActiveRecordings(Json::Value& response)
+  {
+    int retval = -1;
+
+    XBMC->Log(LOG_DEBUG, "GetActiveRecordings");
+
+    retval = ForTheRecordJSONRPC("ForTheRecord/Control/ActiveRecordings", "", response);
+
+    if(retval >= 0)
+    {           
+      if( response.type() == Json::arrayValue)
+      {
+        int size = response.size();
+        return size;
+      }
+      else
+      {
+        XBMC->Log(LOG_DEBUG, "Unknown response format. Expected Json::arrayValue\n");
+        return -1;
+      }
+    }
+    else
+    {
+      XBMC->Log(LOG_DEBUG, "GetActiveRecordings failed. Return value: %i\n", retval);
+    }
+
+    return retval;
+  }
+
+
   /**
    * \brief Cancel an upcoming program
    */
@@ -693,7 +783,6 @@ namespace ForTheRecord
     struct tm* convert = gmtime(&starttime);
     struct tm tm_start = *convert;
 
-    
     //Format: ForTheRecord/Scheduler/CancelUpcomingProgram/{scheduleId}/{channelId}/{startTime}?guideProgramId={guideProgramId}
     char command[256];
     snprintf(command, 256, "ForTheRecord/Scheduler/CancelUpcomingProgram/%s/%s/%i-%02i-%02iT%02i:%02i:%02i%?guideProgramId=%s" ,
@@ -714,13 +803,12 @@ namespace ForTheRecord
   /**
    * \brief Add a xbmc timer as a one time schedule
    */
-  int AddOneTimeSchedule(const std::string& channelid, const time_t starttime, const std::string& title, int prerecordseconds, int postrecordseconds)
+  int AddOneTimeSchedule(const std::string& channelid, const time_t starttime, const std::string& title, int prerecordseconds, int postrecordseconds, Json::Value& response)
   {
     int retval = -1;
-    Json::Value response;
 
     XBMC->Log(LOG_DEBUG, "AddOneTimeSchedule");
-    struct tm* convert = gmtime(&starttime);
+    struct tm* convert = localtime(&starttime);
     struct tm tm_start = *convert;
 
     // Format: ForTheRecord/Scheduler/SaveSchedule
@@ -742,10 +830,132 @@ namespace ForTheRecord
 
     retval = ForTheRecordJSONRPC("ForTheRecord/Scheduler/SaveSchedule", arguments, response);
 
-    if (retval < 0)
+    if(retval >= 0)
+    {
+      if( response.type() != Json::objectValue)
+      {
+        XBMC->Log(LOG_DEBUG, "Unknown response format. Expected Json::objectValue\n");
+        return -1;
+      }
+    }
+    else
     {
       XBMC->Log(LOG_DEBUG, "AddOneTimeSchedule failed. Return value: %i\n", retval);
     }
+
+    return retval;
+  }
+
+  /**
+   * \brief Add a xbmc timer as a manual schedule
+   */
+  int AddManualSchedule(const std::string& channelid, const time_t starttime, const time_t duration, const std::string& title, int prerecordseconds, int postrecordseconds, Json::Value& response)
+  {
+    int retval = -1;
+
+    XBMC->Log(LOG_DEBUG, "AddManualSchedule");
+    struct tm* convert = localtime(&starttime);
+    struct tm tm_start = *convert;
+    time_t recordingduration = duration;
+    int duration_sec = recordingduration % 60;
+    recordingduration /= 60;
+    int duration_min = recordingduration % 60;
+    recordingduration /= 60;
+    int duration_hrs = recordingduration;
+
+    // Format: ForTheRecord/Scheduler/SaveSchedule
+    // argument: {"ChannelType":0,"IsActive":true,"IsOneTime":true,"KeepUntilMode":0,"KeepUntilValue":null,
+    //    "LastModifiedTime":"\/Date(1307645182000+0100)\/","Name":"XBMC (manual) - blup","PostRecordSeconds":600,
+    //    "PreRecordSeconds":120,"ProcessingCommands":[],"RecordingFileFormatId":null,
+    //    "Rules":[{"Arguments":["2011-06-11T22:10:00", "01:13:00"],"Type":"ManualSchedule"},{"Arguments":["6a14caaf-5e39-4750-b7b7-eae8c741c094"],"Type":"Channels"}],
+    //    "ScheduleId":"00000000-0000-0000-0000-000000000000","SchedulePriority":0,"ScheduleType":82,"Version":0}
+
+    time_t now = time(NULL);
+    std::string modifiedtime = TimeTToWCFDate(mktime(localtime(&now)));
+    char arguments[1024];
+    snprintf( arguments, sizeof(arguments),
+      "{\"ChannelType\":0,\"IsActive\":true,\"IsOneTime\":true,\"KeepUntilMode\":0,\"KeepUntilValue\":null,\"LastModifiedTime\":\"%s\",\"Name\":\"XBMC (manual) - %s\",\"PostRecordSeconds\":%i,\"PreRecordSeconds\":%i,\"ProcessingCommands\":[],\"RecordingFileFormatId\":null,"
+      "\"Rules\":[{\"Arguments\":[\"%i-%02i-%02iT%02i:%02i:%02i\", \"%02i:%02i:%02i\"],\"Type\":\"ManualSchedule\"},{\"Arguments\":[\"%s\"],\"Type\":\"Channels\"}],\"ScheduleId\":\"00000000-0000-0000-0000-000000000000\",\"SchedulePriority\":0,\"ScheduleType\":82,\"Version\":0}",
+      modifiedtime.c_str(), title.c_str(), postrecordseconds, prerecordseconds,
+      tm_start.tm_year + 1900, tm_start.tm_mon + 1, tm_start.tm_mday,
+      tm_start.tm_hour, tm_start.tm_min, tm_start.tm_sec,
+      duration_hrs, duration_min, duration_sec,
+      channelid.c_str());
+
+    retval = ForTheRecordJSONRPC("ForTheRecord/Scheduler/SaveSchedule", arguments, response);
+
+    if(retval >= 0)
+    {
+      if( response.type() != Json::objectValue)
+      {
+        XBMC->Log(LOG_DEBUG, "Unknown response format. Expected Json::objectValue\n");
+        return -1;
+      }
+    }
+    else
+    {
+      XBMC->Log(LOG_DEBUG, "AddManualSchedule failed. Return value: %i\n", retval);
+    }
+
+    return retval;
+  }
+
+  /**
+   * \brief Delete a ForTheRecord schedule
+   */
+  int DeleteSchedule(const std::string& scheduleid)
+  {
+    int retval = -1;
+    std::string response;
+
+    XBMC->Log(LOG_DEBUG, "DeleteSchedule");
+
+    //Format: ForTheRecord/Scheduler/DeleteSchedule/d21ec04f-22e0-4bf8-accf-317ecc0fb0f9
+    char command[256];
+    snprintf(command, 256, "ForTheRecord/Scheduler/DeleteSchedule/%s" , scheduleid.c_str());
+    retval = ForTheRecordRPC(command, "", response);
+
+    if (retval < 0)
+    {
+      XBMC->Log(LOG_DEBUG, "DeleteSchedule failed. Return value: %i\n", retval);
+    }
+
+    return retval;
+  }
+
+  /**
+   * \brief Get the upcoming programs for a given schedule
+   */
+  int GetUpcomingProgramsForSchedule(const Json::Value& schedule, Json::Value& response)
+  {
+    int retval = -1;
+
+    XBMC->Log(LOG_DEBUG, "GetUpcomingProgramsForSchedule");
+
+    char arguments[1024];
+    Json::FastWriter writer;
+    snprintf( arguments, sizeof(arguments), "{\"IncludeCancelled\":true,\"Schedule\":%s}", writer.write(schedule).c_str());
+
+    retval = ForTheRecordJSONRPC("ForTheRecord/Scheduler/UpcomingProgramsForSchedule", arguments, response);
+
+    if(retval >= 0)
+    {
+      if( response.type() == Json::arrayValue)
+      {
+        int size = response.size();
+        return size;
+      }
+      else
+      {
+        XBMC->Log(LOG_DEBUG, "Unknown response format. Expected Json::arrayValue\n");
+        return -1;
+      }
+    }
+    else
+    {
+      XBMC->Log(LOG_DEBUG, "GetUpcomingProgramsForSchedule failed. Return value: %i\n", retval);
+    }
+
     return retval;
   }
 

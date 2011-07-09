@@ -26,6 +26,7 @@
 #include "settings/Settings.h"
 #include "guilib/Key.h"
 #include "input/XBMC_keysym.h"
+#include "input/XBMC_keytable.h"
 #include "filesystem/File.h"
 #include "filesystem/Directory.h"
 #include "FileItem.h"
@@ -44,7 +45,8 @@ typedef struct
 } ActionMapping;
 
 static const ActionMapping actions[] =
-       {{"left"              , ACTION_MOVE_LEFT },
+{
+        {"left"              , ACTION_MOVE_LEFT },
         {"right"             , ACTION_MOVE_RIGHT},
         {"up"                , ACTION_MOVE_UP   },
         {"down"              , ACTION_MOVE_DOWN },
@@ -193,7 +195,21 @@ static const ActionMapping actions[] =
         {"yellow"            , ACTION_TELETEXT_YELLOW},
         {"blue"              , ACTION_TELETEXT_BLUE},
         {"increasepar"       , ACTION_INCREASE_PAR},
-        {"decreasepar"       , ACTION_DECREASE_PAR}};
+        {"decreasepar"       , ACTION_DECREASE_PAR},
+
+        // Mouse actions
+        {"leftclick"         , ACTION_MOUSE_LEFT_CLICK},
+        {"rightclick"        , ACTION_MOUSE_RIGHT_CLICK},
+        {"middleclick"       , ACTION_MOUSE_MIDDLE_CLICK},
+        {"doubleclick"       , ACTION_MOUSE_DOUBLE_CLICK},
+        {"wheelup"           , ACTION_MOUSE_WHEEL_UP},
+        {"wheeldown"         , ACTION_MOUSE_WHEEL_DOWN},
+        {"mousedrag"         , ACTION_MOUSE_DRAG},
+        {"mousemove"         , ACTION_MOUSE_MOVE},
+
+        // Do nothing action
+        { "noop"             , ACTION_NOOP}
+};
 
 static const ActionMapping windows[] =
        {{"home"                     , WINDOW_HOME},
@@ -207,6 +223,21 @@ static const ActionMapping windows[] =
         {"videos"                   , WINDOW_VIDEO_NAV},
         {"tv"                       , WINDOW_PVR}, // backward compat
         {"pvr"                      , WINDOW_PVR},
+
+        {"pvrguideinfo"             , WINDOW_DIALOG_PVR_GUIDE_INFO},
+        {"pvrrecordinginfo"         , WINDOW_DIALOG_PVR_RECORDING_INFO},
+        {"pvrtimersetting"          , WINDOW_DIALOG_PVR_TIMER_SETTING},
+        {"pvrgroupmanager"          , WINDOW_DIALOG_PVR_GROUP_MANAGER},
+        {"pvrchannelmanager"        , WINDOW_DIALOG_PVR_CHANNEL_MANAGER},
+        {"pvrguidesearch"           , WINDOW_DIALOG_PVR_GUIDE_SEARCH},
+        {"pvrchannelscan"           , WINDOW_DIALOG_PVR_CHANNEL_SCAN},
+        {"pvrupdateprogress"        , WINDOW_DIALOG_PVR_UPDATE_PROGRESS},
+        {"pvrosdchannels"           , WINDOW_DIALOG_PVR_OSD_CHANNELS},
+        {"pvrosdguide"              , WINDOW_DIALOG_PVR_OSD_GUIDE},
+        {"pvrosddirector"           , WINDOW_DIALOG_PVR_OSD_DIRECTOR},
+        {"pvrosdcutter"             , WINDOW_DIALOG_PVR_OSD_CUTTER},
+        {"pvrosdteletext"           , WINDOW_DIALOG_OSD_TELETEXT},
+
         {"systeminfo"               , WINDOW_SYSTEM_INFORMATION},
         {"testpattern"              , WINDOW_TEST_PATTERN},
         {"screencalibration"        , WINDOW_SCREEN_CALIBRATION},
@@ -219,7 +250,8 @@ static const ActionMapping windows[] =
         {"videossettings"           , WINDOW_SETTINGS_MYVIDEOS},
         {"networksettings"          , WINDOW_SETTINGS_NETWORK},
         {"appearancesettings"       , WINDOW_SETTINGS_APPEARANCE},
-        {"tvsettings"               , WINDOW_SETTINGS_MYTV},
+        {"pvrsettings"              , WINDOW_SETTINGS_MYPVR},
+        {"tvsettings"               , WINDOW_SETTINGS_MYPVR},  // backward compat
         {"scripts"                  , WINDOW_PROGRAMS}, // backward compat
         {"videofiles"               , WINDOW_VIDEO_FILES},
         {"videolibrary"             , WINDOW_VIDEO_NAV},
@@ -297,6 +329,45 @@ static const ActionMapping windows[] =
         {"startwindow"              , WINDOW_START},
         {"startup"                  , WINDOW_STARTUP_ANIM}};
 
+static const ActionMapping mousecommands[] =
+{
+  { "leftclick",   ACTION_MOUSE_LEFT_CLICK },
+  { "rightclick",  ACTION_MOUSE_RIGHT_CLICK },
+  { "middleclick", ACTION_MOUSE_MIDDLE_CLICK },
+  { "doubleclick", ACTION_MOUSE_DOUBLE_CLICK },
+  { "wheelup",     ACTION_MOUSE_WHEEL_UP },
+  { "wheeldown",   ACTION_MOUSE_WHEEL_DOWN },
+  { "mousedrag",   ACTION_MOUSE_DRAG },
+  { "mousemove",   ACTION_MOUSE_MOVE }
+};
+
+#ifdef WIN32
+static const ActionMapping appcommands[] =
+{
+  { "browser_back",        APPCOMMAND_BROWSER_BACKWARD },
+  { "browser_forward",     APPCOMMAND_BROWSER_FORWARD },
+  { "browser_refresh",     APPCOMMAND_BROWSER_REFRESH },
+  { "browser_stop",        APPCOMMAND_BROWSER_STOP },
+  { "browser_search",      APPCOMMAND_BROWSER_SEARCH },
+  { "browser_favorites",   APPCOMMAND_BROWSER_FAVORITES },
+  { "browser_home",        APPCOMMAND_BROWSER_HOME },
+  { "volume_mute",         APPCOMMAND_VOLUME_MUTE },
+  { "volume_down",         APPCOMMAND_VOLUME_DOWN },
+  { "volume_up",           APPCOMMAND_VOLUME_UP },
+  { "next_track",          APPCOMMAND_MEDIA_NEXTTRACK },
+  { "prev_track",          APPCOMMAND_MEDIA_PREVIOUSTRACK },
+  { "stop",                APPCOMMAND_MEDIA_STOP },
+  { "play_pause",          APPCOMMAND_MEDIA_PLAY_PAUSE },
+  { "launch_mail",         APPCOMMAND_LAUNCH_MAIL },
+  { "launch_media_select", APPCOMMAND_LAUNCH_MEDIA_SELECT },
+  { "launch_app1",         APPCOMMAND_LAUNCH_APP1 },
+  { "launch_app2",         APPCOMMAND_LAUNCH_APP2 },
+  { "play",                APPCOMMAND_MEDIA_PLAY },
+  { "pause",               APPCOMMAND_MEDIA_PAUSE },
+  { "fastforward",         APPCOMMAND_MEDIA_FAST_FORWARD },
+  { "rewind",              APPCOMMAND_MEDIA_REWIND }
+};
+#endif
 
 CButtonTranslator& CButtonTranslator::GetInstance()
 {
@@ -312,7 +383,7 @@ CButtonTranslator::~CButtonTranslator()
 
 bool CButtonTranslator::Load()
 {
-  translatorMap.clear();
+  deviceMappings.clear();
 
   //directories to search for keymaps
   //they're applied in this order,
@@ -734,13 +805,23 @@ CAction CButtonTranslator::GetAction(int window, const CKey &key, bool fallback)
   return action;
 }
 
-int CButtonTranslator::GetActionCode(int window, const CKey &key, CStdString &strAction)
+const std::map<int, CButtonTranslator::buttonMap> &CButtonTranslator::GetDeviceMap() const
+{
+  std::map<CStdString, std::map<int, buttonMap> >::const_iterator activeMapIt = deviceMappings.find(g_settings.m_activeKeyboardMapping);
+  if (activeMapIt == deviceMappings.end())
+    return deviceMappings.find("default")->second;
+  return activeMapIt->second;
+}
+
+int CButtonTranslator::GetActionCode(int window, const CKey &key, CStdString &strAction) const
 {
   uint32_t code = key.GetButtonCode();
-  map<int, buttonMap>::iterator it = translatorMap.find(window);
-  if (it == translatorMap.end())
+
+  const std::map<int, buttonMap> &deviceMap = GetDeviceMap();
+  map<int, buttonMap>::const_iterator it = deviceMap.find(window);
+  if (it == deviceMap.end())
     return 0;
-  buttonMap::iterator it2 = (*it).second.find(code);
+  buttonMap::const_iterator it2 = (*it).second.find(code);
   int action = 0;
   while (it2 != (*it).second.end())
   {
@@ -754,7 +835,7 @@ int CButtonTranslator::GetActionCode(int window, const CKey &key, CStdString &st
   {
     CLog::Log(LOGDEBUG, "%s: Trying Hardy keycode for %#04x", __FUNCTION__, code);
     code &= ~0x0F00;
-    buttonMap::iterator it2 = (*it).second.find(code);
+    buttonMap::const_iterator it2 = (*it).second.find(code);
     while (it2 != (*it).second.end())
     {
       action = (*it2).second.id;
@@ -796,23 +877,40 @@ void CButtonTranslator::MapWindowActions(TiXmlNode *pWindow, int windowID)
 {
   if (!pWindow || windowID == WINDOW_INVALID) 
     return;
-  buttonMap map;
-  std::map<int, buttonMap>::iterator it = translatorMap.find(windowID);
-  if (it != translatorMap.end())
-  {
-    map = it->second;
-    translatorMap.erase(it);
-  }
+
   TiXmlNode* pDevice;
 
-  const char* types[] = {"gamepad", "remote", "keyboard", "universalremote", NULL};
+  const char* types[] = {"gamepad", "remote", "universalremote", "keyboard", "mouse", "appcommand", NULL};
   for (int i = 0; types[i]; ++i)
   {
     CStdString type(types[i]);
     if (HasDeviceType(pWindow, type))
     {
       pDevice = pWindow->FirstChild(type);
+      TiXmlElement *pDeviceElement = pDevice->ToElement();
+      CStdString deviceName;
+      //check if exists, if not use "default"
+      deviceName = pDeviceElement->Attribute("name");
+      if (deviceName.empty())
+        deviceName = "default";
+
+      std::map<CStdString, std::map<int, buttonMap> >::iterator deviceMapIt = deviceMappings.find(deviceName);
+      if (deviceMapIt == deviceMappings.end())
+      {
+        //First time encountering this device, lets initialise the buttonMap for it.
+        deviceMapIt = deviceMappings.insert(pair<CStdString, std::map<int, buttonMap> >(deviceName, std::map<int, buttonMap>())).first;
+      }
+      
+      std::map<int, buttonMap>::iterator windowIt = deviceMapIt->second.find(windowID);
+      if (windowIt == deviceMapIt->second.end())
+      {
+        //add it now
+        windowIt = deviceMapIt->second.insert(pair<int, buttonMap>(windowID, buttonMap())).first;
+      }
+      buttonMap& windowMap = windowIt->second;
+
       TiXmlElement *pButton = pDevice->FirstChildElement();
+
       while (pButton)
       {
         uint32_t buttonCode=0;
@@ -824,13 +922,18 @@ void CButtonTranslator::MapWindowActions(TiXmlNode *pWindow, int windowID)
             buttonCode = TranslateUniversalRemoteString(pButton->Value());
         else if (type == "keyboard")
             buttonCode = TranslateKeyboardButton(pButton);
+        else if (type == "mouse")
+            buttonCode = TranslateMouseCommand(pButton->Value());
+        else if (type == "appcommand")
+            buttonCode = TranslateAppCommand(pButton->Value());
 
         if (buttonCode && pButton->FirstChild())
-          MapAction(buttonCode, pButton->FirstChild()->Value(), map);
+          MapAction(buttonCode, pButton->FirstChild()->Value(), windowMap);
         pButton = pButton->NextSiblingElement();
       }
     }
   }
+
 #if defined(HAS_SDL_JOYSTICK) || defined(HAS_EVENT_SERVER)
   if ((pDevice = pWindow->FirstChild("joystick")) != NULL)
   {
@@ -842,9 +945,6 @@ void CButtonTranslator::MapWindowActions(TiXmlNode *pWindow, int windowID)
     }
   }
 #endif
-  // add our map to our table
-  if (map.size() > 0)
-    translatorMap.insert(pair<int, buttonMap>( windowID, map));
 }
 
 bool CButtonTranslator::TranslateActionString(const char *szAction, int &action)
@@ -854,9 +954,6 @@ bool CButtonTranslator::TranslateActionString(const char *szAction, int &action)
   strAction.ToLower();
   if (CBuiltins::HasCommand(strAction)) 
     action = ACTION_BUILT_IN_FUNCTION;
-
-  if (strAction.Equals("noop"))
-    return true;
 
   for (unsigned int index=0;index < sizeof(actions)/sizeof(actions[0]);++index)
   {
@@ -1045,113 +1142,22 @@ uint32_t CButtonTranslator::TranslateUniversalRemoteString(const char *szButton)
 uint32_t CButtonTranslator::TranslateKeyboardString(const char *szButton)
 {
   uint32_t buttonCode = 0;
-  if (strlen(szButton) == 1)
-  { // single character
-    buttonCode = (uint32_t)toupper(szButton[0]) | KEY_VKEY;
-    // FIXME It is a printable character, printable should be ASCII not VKEY! Till now it works, but how (long)?
-    // FIXME support unicode: additional parameter necessary since unicode can not be embedded into key/action-ID.
+  XBMCKEYTABLE keytable;
+
+  // Look up the key name
+  if (KeyTableLookupName(szButton, &keytable))
+  {
+    buttonCode = keytable.vkey;
   }
+
+  // The lookup failed i.e. the key name wasn't found
   else
-  { // for keys such as return etc. etc.
-    CStdString strKey = szButton;
-    strKey.ToLower();
-
-    if (strKey.Equals("return")) buttonCode = 0x0D;
-    else if (strKey.Equals("enter")) buttonCode = 0x6C;
-    else if (strKey.Equals("escape")) buttonCode = 0x1B;
-    else if (strKey.Equals("esc")) buttonCode = 0x1B;
-    else if (strKey.Equals("tab")) buttonCode = 0x09;
-    else if (strKey.Equals("space")) buttonCode = 0x20;
-    else if (strKey.Equals("left")) buttonCode = 0x25;
-    else if (strKey.Equals("right")) buttonCode = 0x27;
-    else if (strKey.Equals("up")) buttonCode = 0x26;
-    else if (strKey.Equals("down")) buttonCode = 0x28;
-    else if (strKey.Equals("insert")) buttonCode = 0x2D;
-    else if (strKey.Equals("delete")) buttonCode = 0x2E;
-    else if (strKey.Equals("home")) buttonCode = 0x24;
-    else if (strKey.Equals("end")) buttonCode = 0x23;
-    else if (strKey.Equals("f1")) buttonCode = 0x70;
-    else if (strKey.Equals("f2")) buttonCode = 0x71;
-    else if (strKey.Equals("f3")) buttonCode = 0x72;
-    else if (strKey.Equals("f4")) buttonCode = 0x73;
-    else if (strKey.Equals("f5")) buttonCode = 0x74;
-    else if (strKey.Equals("f6")) buttonCode = 0x75;
-    else if (strKey.Equals("f7")) buttonCode = 0x76;
-    else if (strKey.Equals("f8")) buttonCode = 0x77;
-    else if (strKey.Equals("f9")) buttonCode = 0x78;
-    else if (strKey.Equals("f10")) buttonCode = 0x79;
-    else if (strKey.Equals("f11")) buttonCode = 0x7A;
-    else if (strKey.Equals("f12")) buttonCode = 0x7B;
-    else if (strKey.Equals("numpadzero") || strKey.Equals("zero")) buttonCode = 0x60;
-    else if (strKey.Equals("numpadone") || strKey.Equals("one")) buttonCode = 0x61;
-    else if (strKey.Equals("numpadtwo") || strKey.Equals("two")) buttonCode = 0x62;
-    else if (strKey.Equals("numpadthree") || strKey.Equals("three")) buttonCode = 0x63;
-    else if (strKey.Equals("numpadfour") || strKey.Equals("four")) buttonCode = 0x64;
-    else if (strKey.Equals("numpadfive") || strKey.Equals("five")) buttonCode = 0x65;
-    else if (strKey.Equals("numpadsix") || strKey.Equals("six")) buttonCode = 0x66;
-    else if (strKey.Equals("numpadseven") || strKey.Equals("seven")) buttonCode = 0x67;
-    else if (strKey.Equals("numpadeight") || strKey.Equals("eight")) buttonCode = 0x68;
-    else if (strKey.Equals("numpadnine") || strKey.Equals("nine")) buttonCode = 0x69;
-    else if (strKey.Equals("numpadtimes")) buttonCode = 0x6A;
-    else if (strKey.Equals("numpadplus")) buttonCode = 0x6B;
-    else if (strKey.Equals("numpadminus")) buttonCode = 0x6D;
-    else if (strKey.Equals("numpadperiod")) buttonCode = 0x6E;
-    else if (strKey.Equals("numpaddivide")) buttonCode = 0x6F;
-    else if (strKey.Equals("pageup")) buttonCode = 0x21;
-    else if (strKey.Equals("pagedown")) buttonCode = 0x22;
-    else if (strKey.Equals("printscreen")) buttonCode = 0x2A;
-    else if (strKey.Equals("backspace")) buttonCode = 0x08;
-    else if (strKey.Equals("menu")) buttonCode = 0x5D;
-    else if (strKey.Equals("pause")) buttonCode = 0x13;
-    else if (strKey.Equals("leftshift")) buttonCode = 0xA0;
-    else if (strKey.Equals("rightshift")) buttonCode = 0xA1;
-    else if (strKey.Equals("leftctrl")) buttonCode = 0xA2;
-    else if (strKey.Equals("rightctrl")) buttonCode = 0xA3;
-    else if (strKey.Equals("leftalt")) buttonCode = 0xA4;
-    else if (strKey.Equals("rightalt")) buttonCode = 0xA5;
-    else if (strKey.Equals("leftwindows")) buttonCode = 0x5B;
-    else if (strKey.Equals("rightwindows")) buttonCode = 0x5C;
-    else if (strKey.Equals("capslock")) buttonCode = 0x20;
-    else if (strKey.Equals("numlock")) buttonCode = 0x90;
-    else if (strKey.Equals("scrolllock")) buttonCode = 0x91;
-    else if (strKey.Equals("semicolon") || strKey.Equals("colon")) buttonCode = 0xBA;
-    else if (strKey.Equals("equals") || strKey.Equals("plus")) buttonCode = 0xBB;
-    else if (strKey.Equals("comma") || strKey.Equals("lessthan")) buttonCode = 0xBC;
-    else if (strKey.Equals("minus") || strKey.Equals("underline")) buttonCode = 0xBD;
-    else if (strKey.Equals("period") || strKey.Equals("greaterthan")) buttonCode = 0xBE;
-    else if (strKey.Equals("forwardslash") || strKey.Equals("questionmark")) buttonCode = 0xBF;
-    else if (strKey.Equals("leftquote") || strKey.Equals("tilde")) buttonCode = 0xC0;
-    else if (strKey.Equals("opensquarebracket") || strKey.Equals("openbrace")) buttonCode = 0xEB;
-    else if (strKey.Equals("backslash") || strKey.Equals("pipe")) buttonCode = 0xEC;
-    else if (strKey.Equals("closesquarebracket") || strKey.Equals("closebrace")) buttonCode = 0xED;
-    else if (strKey.Equals("quote") || strKey.Equals("doublequote")) buttonCode = 0xEE;
-
-    // Multimedia keys
-    else if (strKey.Equals("browser_back"))        buttonCode = XBMCK_BROWSER_BACK;
-    else if (strKey.Equals("browser_forward"))     buttonCode = XBMCK_BROWSER_FORWARD;
-    else if (strKey.Equals("browser_refresh"))     buttonCode = XBMCK_BROWSER_REFRESH;
-    else if (strKey.Equals("browser_stop"))        buttonCode = XBMCK_BROWSER_STOP;
-    else if (strKey.Equals("browser_search"))      buttonCode = XBMCK_BROWSER_SEARCH;
-    else if (strKey.Equals("browser_favorites"))   buttonCode = XBMCK_BROWSER_FAVORITES;
-    else if (strKey.Equals("browser_home"))        buttonCode = XBMCK_BROWSER_HOME;
-    else if (strKey.Equals("volume_mute"))         buttonCode = XBMCK_VOLUME_MUTE;
-    else if (strKey.Equals("volume_down"))         buttonCode = XBMCK_VOLUME_DOWN;
-    else if (strKey.Equals("volume_up"))           buttonCode = XBMCK_VOLUME_UP;
-    else if (strKey.Equals("next_track"))          buttonCode = XBMCK_MEDIA_NEXT_TRACK;
-    else if (strKey.Equals("prev_track"))          buttonCode = XBMCK_MEDIA_PREV_TRACK;
-    else if (strKey.Equals("stop"))                buttonCode = XBMCK_MEDIA_STOP;
-    else if (strKey.Equals("play_pause"))          buttonCode = XBMCK_MEDIA_PLAY_PAUSE;
-    else if (strKey.Equals("launch_mail"))         buttonCode = XBMCK_LAUNCH_MAIL;
-    else if (strKey.Equals("launch_media_select")) buttonCode = XBMCK_LAUNCH_MEDIA_SELECT;
-    else if (strKey.Equals("launch_app1_pc_icon")) buttonCode = XBMCK_LAUNCH_APP1;
-    else if (strKey.Equals("launch_app2_pc_icon")) buttonCode = XBMCK_LAUNCH_APP2;
-    else if (strKey.Equals("launch_file_browser")) buttonCode = 0xB8;
-    else if (strKey.Equals("launch_media_center")) buttonCode = 0xB9;
-    else
-      CLog::Log(LOGERROR, "Keyboard Translator: Can't find button %s", strKey.c_str());
-
-    buttonCode |= KEY_VKEY;
+  {
+    CLog::Log(LOGERROR, "Keyboard Translator: Can't find button %s", szButton);
   }
+
+  buttonCode |= KEY_VKEY;
+
   return buttonCode;
 }
 
@@ -1203,9 +1209,39 @@ uint32_t CButtonTranslator::TranslateKeyboardButton(TiXmlElement *pButton)
   return button_id;
 }
 
+uint32_t CButtonTranslator::TranslateAppCommand(const char *szButton)
+{
+#ifdef WIN32
+  CStdString strAppCommand = szButton;
+  strAppCommand.ToLower();
+
+  for (int i = 0; i < sizeof(appcommands)/sizeof(appcommands[0]); i++)
+    if (strAppCommand.Equals(appcommands[i].name))
+      return appcommands[i].action | KEY_APPCOMMAND;
+
+  CLog::Log(LOGERROR, "%s: Can't find appcommand %s", __FUNCTION__, szButton);
+#endif
+
+  return 0;
+}
+
+uint32_t CButtonTranslator::TranslateMouseCommand(const char *szButton)
+{
+  CStdString strMouseCommand = szButton;
+  strMouseCommand.ToLower();
+
+  for (unsigned int i = 0; i < sizeof(mousecommands)/sizeof(mousecommands[0]); i++)
+    if (strMouseCommand.Equals(mousecommands[i].name))
+      return mousecommands[i].action | KEY_MOUSE;
+
+  CLog::Log(LOGERROR, "%s: Can't find mouse command %s", __FUNCTION__, szButton);
+
+  return 0;
+}
+
 void CButtonTranslator::Clear()
 {
-  translatorMap.clear();
+  deviceMappings.clear();
 #if defined(HAS_LIRC) || defined(HAS_IRSERVERSUITE)
   lircRemotesMap.clear();
 #endif

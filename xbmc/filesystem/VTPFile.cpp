@@ -19,17 +19,13 @@
  *
  */
 
-#include "system.h" // WIN32INCLUDES - this is for SD_BOTH primarily, and must be included prior to VTPFile.h for some reason
+#include "system.h"
 #include "VTPFile.h"
 #include "VTPSession.h"
 #include "utils/URIUtils.h"
 #include "URL.h"
 #include "utils/log.h"
 #include "video/VideoInfoTag.h"
-
-#ifdef _LINUX
-#define SD_BOTH SHUT_RDWR
-#endif
 
 using namespace XFILE;
 using namespace std;
@@ -141,10 +137,6 @@ unsigned int CVTPFile::Read(void* buffer, int64_t size)
 int64_t CVTPFile::Seek(int64_t pos, int whence)
 {
   CLog::Log(LOGDEBUG, "CVTPFile::Seek - seek to pos %"PRId64", whence %d", pos, whence);
-
-  if(whence == SEEK_POSSIBLE)
-    return 0;
-
   return -1;
 }
 
@@ -161,7 +153,7 @@ bool CVTPFile::NextChannel(bool preview/* = false*/)
 
     if(m_socket != INVALID_SOCKET)
     {
-      shutdown(m_socket, SD_BOTH);
+      shutdown(m_socket, SHUT_RDWR);
       m_session->AbortStreamLive();
       closesocket(m_socket);
     }
@@ -189,7 +181,7 @@ bool CVTPFile::PrevChannel(bool preview/* = false*/)
 
     if(m_socket != INVALID_SOCKET)
     {
-      shutdown(m_socket, SD_BOTH);
+      shutdown(m_socket, SHUT_RDWR);
       m_session->AbortStreamLive();
       closesocket(m_socket);
     }
@@ -211,7 +203,7 @@ bool CVTPFile::SelectChannel(unsigned int channel)
 
   if(m_socket != INVALID_SOCKET)
   {
-    shutdown(m_socket, SD_BOTH);
+    shutdown(m_socket, SHUT_RDWR);
     m_session->AbortStreamLive();
     closesocket(m_socket);
   }
@@ -222,4 +214,12 @@ bool CVTPFile::SelectChannel(unsigned int channel)
     return true;
   else
     return false;
+}
+
+int CVTPFile::IoControl(EIoControl request, void* param)
+{
+  if(request == IOCTRL_SEEK_POSSIBLE)
+    return 0;
+
+  return -1;
 }

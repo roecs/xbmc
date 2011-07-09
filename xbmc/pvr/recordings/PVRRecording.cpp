@@ -83,12 +83,12 @@ void CPVRRecording::Reset(void)
   m_iClientId          = g_PVRClients->GetFirstID(); // Temporary until we support multiple backends
   m_strChannelName     = "";
   m_strDirectory       = "";
-  m_recordingTime      = NULL;
   m_strStreamURL       = "";
   m_iPriority          = -1;
   m_iLifetime          = -1;
   m_strFileNameAndPath = "";
 
+  m_recordingTime.Reset();
   CVideoInfoTag::Reset();
 }
 
@@ -97,7 +97,7 @@ int CPVRRecording::GetDuration() const
   return (m_duration.GetDays() * 60*60*24 +
       m_duration.GetHours() * 60*60 +
       m_duration.GetMinutes() * 60 +
-      m_duration.GetSeconds()) / 60;
+      m_duration.GetSeconds());
 }
 
 bool CPVRRecording::Delete(void)

@@ -43,8 +43,10 @@ namespace PVR
     virtual void UpdateData(void);
     virtual void Notify(const Observable &obs, const CStdString& msg);
     virtual void SetInvalid(void) { UpdateData(); }
+    virtual void ResetObservers(void);
 
   private:
+    virtual bool SelectPlayingFile(void);
     virtual bool IsSelectedButton(CGUIMessage &message) const;
     virtual bool IsSelectedList(CGUIMessage &message) const;
     virtual bool OnClickButton(CGUIMessage &message);
@@ -63,13 +65,9 @@ namespace PVR
     virtual void UpdateViewNow(void);
     virtual void UpdateViewNext(void);
     virtual void UpdateViewTimeline(void);
-    virtual void UpdateEpgCache(bool bRadio = false, bool bForceUpdate = false);
 
-    int              m_iGuideView;
-    CFileItemList *  m_epgData;
-    bool             m_bLastEpgView; /*!< true for radio, false for tv */
-    bool             m_bGotInitialEpg;
-    bool             m_bObservingEpg;
-    CCriticalSection m_critSection;
+    bool            m_bEpgCacheUpdateRequired;
+    int             m_iGuideView;
+    CFileItemList * m_localItems;
   };
 }

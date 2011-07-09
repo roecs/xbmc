@@ -25,10 +25,12 @@ bool CSaveFileStateJob::DoWork()
 {
   CStdString progressTrackingFile = m_item.m_strPath;
 
+  if (m_item.IsDVD()) 
+    progressTrackingFile = m_item.GetVideoInfoTag()->m_strFileNameAndPath; // this variable contains removable:// suffixed by disc label
+
   if (progressTrackingFile != "")
   {
-	// do not store PVR settings in video database
-    if (m_item.IsVideo() && !m_item.IsPVR())
+    if (m_item.IsVideo())
     {
       CLog::Log(LOGDEBUG, "%s - Saving file state for video item %s", __FUNCTION__, progressTrackingFile.c_str());
 

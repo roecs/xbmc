@@ -22,26 +22,29 @@
  */
 
 #include "GUIWindowPVRCommon.h"
+#include "utils/Observer.h"
 
 namespace PVR
 {
   class CPVRChannelGroup;
   class CGUIWindowPVR;
 
-  class CGUIWindowPVRChannels : public CGUIWindowPVRCommon
+  class CGUIWindowPVRChannels : public CGUIWindowPVRCommon, private Observer
   {
     friend class CGUIWindowPVR;
 
   public:
     CGUIWindowPVRChannels(CGUIWindowPVR *parent, bool bRadio);
-    virtual ~CGUIWindowPVRChannels(void) {};
+    virtual ~CGUIWindowPVRChannels(void);
 
     virtual void GetContextButtons(int itemNumber, CContextButtons &buttons) const;
     virtual bool OnContextButton(int itemNumber, CONTEXT_BUTTON button);
     virtual const CPVRChannelGroup *SelectedGroup(void);
     virtual void SetSelectedGroup(CPVRChannelGroup *group);
-    virtual const CPVRChannelGroup *SelectNextGroup(void);
+    virtual CPVRChannelGroup *SelectNextGroup(void);
     virtual void UpdateData(void);
+    virtual void Notify(const Observable &obs, const CStdString& msg);
+    virtual void ResetObservers(void);
 
   private:
     virtual bool OnClickButton(CGUIMessage &message);

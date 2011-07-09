@@ -1,6 +1,6 @@
 #pragma once
 /*
- *      Copyright (C) 2005-2010 Team XBMC
+ *      Copyright (C) 2005-2011 Team XBMC
  *      http://www.xbmc.org
  *
  *  This Program is free software; you can redistribute it and/or modify
@@ -18,26 +18,17 @@
  *
  */
 
-/*
-* for DESCRIPTION see 'PVRClient-MediaPortal.cpp'
-*/
-
-#include "os-dependent.h"
-
 #include <vector>
 
 /* Master defines for client control */
-#ifndef _WINSOCKAPI_ //Prevent redefine warnings
-#define _WINSOCKAPI_ //Needed here to prevent inclusion of <winsock.h> via the header below
-#endif
 #include "../../addons/include/xbmc_pvr_types.h"
 
 /* Local includes */
 #include "Socket.h"
+#include "Cards.h"
 
-#ifdef TSREADER
-#include "lib/tsreader/TSReader.h"
-#endif
+/* Use a forward declaration here. Including RTSPClient.h via TSReader.h at this point gives compile errors */
+class CTsReader;
 
 class cPVRClientMediaPortal
 {
@@ -94,6 +85,7 @@ public:
   int GetCurrentClientChannel();
   bool SwitchChannel(const PVR_CHANNEL &channel);
   PVR_ERROR SignalStatus(PVR_SIGNAL_STATUS &signalStatus);
+  const char* GetLiveStreamURL(const PVR_CHANNEL &channel);
 
   /* Record stream handling */
   bool OpenRecordedStream(const PVR_RECORDING &recording);
@@ -101,9 +93,6 @@ public:
   int ReadRecordedStream(unsigned char *pBuffer, unsigned int iBufferSize);
   long long SeekRecordedStream(long long iPosition, int iWhence = SEEK_SET);
   long long LengthRecordedStream(void);
-
-  //MG: Added for MediaPortal streaming
-  const char* GetLiveStreamURL(const PVR_CHANNEL &channel);
 
 protected:
   MPTV::Socket           *m_tcpclient;
@@ -121,6 +110,7 @@ private:
   std::string             m_BackendVersion;
   time_t                  m_BackendUTCoffset;
   time_t                  m_BackendTime;
+  CCards                  m_cCards;
 #ifdef TSREADER
   CTsReader*              m_tsreader;
 

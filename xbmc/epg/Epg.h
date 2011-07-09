@@ -27,15 +27,17 @@
 
 #include "EpgInfoTag.h"
 #include "EpgSearchFilter.h"
+#include "utils/Observer.h"
 
 /** EPG container for CEpgInfoTag instances */
 namespace EPG
 {
-  class CEpg : public std::vector<CEpgInfoTag*>
+  class CEpg : public std::vector<CEpgInfoTag*>, public Observable
   {
     friend class CEpgDatabase;
 
   protected:
+    bool                       m_bChanged;        /*!< true if anything changed that needs to be persisted, false otherwise */
     bool                       m_bInhibitSorting; /*!< don't sort the table if this is true */
     int                        m_iEpgID;          /*!< the database ID of this table */
     CStdString                 m_strName;         /*!< the name of this table */
@@ -124,6 +126,8 @@ namespace EPG
      */
     virtual void UpdateFirstAndLastDates(void);
 
+    virtual bool IsRemovableTag(const EPG::CEpgInfoTag *tag) const { return true; }
+
   public:
     /*!
      * @brief Update this table's info with the given info. Doesn't change the EpgID.
@@ -144,8 +148,9 @@ namespace EPG
      * @param iEpgID The ID of this table or <= 0 to create a new ID.
      * @param strName The name of this table.
      * @param strScraperName The name of the scraper to use.
+     * @param bLoadedFromDb True if this table was loaded from the database, false otherwise.
      */
-    CEpg(int iEpgID, const CStdString &strName = "", const CStdString &strScraperName = "");
+    CEpg(int iEpgID, const CStdString &strName = "", const CStdString &strScraperName = "", bool bLoadedFromDb = false);
 
     /*!
      * @brief Destroy this EPG instance.
@@ -171,10 +176,22 @@ namespace EPG
     const CStdString &ScraperName(void) const { return m_strScraperName; }
 
     /*!
+     * @brief Change the name of the scraper to use.
+     * @param strScraperName The new scraper.
+     */
+    void SetScraperName(const CStdString &strScraperName);
+
+    /*!
      * @brief Get the name of this table.
      * @return The name of this table.
      */
     const CStdString &Name(void) const { return m_strName; }
+
+    /*!
+     * @brief Changed the name of this table.
+     * @param strName The new name.
+     */
+    void SetName(const CStdString &strName);
 
     /*!
      * @brief Get the database ID of this table.
@@ -308,6 +325,11 @@ namespace EPG
      * @return The last time this table was scanned.
      */
     virtual const CDateTime &GetLastScanTime(void);
+
+    /*!
+     * @brief Notify observers when the currently active tag changed.
+     */
+    virtual bool CheckPlayingEvent(void);
 
     /*!
      * @brief Convert a genre id and subid to a human readable name.
