@@ -241,7 +241,6 @@
 {
   CCocoaAutoPool outerpool;
 
-  //[NSThread setThreadPriority:1]
   // Changing to SCHED_RR is safe under OSX, you don't need elevated privileges and the
   // OSX scheduler will monitor SCHED_RR threads and drop to SCHED_OTHER if it detects
   // the thread running away. OSX automatically does this with the CoreAudio audio

@@ -39,6 +39,7 @@
 
 #include "Edl.h"
 #include "FileItem.h"
+#include "threads/SingleLock.h"
 
 
 class CDVDInputStream;
@@ -181,6 +182,7 @@ public:
   virtual int GetSubtitleCount();
   virtual int GetSubtitle();
   virtual void GetSubtitleName(int iStream, CStdString &strStreamName);
+  virtual void GetSubtitleLanguage(int iStream, CStdString &strStreamLang);
   virtual void SetSubtitle(int iStream);
   virtual bool GetSubtitleVisible();
   virtual void SetSubtitleVisible(bool bVisible);
@@ -241,8 +243,12 @@ public:
   virtual int OnDVDNavResult(void* pData, int iMessage);
 protected:
   friend class CSelectionStreams;
-  void LockStreams()                                            { EnterCriticalSection(&m_critStreamSection); }
-  void UnlockStreams()                                          { LeaveCriticalSection(&m_critStreamSection); }
+
+  class StreamLock : public CSingleLock
+  {
+  public:
+    inline StreamLock(CDVDPlayer* cdvdplayer) : CSingleLock(cdvdplayer->m_critStreamSection) {}
+  };
 
   virtual void OnStartup();
   virtual void OnExit();
@@ -417,7 +423,7 @@ protected:
   CCriticalSection m_StateSection;
 
   CEvent m_ready;
-  CRITICAL_SECTION m_critStreamSection; // need to have this lock when switching streams (audio / video)
+  CCriticalSection m_critStreamSection; // need to have this lock when switching streams (audio / video)
 
   CEdl m_Edl;
 

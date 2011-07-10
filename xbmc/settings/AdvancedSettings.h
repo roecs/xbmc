@@ -219,7 +219,6 @@ class CAdvancedSettings
 
     bool m_bVideoScannerIgnoreErrors;
 
-    bool m_bUseEvilB;
     std::vector<CStdString> m_vecTokens; // cleaning strings tied to language
     //TuxBox
     int m_iTuxBoxStreamtsPort;
@@ -306,6 +305,7 @@ class CAdvancedSettings
 
     bool m_guiVisualizeDirtyRegions;
     int  m_guiAlgorithmDirtyRegions;
+    int  m_guiDirtyRegionNoFlipTimeout;
 
     unsigned int m_cacheMemBufferSize;
 

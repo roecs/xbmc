@@ -54,6 +54,7 @@
 
 @implementation XBMCEAGLView
 @synthesize animating;
+@synthesize xbmcAlive;
 @synthesize pause;
 
 // You must implement this method
@@ -90,6 +91,7 @@
     [aContext release];
 
     animating = FALSE;
+    xbmcAlive = FALSE;
     pause = FALSE;
     [self setContext:context];
     [self createFramebuffer];
@@ -263,7 +265,6 @@
 {
   CCocoaAutoPool outerpool;
 
-  //[NSThread setThreadPriority:1]
   // Changing to SCHED_RR is safe under OSX, you don't need elevated privileges and the
   // OSX scheduler will monitor SCHED_RR threads and drop to SCHED_OTHER if it detects
   // the thread running away. OSX automatically does this with the CoreAudio audio
@@ -311,6 +312,7 @@
   g_application.Preflight();
   if (g_application.Create())
   {
+    xbmcAlive = TRUE;
     try
     {
       CCocoaAutoPool innerpool;
