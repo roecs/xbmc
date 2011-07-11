@@ -1503,11 +1503,11 @@ bool CGUIAddonWindowDialog::OnMessage(CGUIMessage &message)
 
 void CGUIAddonWindowDialog::Show(bool show /* = true */)
 {
-  int count = ExitCriticalSection(g_graphicsContext);
+  int count = g_graphicsContext.exit();
   ThreadMessage tMsg = {TMSG_GUI_ADDON_DIALOG, 1, show ? 1 : 0};
   tMsg.lpVoid = this;
   g_application.getApplicationMessenger().SendMessage(tMsg, true);
-  RestoreCriticalSection(g_graphicsContext, count);
+  g_graphicsContext.restore(count);
 }
 
 void CGUIAddonWindowDialog::Show_Internal(bool show /* = true */)
