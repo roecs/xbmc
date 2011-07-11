@@ -460,27 +460,27 @@
   </Teletext>
   <PVROSDChannels>
     <keyboard>
-      <backspace>Close</backspace>
-      <escape>Close</escape>
-      <c>Close</c>
+      <backspace>Back</backspace>
+      <escape>Back</escape>
+      <c>Back</c>
     </keyboard>
   </PVROSDChannels>
   <PVROSDGuide>
     <keyboard>
-      <backspace>Close</backspace>
-      <escape>Close</escape>
+      <backspace>Back</backspace>
+      <escape>Back</escape>
     </keyboard>
   </PVROSDGuide>
   <PVROSDDirector>
     <keyboard>
-      <backspace>Close</backspace>
-      <escape>Close</escape>
+      <backspace>Back</backspace>
+      <escape>Back</escape>
     </keyboard>
   </PVROSDDirector>
   <PVROSDCutter>
     <keyboard>
-      <backspace>Close</backspace>
-      <escape>Close</escape>
+      <backspace>Back</backspace>
+      <escape>Back</escape>
     </keyboard>
   </PVROSDCutter>
   <MyTVSettings>
