@@ -196,7 +196,7 @@ public:
   virtual bool         Configure(unsigned int width, unsigned int height, unsigned int d_width, unsigned int d_height, float fps, unsigned flags);
   virtual int          GetImage(YV12Image *image, int source = AUTOSOURCE, bool readonly = false);
   virtual void         ReleaseImage(int source, bool preserve = false);
-  virtual void         AddProcessor(DXVA::CProcessor* processor, int64_t id, unsigned picture_flags);
+  virtual void         AddProcessor(DXVA::CProcessor* processor, int64_t id);
   virtual void         FlipPage(int source);
   virtual unsigned int PreInit();
   virtual void         UnInit();

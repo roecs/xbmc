@@ -1190,7 +1190,8 @@ int CVDPAU::Decode(AVCodecContext *avctx, AVFrame *pFrame)
       || method == VS_INTERLACEMETHOD_VDPAU_TEMPORAL_SPATIAL_HALF
       || (method == VS_INTERLACEMETHOD_AUTO_ION && vid_height > 576)
       || avctx->skip_frame == AVDISCARD_NONREF)
-        m_mixerstep = 0;      else
+        m_mixerstep = 0;
+      else
         m_mixerstep = 1;
 
       if(m_DVDVideoPics.front().iFlags & DVP_FLAG_TOP_FIELD_FIRST)
