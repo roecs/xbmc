@@ -1,5 +1,6 @@
+#pragma once
 /*
- *      Copyright (C) 2010 Team XBMC
+ *      Copyright (C) 2005-2011 Team XBMC
  *      http://www.xbmc.org
  *
  *  This Program is free software; you can redistribute it and/or modify
@@ -18,23 +19,13 @@
  *  http://www.gnu.org/copyleft/gpl.html
  *
  */
-#ifndef _DARWIN_UTILS_H_
-#define _DARWIN_UTILS_H_
 
-#include <string>
+#include "StreamUtils.h"
 
-#ifdef __cplusplus
-extern "C"
+#include "StdString.h"
+
+class StreamUtils
 {
-#endif
-  bool  DarwinIsAppleTV2(void);
-  float GetIOSVersion(void);
-  int   GetDarwinFrameworkPath(bool forPython, char* path, uint32_t *pathsize);
-  int   GetDarwinExecutablePath(char* path, uint32_t *pathsize);
-  bool  DarwinHasVideoToolboxDecoder(void);
-  int   DarwinBatteryLevel(void);
-#ifdef __cplusplus
-}
-#endif
-
-#endif
+public:
+  static int GetCodecPriority(const CStdString &codec);
+};

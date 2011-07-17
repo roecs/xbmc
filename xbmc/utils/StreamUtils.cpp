@@ -1,5 +1,5 @@
 /*
- *      Copyright (C) 2010 Team XBMC
+ *      Copyright (C) 2005-2011 Team XBMC
  *      http://www.xbmc.org
  *
  *  This Program is free software; you can redistribute it and/or modify
@@ -18,23 +18,28 @@
  *  http://www.gnu.org/copyleft/gpl.html
  *
  */
-#ifndef _DARWIN_UTILS_H_
-#define _DARWIN_UTILS_H_
 
-#include <string>
+#include "StreamUtils.h"
 
-#ifdef __cplusplus
-extern "C"
+int StreamUtils::GetCodecPriority(const CStdString &codec)
 {
-#endif
-  bool  DarwinIsAppleTV2(void);
-  float GetIOSVersion(void);
-  int   GetDarwinFrameworkPath(bool forPython, char* path, uint32_t *pathsize);
-  int   GetDarwinExecutablePath(char* path, uint32_t *pathsize);
-  bool  DarwinHasVideoToolboxDecoder(void);
-  int   DarwinBatteryLevel(void);
-#ifdef __cplusplus
+  /*
+   * Technically flac, truehd, and dtshd_ma are equivalently good as they're all lossless. However,
+   * ffmpeg can't decode dtshd_ma losslessy yet.
+   */
+  if (codec == "flac") // Lossless FLAC
+    return 7;
+  if (codec == "truehd") // Dolby TrueHD
+    return 6;
+  if (codec == "dtshd_ma") // DTS-HD Master Audio (previously known as DTS++)
+    return 5;
+  if (codec == "dtshd_hra") // DTS-HD High Resolution Audio
+    return 4;
+  if (codec == "eac3") // Dolby Digital Plus
+    return 3;
+  if (codec == "dca") // DTS
+    return 2;
+  if (codec == "ac3") // Dolby Digital
+    return 1;
+  return 0;
 }
-#endif
-
-#endif
