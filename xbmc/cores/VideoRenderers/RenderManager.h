@@ -45,6 +45,7 @@ class CRenderCapture;
 namespace DXVA { class CProcessor; }
 namespace VAAPI { class CSurfaceHolder; }
 class CVDPAU;
+struct DVDVideoPicture;
 
 #define ERRORBUFFSIZE 30
 
@@ -72,28 +73,7 @@ public:
   bool Configure(unsigned int width, unsigned int height, unsigned int d_width, unsigned int d_height, float fps, unsigned flags);
   bool IsConfigured();
 
-  // a call to GetImage must be followed by a call to releaseimage if getimage was successfull
-  // failure to do so will result in deadlock
-  inline int GetImage(YV12Image *image, int source = AUTOSOURCE, bool readonly = false)
-  {
-    CSharedLock lock(m_sharedSection);
-    if (m_pRenderer)
-      return m_pRenderer->GetImage(image, source, readonly);
-    return -1;
-  }
-  inline void ReleaseImage(int source = AUTOSOURCE, bool preserve = false)
-  {
-    CSharedLock lock(m_sharedSection);
-    if (m_pRenderer)
-      m_pRenderer->ReleaseImage(source, preserve);
-  }
-  inline unsigned int DrawSlice(unsigned char *src[], int stride[], int w, int h, int x, int y)
-  {
-    CSharedLock lock(m_sharedSection);
-    if (m_pRenderer)
-      return m_pRenderer->DrawSlice(src, stride, w, h, x, y);
-    return 0;
-  }
+  int AddVideoPicture(DVDVideoPicture& picture);
 
   void FlipPage(volatile bool& bStop, double timestamp = 0.0, int source = -1, EFIELDSYNC sync = FS_NONE);
   unsigned int PreInit();
@@ -114,35 +94,7 @@ public:
   }
 #endif
 
-#ifdef HAVE_LIBVDPAU
-  void AddProcessor(CVDPAU* vdpau)
-  {
-    CSharedLock lock(m_sharedSection);
-    if (m_pRenderer)
-      m_pRenderer->AddProcessor(vdpau);
-  }
-#endif
-
-#ifdef HAVE_LIBVA
-  void AddProcessor(VAAPI::CHolder& holder)
-  {
-    CSharedLock lock(m_sharedSection);
-    if (m_pRenderer)
-      m_pRenderer->AddProcessor(holder);
-  }
-#endif
-
-#ifdef HAVE_VIDEOTOOLBOXDECODER
-  void AddProcessor(CDVDVideoCodecVideoToolBox* vtb, DVDVideoPicture *picture)
-  {
-    CSharedLock lock(m_sharedSection);
-    if (m_pRenderer)
-      m_pRenderer->AddProcessor(vtb, picture);
-  }
-#endif
-
-  void AddOverlay(CDVDOverlay* o, double pts)
-  {
+  void AddOverlay(CDVDOverlay* o, double pts)  {
     CSharedLock lock(m_sharedSection);
     m_overlays.AddOverlay(o, pts);
   }

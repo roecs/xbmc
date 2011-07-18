@@ -76,8 +76,7 @@ JSON_STATUS CAudioLibrary::GetArtistDetails(const CStdString &method, ITransport
   m_artistItem->GetMusicInfoTag()->SetArtist(m_artistItem->GetLabel());
   m_artistItem->GetMusicInfoTag()->SetDatabaseId(artistID);
   CMusicDatabase::SetPropertiesFromArtist(*m_artistItem, artist);
-  if (CFile::Exists(m_artistItem->GetCachedArtistThumb()))
-    m_artistItem->SetThumbnailImage(m_artistItem->GetCachedArtistThumb());
+  m_artistItem->SetCachedArtistThumb();
   HandleFileItem("artistid", false, "artistdetails", m_artistItem, parameterObject, parameterObject["fields"], result, false);
 
   musicdatabase.Close();
@@ -92,13 +91,9 @@ JSON_STATUS CAudioLibrary::GetAlbums(const CStdString &method, ITransportLayer *
 
   int artistID  = (int)parameterObject["artistid"].asInteger();
   int genreID   = (int)parameterObject["genreid"].asInteger();
-  int start     = (int)parameterObject["limits"]["start"].asInteger();
-  int end       = (int)parameterObject["limits"]["end"].asInteger();
-  if (end == 0)
-    end = -1;
 
   CFileItemList items;
-  if (musicdatabase.GetAlbumsNav("", items, genreID, artistID, start, end))
+  if (musicdatabase.GetAlbumsNav("", items, genreID, artistID, -1, -1))
     HandleFileItemList("albumid", false, "albums", items, parameterObject, result);
 
   musicdatabase.Close();
@@ -240,9 +235,36 @@ JSON_STATUS CAudioLibrary::GetGenres(const CStdString &method, ITransportLayer *
   return OK;
 }
 
-JSON_STATUS CAudioLibrary::ScanForContent(const CStdString &method, ITransportLayer *transport, IClient *client, const CVariant &parameterObject, CVariant &result)
+JSON_STATUS CAudioLibrary::Scan(const CStdString &method, ITransportLayer *transport, IClient *client, const CVariant &parameterObject, CVariant &result)
 {
   g_application.getApplicationMessenger().ExecBuiltIn("updatelibrary(music)");
+  return ACK;
+}
+
+JSON_STATUS CAudioLibrary::Export(const CStdString &method, ITransportLayer *transport, IClient *client, const CVariant &parameterObject, CVariant &result)
+{
+  CStdString path = parameterObject["path"].asString();
+  bool singleFile = parameterObject["singlefile"].asBoolean();
+
+  if (!singleFile && path.IsEmpty())
+    return InvalidParams;
+
+  CStdString cmd;
+  if (singleFile)
+    cmd.Format("exportlibrary(music, true, %s, %s, %s)",
+      parameterObject["images"].asBoolean() ? "true" : "false",
+      parameterObject["overwrite"].asBoolean() ? "true" : "false",
+      parameterObject["actorthumbs"].asBoolean() ? "true" : "false");
+  else
+    cmd.Format("exportlibrary(music, false, %s)", path);
+
+  g_application.getApplicationMessenger().ExecBuiltIn(cmd);
+  return ACK;
+}
+
+JSON_STATUS CAudioLibrary::Clean(const CStdString &method, ITransportLayer *transport, IClient *client, const CVariant &parameterObject, CVariant &result)
+{
+  g_application.getApplicationMessenger().ExecBuiltIn("cleanlibrary(music)");
   return ACK;
 }
 
