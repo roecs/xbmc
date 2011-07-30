@@ -39,6 +39,7 @@ config.log
 *.vcxproj.user
 *.obj
 *.idb
+*.pyd
 
 .libs/
 .deps/
@@ -125,10 +126,16 @@ config.log
 /lib/addons/library.xbmc.pvr/Makefile
 /lib/addons/library.xbmc.addon/project/VS2008Express/Release
 /lib/addons/library.xbmc.addon/project/VS2008Express/Debug
+/lib/addons/library.xbmc.addon/project/VS2010Express/Release
+/lib/addons/library.xbmc.addon/project/VS2010Express/Debug
 /lib/addons/library.xbmc.gui/project/VS2008Express/Release
 /lib/addons/library.xbmc.gui/project/VS2008Express/Debug
+/lib/addons/library.xbmc.gui/project/VS2010Express/Release
+/lib/addons/library.xbmc.gui/project/VS2010Express/Debug
 /lib/addons/library.xbmc.pvr/project/VS2008Express/Release
 /lib/addons/library.xbmc.pvr/project/VS2008Express/Debug
+/lib/addons/library.xbmc.pvr/project/VS2010Express/Release
+/lib/addons/library.xbmc.pvr/project/VS2010Express/Debug
 
 # /lib/cpluff/
 /lib/cpluff/ABOUT-NLS
@@ -305,6 +312,7 @@ config.log
 /project/Win32BuildSetup/BUILD_WIN32
 /project/Win32BuildSetup/dependencies/SDL.dll
 /project/Win32BuildSetup/dependencies/glew32.dll
+/project/Win32BuildSetup/BuildLog.htm
 
 # /skin/
 /skin/Confluence/media/Textures.xbt
@@ -1182,16 +1190,26 @@ config.log
 /xbmc/pvrclients/vdr-streamdev/Makefile
 /xbmc/pvrclients/vdr-streamdev/project/VS2008Express/Release
 /xbmc/pvrclients/vdr-streamdev/project/VS2008Express/Debug
+/xbmc/pvrclients/vdr-streamdev/project/VS2010Express/Release
+/xbmc/pvrclients/vdr-streamdev/project/VS2010Express/Debug
 /xbmc/pvrclients/tvheadend/project/VS2008Express/Release
 /xbmc/pvrclients/tvheadend/project/VS2008Express/Debug
+/xbmc/pvrclients/tvheadend/project/VS2010Express/Release
+/xbmc/pvrclients/tvheadend/project/VS2010Express/Debug
 /xbmc/pvrclients/MediaPortal/project/VS2008Express/Debug
 /xbmc/pvrclients/MediaPortal/project/VS2008Express/Release
 /xbmc/pvrclients/MediaPortal/project/VS2008Express/Release-tsreader
 /xbmc/pvrclients/MediaPortal/project/VS2008Express/Debug-tsreader
+/xbmc/pvrclients/MediaPortal/project/VS2010Express/Debug
+/xbmc/pvrclients/MediaPortal/project/VS2010Express/Release
+/xbmc/pvrclients/MediaPortal/project/VS2010Express/Release-tsreader
+/xbmc/pvrclients/MediaPortal/project/VS2010Express/Debug-tsreader
 /xbmc/pvrclients/MediaPortal/lib/live555/obj
 /xbmc/pvrclients/MediaPortal/lib/live555/shared
 /xbmc/pvrclients/ForTheRecord/project/VS2008Express/Release
 /xbmc/pvrclients/ForTheRecord/project/VS2008Express/Debug
+/xbmc/pvrclients/ForTheRecord/project/VS2010Express/Release
+/xbmc/pvrclients/ForTheRecord/project/VS2010Express/Debug
 /xbmc/pvrclients/ForTheRecord/lib/libcurld.dll
 /xbmc/pvrclients/ForTheRecord/lib/libcurld.lib
 /xbmc/pvrclients/ForTheRecord/lib/libcurl.dll
