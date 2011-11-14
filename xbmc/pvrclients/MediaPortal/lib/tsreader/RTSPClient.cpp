@@ -488,7 +488,7 @@ void CRTSPClient::StopBufferThread()
   if (!m_BufferThreadActive)
     return;
 
-  StopThread(2000);
+  WaitForThreadExit(2000);
 
   m_BufferThreadActive = false;
   XBMC->Log(LOG_DEBUG, "CRTSPClient::StopBufferThread done");
@@ -525,7 +525,7 @@ void CRTSPClient::Run()
 #else
 #warning TODO: add setpriority for your OS
 #endif
-  XBMC->Log(LOG_DEBUG, "CRTSPClient:: thread started: %d", (unsigned long) this->ThreadId());
+  XBMC->Log(LOG_DEBUG, "CRTSPClient:: thread started: %d", (unsigned long) this->GetCurrentThreadId());
   while (m_env!=NULL && !ThreadIsStopping(0))
   {
     for (int i=0; i < 10;++i)
@@ -536,7 +536,7 @@ void CRTSPClient::Run()
     if (m_bRunning==false) break;
   }
 
-  XBMC->Log(LOG_DEBUG, "CRTSPClient:: thread stopped:%d", (unsigned long) this->ThreadId());
+  XBMC->Log(LOG_DEBUG, "CRTSPClient:: thread stopped:%d", (unsigned long) this->GetCurrentThreadId());
 
   m_BufferThreadActive = false;
   return;
@@ -564,7 +564,7 @@ bool CRTSPClient::Pause()
   if (m_ourClient!=NULL && m_session!=NULL)
   {
     XBMC->Log(LOG_DEBUG, "CRTSPClient::Pause() stopthread");
-    StopThread(10000);                           // Ambass : sometimes 100mS ( prev value ) is not enough and thread is not stopped.  
+    WaitForThreadExit(10000);                           // Ambass : sometimes 100mS ( prev value ) is not enough and thread is not stopped.  
                                                  //          now stopping takes around 5 secs ?!?! why ????         
     XBMC->Log(LOG_DEBUG, "CRTSPClient::Pause() thread stopped");
     RTSPClient* rtspClient=(RTSPClient*)m_ourClient;

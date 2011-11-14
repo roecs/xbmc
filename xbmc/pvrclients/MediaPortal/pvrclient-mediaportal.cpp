@@ -30,8 +30,8 @@
 #include "epg.h"
 #include "utils.h"
 #include "pvrclient-mediaportal.h"
-#include "SingleLock.h"
-#include "lib/tinyxml/tinyxml.h"
+#include "threads/SingleLock.h"
+#include "tinyxml/tinyxml.h"
 
 #ifdef TSREADER
 #include "lib/tsreader/TSReader.h"

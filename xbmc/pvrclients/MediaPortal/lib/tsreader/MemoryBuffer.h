@@ -20,7 +20,7 @@
 #if defined TSREADER
 
 #include "WaitEvent.h"
-#include "CriticalSection.h"
+#include "threads/CriticalSection.h"
 #include <vector>
 
 using namespace std;

@@ -27,7 +27,7 @@
 #include "Socket.h"
 #include "Cards.h"
 #include "epg.h"
-#include "CriticalSection.h"
+#include "threads/CriticalSection.h"
 
 /* Use a forward declaration here. Including RTSPClient.h via TSReader.h at this point gives compile errors */
 class CTsReader;

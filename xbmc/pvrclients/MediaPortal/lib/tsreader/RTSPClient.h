@@ -20,7 +20,7 @@
 #if defined TSREADER && defined LIVE555
 
 //#include "os-dependent.h"
-#include "Thread.h"
+#include "threads/Thread.h"
 
 #include "liveMedia.hh"
 #include "BasicUsageEnvironment.hh"

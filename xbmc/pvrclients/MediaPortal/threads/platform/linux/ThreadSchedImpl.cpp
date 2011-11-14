@@ -1,4 +1,3 @@
-#pragma once
 /*
  *      Copyright (C) 2005-2011 Team XBMC
  *      http://www.xbmc.org
@@ -14,25 +13,18 @@
  *  GNU General Public License for more details.
  *
  *  You should have received a copy of the GNU General Public License
- *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *  along with XBMC; see the file COPYING.  If not, write to
+ *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
+ *  http://www.gnu.org/copyleft/gpl.html
  *
  */
 
-#ifdef TARGET_WINDOWS
+int CThread::GetSchedRRPriority(void)
+{
+  return GetNormalPriority();
+}
 
-#define WIN32_LEAN_AND_MEAN           // Enable LEAN_AND_MEAN support
-#include <windows.h>
-#include <process.h>
-
-typedef HANDLE wait_event_t;
-typedef CRITICAL_SECTION criticalsection_t;
-typedef unsigned __int32 uint;
-
-#ifndef va_copy
-#define va_copy(x, y) x = y
-#endif
-
-
-#define PATH_SEPARATOR_CHAR '\\'
-
-#endif //TARGET_WINDOWS
+bool CThread::SetPrioritySched_RR(int iPriority)
+{
+  return false;
+}

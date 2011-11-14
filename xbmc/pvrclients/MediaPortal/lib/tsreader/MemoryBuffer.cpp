@@ -20,7 +20,7 @@
 
 #include "os-dependent.h"
 #include "MemoryBuffer.h"
-#include "SingleLock.h"
+#include "threads/SingleLock.h"
 #include "client.h"
 
 using namespace ADDON;

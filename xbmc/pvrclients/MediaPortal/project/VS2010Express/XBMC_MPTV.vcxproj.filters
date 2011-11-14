@@ -15,6 +15,9 @@
     <Filter Include="Header Files\tinyXML">
       <UniqueIdentifier>{4a9cd83d-78e2-4957-864f-e37d61e2975e}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\threads">
+      <UniqueIdentifier>{21056b87-1bfd-412b-9d10-dd1d6a8b1f4d}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\channels.cpp">
@@ -62,12 +65,6 @@
     <ClCompile Include="..\..\lib\tinyxml\tinyxmlparser.cpp">
       <Filter>Source Files\tinyXML</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\windows\CriticalSection.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\SingleLock.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\channels.h">
@@ -112,14 +109,14 @@
     <ClInclude Include="..\..\lib\tinyxml\tinyxml.h">
       <Filter>Header Files\tinyXML</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\CriticalSection.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\NonCopyable.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\SingleLock.h">
-      <Filter>Header Files</Filter>
+    <ClInclude Include="..\..\threads\CriticalSection.h">
+      <Filter>Header Files\threads</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\threads\SingleLock.h">
+      <Filter>Header Files\threads</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
