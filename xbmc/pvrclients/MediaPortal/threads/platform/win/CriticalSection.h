@@ -21,8 +21,8 @@
 
 #pragma once
 
+#define NOMINMAX                      // prevent conflicts with std min and max functions
 #include "threads/Lockables.h"
-
 #include <windows.h>
 
 namespace XbmcThreads

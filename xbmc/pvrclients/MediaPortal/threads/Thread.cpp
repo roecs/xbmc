@@ -18,11 +18,11 @@
 * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 */
 
-//#include "commons/SystemClock.h"
+#include "commons/SystemClock.h"
 #include "Thread.h"
 //#include "utils/log.h"
-#include "lib/threads/ThreadLocal.h"
-#include "lib/threads/SingleLock.h"
+#include "threads/ThreadLocal.h"
+#include "threads/SingleLock.h"
 
 #include <iostream>
 
@@ -33,7 +33,7 @@ static XbmcThreads::ThreadLocal<CThread> currentThread;
 
 XbmcCommons::ILogger* CThread::logger = NULL;
 
-#include "lib/threads/platform/ThreadImpl.cpp"
+#include "threads/platform/ThreadImpl.cpp"
 
 //////////////////////////////////////////////////////////////////////
 // Construction/Destruction

@@ -46,8 +46,7 @@ namespace XbmcThreads { class ThreadSettings; }
 
 class CThread
 {
-  //static XbmcCommons::ILogger* logger;
-  static ADDON::CHelper_libXBMC_addon* logger;
+  static XbmcCommons::ILogger* logger;
 
 protected:
   CThread(const char* ThreadName);
@@ -76,8 +75,7 @@ public:
   static ThreadIdentifier GetCurrentThreadId();
   static CThread* GetCurrentThread();
   static int64_t GetCurrentThreadUsage();
-  //static inline void SetLogger(XbmcCommons::ILogger* logger_) { CThread::logger = logger_; }
-  static inline void SetLogger(ADDON::CHelper_libXBMC_addon* logger_) { CThread::logger = logger_; }
+  static inline void SetLogger(XbmcCommons::ILogger* logger_) { CThread::logger = logger_; }
 protected:
   virtual void OnStartup(){};
   virtual void OnExit(){};

@@ -475,7 +475,7 @@ void CRTSPClient::StartBufferThread()
   XBMC->Log(LOG_DEBUG, "CRTSPClient::StartBufferThread");
   if (!m_BufferThreadActive)
   {
-    StartThread();
+    Create();
     m_BufferThreadActive = true;
   }
   XBMC->Log(LOG_DEBUG, "CRTSPClient::StartBufferThread done");
@@ -517,6 +517,7 @@ void CRTSPClient::FillBuffer(unsigned long byteCount)
 }
 
 void CRTSPClient::Run()
+//void CRTSPClient::Process()
 {
   m_BufferThreadActive = TRUE;
   m_bRunning=true;
@@ -526,7 +527,8 @@ void CRTSPClient::Run()
 #warning TODO: add setpriority for your OS
 #endif
   XBMC->Log(LOG_DEBUG, "CRTSPClient:: thread started: %d", (unsigned long) this->GetCurrentThreadId());
-  while (m_env!=NULL && !ThreadIsStopping(0))
+  // old thread system: while (m_env!=NULL && !ThreadIsStopping(0))
+  while( m_env!=NULL && !m_bStop)
   {
     for (int i=0; i < 10;++i)
     {

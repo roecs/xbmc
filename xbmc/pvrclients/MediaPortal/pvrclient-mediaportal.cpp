@@ -31,7 +31,7 @@
 #include "utils.h"
 #include "pvrclient-mediaportal.h"
 #include "threads/SingleLock.h"
-#include "tinyxml/tinyxml.h"
+#include "lib/tinyxml/tinyxml.h"
 
 #ifdef TSREADER
 #include "lib/tsreader/TSReader.h"

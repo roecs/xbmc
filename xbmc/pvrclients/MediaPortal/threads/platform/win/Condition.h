@@ -24,6 +24,7 @@
 #include "threads/SingleLock.h"
 #include "threads/Helpers.h"
 
+#define NOMINMAX                      // prevent conflicts with std min and max functions
 #include <windows.h>
 
 namespace XbmcThreads

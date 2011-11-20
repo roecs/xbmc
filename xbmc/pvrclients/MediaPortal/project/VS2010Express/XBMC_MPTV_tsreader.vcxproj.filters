@@ -27,6 +27,12 @@
     <Filter Include="Header Files\threads">
       <UniqueIdentifier>{fd7e3638-0b57-4117-970f-b10454a2eaf7}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\commons">
+      <UniqueIdentifier>{725224ec-248f-470a-9b59-7b945b6a2fb5}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\commons">
+      <UniqueIdentifier>{d7097113-1743-4761-9dfb-4650608b412a}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\channels.cpp">
@@ -98,6 +104,18 @@
     <ClCompile Include="..\..\lib\tinyxml\tinyxmlparser.cpp">
       <Filter>Source Files\tinyXML</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\threads\Event.cpp">
+      <Filter>Source Files\threads</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\threads\Thread.cpp">
+      <Filter>Source Files\threads</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\commons\ilog.cpp">
+      <Filter>Source Files\commons</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\commons\SystemClock.cpp">
+      <Filter>Source Files\commons</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\channels.h">
@@ -168,6 +186,33 @@
     </ClInclude>
     <ClInclude Include="..\..\NonCopyable.h">
       <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\threads\Condition.h">
+      <Filter>Header Files\threads</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\threads\CriticalSection.h">
+      <Filter>Header Files\threads</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\threads\Event.h">
+      <Filter>Header Files\threads</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\threads\SingleLock.h">
+      <Filter>Header Files\threads</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\threads\Thread.h">
+      <Filter>Header Files\threads</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\threads\ThreadImpl.h">
+      <Filter>Header Files\threads</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\threads\ThreadLocal.h">
+      <Filter>Header Files\threads</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\commons\ilog.h">
+      <Filter>Header Files\commons</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\commons\SystemClock.h">
+      <Filter>Header Files\commons</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

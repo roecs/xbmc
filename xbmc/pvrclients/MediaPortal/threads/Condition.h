@@ -23,7 +23,7 @@
 
 #include "threads/platform/Condition.h"
 
-//#include "commons/SystemClock.h"
+#include "commons/SystemClock.h"
 #include <stdio.h>
 
 namespace XbmcThreads

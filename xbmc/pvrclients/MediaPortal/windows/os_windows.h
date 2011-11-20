@@ -21,6 +21,7 @@
 #ifdef TARGET_WINDOWS
 
 #define WIN32_LEAN_AND_MEAN           // Enable LEAN_AND_MEAN support
+#define NOMINMAX                      // prevent conflicts with std min and max functions
 #include <windows.h>
 #include <process.h>
 
