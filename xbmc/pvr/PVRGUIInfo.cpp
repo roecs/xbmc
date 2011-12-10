@@ -35,10 +35,13 @@
 #include "settings/AdvancedSettings.h"
 
 using namespace PVR;
+using namespace EPG;
 
 CPVRGUIInfo::CPVRGUIInfo(void) :
-    CThread("PVR GUI info updater")
+    CThread("PVR GUI info updater"),
+    m_playingEpgTag(NULL)
 {
+  ResetProperties();
 }
 
 CPVRGUIInfo::~CPVRGUIInfo(void)
@@ -81,8 +84,20 @@ void CPVRGUIInfo::ResetProperties(void)
   m_bIsPlayingRadio             = false;
   m_bIsPlayingRecording         = false;
   m_bIsPlayingEncryptedStream   = false;
+
+  if (m_playingEpgTag)
+    delete m_playingEpgTag;
   m_playingEpgTag               = NULL;
-  g_PVRClients->GetQualityData(&m_qualityInfo);
+
+  strncpy(m_qualityInfo.strAdapterName, g_localizeStrings.Get(13106).c_str(), 1024);
+  strncpy(m_qualityInfo.strAdapterStatus, g_localizeStrings.Get(13106).c_str(), 1024);
+  m_qualityInfo.iSNR          = 0;
+  m_qualityInfo.iSignal       = 0;
+  m_qualityInfo.iSNR          = 0;
+  m_qualityInfo.iUNC          = 0;
+  m_qualityInfo.dVideoBitrate = 0;
+  m_qualityInfo.dAudioBitrate = 0;
+  m_qualityInfo.dDolbyBitrate = 0;
 }
 
 void CPVRGUIInfo::Start(void)
@@ -178,34 +193,42 @@ void CPVRGUIInfo::Process(void)
 
   while (!g_application.m_bStop && !m_bStop)
   {
-    ToggleShowInfo();
+    if (!m_bStop)
+      ToggleShowInfo();
     Sleep(0);
 
-    UpdateQualityData();
+    if (!m_bStop)
+      UpdateQualityData();
     Sleep(0);
 
-    UpdateMisc();
+    if (!m_bStop)
+      UpdateMisc();
     Sleep(0);
 
-    UpdatePlayingTag();
+    if (!m_bStop)
+      UpdatePlayingTag();
     Sleep(0);
 
-    UpdateTimersToggle();
+    if (!m_bStop)
+      UpdateTimersToggle();
     Sleep(0);
 
-    UpdateNextTimer();
+    if (!m_bStop)
+      UpdateNextTimer();
     Sleep(0);
 
-    if (mLoop % 10 == 0)
+    if (!m_bStop && mLoop % 10 == 0)
       UpdateBackendCache();    /* updated every 10 iterations */
 
     if (++mLoop == 1000)
       mLoop = 0;
 
-    Sleep(1000);
+    if (!m_bStop)
+      Sleep(1000);
   }
 
-  ResetPlayingTag();
+  if (!m_bStop)
+    ResetPlayingTag();
 }
 
 void CPVRGUIInfo::UpdateQualityData(void)
@@ -656,16 +679,10 @@ void CPVRGUIInfo::UpdateTimersCache(void)
 
 void CPVRGUIInfo::UpdateNextTimer(void)
 {
-  CSingleLock lock(m_critSection);
-  m_strNextRecordingTitle       = "";
-  m_strNextRecordingChannelName = "";
-  m_strNextRecordingChannelIcon = "";
-  m_strNextRecordingTime        = "";
-  m_strNextTimerInfo            = "";
-
   CPVRTimerInfoTag tag;
   if (g_PVRTimers->GetNextActiveTimer(&tag))
   {
+    CSingleLock lock(m_critSection);
     m_strNextRecordingTitle.Format("%s",       tag.m_strTitle);
     m_strNextRecordingChannelName.Format("%s", tag.ChannelName());
     m_strNextRecordingChannelIcon.Format("%s", tag.ChannelIcon());
@@ -676,6 +693,14 @@ void CPVRGUIInfo::UpdateNextTimer(void)
         tag.StartAsLocalTime().GetAsLocalizedDate(true),
         g_localizeStrings.Get(19107),
         tag.StartAsLocalTime().GetAsLocalizedTime("HH:mm", false));
+  }
+  else
+  {
+    m_strNextRecordingTitle       = "";
+    m_strNextRecordingChannelName = "";
+    m_strNextRecordingChannelIcon = "";
+    m_strNextRecordingTime        = "";
+    m_strNextTimerInfo            = "";
   }
 }
 
@@ -720,11 +745,13 @@ int CPVRGUIInfo::GetStartTime(void) const
     /* Calculate here the position we have of the running live TV event.
      * "position in ms" = ("current local time" - "event start local time") * 1000
      */
-    CDateTimeSpan time = CDateTime::GetCurrentDateTime() - m_playingEpgTag->StartAsLocalTime();
-    return time.GetDays()    * 1000 * 60 * 60 * 24
-         + time.GetHours()   * 1000 * 60 * 60
-         + time.GetMinutes() * 1000 * 60
-         + time.GetSeconds() * 1000;
+    CDateTime current = CDateTime::GetCurrentDateTime();
+    CDateTime start = m_playingEpgTag->StartAsLocalTime();
+    CDateTimeSpan time = current > start ? current - start : CDateTimeSpan(0, 0, 0, 0);
+    return (time.GetDays()   * 60 * 60 * 24
+         + time.GetHours()   * 60 * 60
+         + time.GetMinutes() * 60
+         + time.GetSeconds()) * 1000;
   }
   else
   {
@@ -736,6 +763,8 @@ void CPVRGUIInfo::ResetPlayingTag(void)
 {
   CSingleLock lock(m_critSection);
 
+  if (m_playingEpgTag)
+    delete m_playingEpgTag;
   m_playingEpgTag = NULL;
 }
 
@@ -748,15 +777,27 @@ void CPVRGUIInfo::UpdatePlayingTag(void)
   if (g_PVRManager.GetCurrentChannel(&currentChannel))
   {
     if (!m_playingEpgTag || !m_playingEpgTag->IsActive() ||
+        !m_playingEpgTag->ChannelTag() ||
         (*m_playingEpgTag->ChannelTag() != currentChannel))
     {
-      m_playingEpgTag = currentChannel.GetEPGNow();
+      if (m_playingEpgTag)
+      {
+        delete m_playingEpgTag;
+        m_playingEpgTag = NULL;
+      }
+
+      const CEpgInfoTag *newTag = currentChannel.GetEPGNow();
+      if (newTag)
+        m_playingEpgTag = new CEpgInfoTag(*newTag);
+
       m_iDuration = m_playingEpgTag ? m_playingEpgTag->GetDuration() * 1000 : 0;
       g_PVRManager.UpdateCurrentFile();
     }
   }
   else if (g_PVRClients->GetPlayingRecording(&recording))
   {
+    if (m_playingEpgTag)
+      delete m_playingEpgTag;
     m_playingEpgTag = NULL;
     m_iDuration = recording.GetDuration() * 1000;
   }

@@ -33,6 +33,10 @@ std::string g_szHostname           = DEFAULT_HOST;         ///< The Host name or
 int         g_iPort                = DEFAULT_PORT;         ///< The TVServerXBMC listening port (default: 49943)
 int         g_iConnectTimeout      = DEFAULT_TIMEOUT;      ///< The Socket connection timeout
 bool        g_bRadioEnabled        = DEFAULT_RADIO;        ///< Send also Radio channels list to XBMC
+                                                           ///< ForTheRecord uses shares to communicate with clients 
+std::string g_szUser               = DEFAULT_USER;         ///< Windows user account used to access share
+std::string g_szPass               = DEFAULT_PASS;         ///< Windows user password used to access share
+                                                           ///< Leave empty to use current user when running on Windows
 
 std::string  g_szBaseURL;
 
@@ -80,9 +84,9 @@ ADDON_STATUS ADDON_Create(void* hdl, void* props)
   }
 
 #ifdef TSREADER
-  XBMC->Log(LOG_DEBUG, "Creating the ForTheRecord PVR-client (TsReader version)");
+  XBMC->Log(LOG_INFO, "Creating the ForTheRecord PVR-client (TsReader version)");
 #else
-  XBMC->Log(LOG_DEBUG, "Creating the ForTheRecord PVR-client (ffmpeg rtsp version)");
+  XBMC->Log(LOG_INFO, "Creating the ForTheRecord PVR-client (ffmpeg rtsp version)");
 #endif
 
   m_CurStatus    = ADDON_STATUS_UNKNOWN;
@@ -133,6 +137,19 @@ ADDON_STATUS ADDON_Create(void* hdl, void* props)
     XBMC->Log(LOG_ERROR, "Couldn't get 'timeout' setting, falling back to %i seconds as default", DEFAULT_TIMEOUT);
     g_iConnectTimeout = DEFAULT_TIMEOUT;
   }
+
+  /* read setting "user" from settings.xml */
+  if (XBMC->GetSetting("user", buffer))
+    g_szUser = buffer;
+  else
+    g_szUser = "";
+  buffer[0] = 0; /* Set the end of string */
+
+  /* read setting "pass" from settings.xml */
+  if (XBMC->GetSetting("pass", buffer))
+    g_szPass = buffer;
+  else
+    g_szPass = "";
 
   /* Connect to ForTheRecord */
   if (!g_client->Connect())
@@ -240,6 +257,16 @@ ADDON_STATUS ADDON_SetSetting(const char *settingName, const void *settingValue)
   {
     XBMC->Log(LOG_INFO, "Changed setting 'timeout' from %u to %u", g_iConnectTimeout, *(int*) settingValue);
     g_iConnectTimeout = *(int*) settingValue;
+  }
+  else if (str == "user")
+  {
+    XBMC->Log(LOG_INFO, "Changed Setting 'user' from %s to %s", g_szUser.c_str(), (const char*) settingValue);
+    g_szUser = (const char*) settingValue;
+  }
+  else if (str == "pass")
+  {
+    XBMC->Log(LOG_INFO, "Changed Setting 'pass' from %s to %s", g_szPass.c_str(), (const char*) settingValue);
+    g_szPass = (const char*) settingValue;
   }
 
   return ADDON_STATUS_OK;

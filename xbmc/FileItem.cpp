@@ -183,6 +183,7 @@ CFileItem::CFileItem(const CPVRChannel& channel)
   *GetPVRChannelInfoTag() = channel;
   SetLabel(channel.ChannelName());
   m_strLabel2 = epgNow ? epgNow->Title() : g_localizeStrings.Get(19055);
+  SetMimeType(channel.InputFormat());
 
   if (channel.IsRadio() && epgNow)
   {
@@ -2335,6 +2336,7 @@ void CFileItemList::StackFolders()
         || item->IsAfp()
         || URIUtils::IsInRAR(item->GetPath())
         || URIUtils::IsInZIP(item->GetPath())
+        || URIUtils::IsOnLAN(item->GetPath())
         )
       {
         // stack cd# folders if contains only a single video file

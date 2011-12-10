@@ -86,9 +86,6 @@ bool CEpgDatabase::CreateTables(void)
         ");"
     );
     m_pDS->exec("CREATE UNIQUE INDEX idx_epg_idEpg_iStartTime on epgtags(idEpg, iStartTime desc);");
-    m_pDS->exec("CREATE INDEX idx_epg_iBroadcastUid on epgtags(iBroadcastUid);");
-    m_pDS->exec("CREATE INDEX idx_epg_idEpg on epgtags(idEpg);");
-    m_pDS->exec("CREATE INDEX idx_epg_iStartTime on epgtags(iStartTime);");
     m_pDS->exec("CREATE INDEX idx_epg_iEndTime on epgtags(iEndTime);");
 
     CLog::Log(LOGDEBUG, "EpgDB - %s - creating table 'lastepgscan'", __FUNCTION__);
@@ -129,6 +126,17 @@ bool CEpgDatabase::UpdateOldVersion(int iVersion)
   {
     if (iVersion < 5)
       m_pDS->exec("ALTER TABLE epgtags ADD sGenre varchar(128);");
+    if (iVersion < 6)
+    {
+      m_pDS->exec("DROP INDEX idx_epg_iBroadcastUid;");
+      m_pDS->exec("DROP INDEX idx_epg_idEpg;");
+      m_pDS->exec("DROP INDEX idx_epg_iStartTime;");
+      m_pDS->exec("DROP INDEX idx_epg_iEndTime;");
+    }
+    if (iVersion < 7)
+    {
+      m_pDS->exec("CREATE INDEX idx_epg_iEndTime on epgtags(iEndTime);");
+    }
   }
   catch (...)
   {
@@ -171,10 +179,10 @@ bool CEpgDatabase::Delete(const CEpg &table, const time_t start /* = 0 */, const
   strWhereClause = FormatSQL("idEpg = %u", table.EpgID());
 
   if (start != 0)
-    strWhereClause.append(FormatSQL(" AND iStartTime < %u", start).c_str());
+    strWhereClause.append(FormatSQL(" AND iStartTime >= %u", start).c_str());
 
   if (end != 0)
-    strWhereClause.append(FormatSQL(" AND iEndTime > %u", end).c_str());
+    strWhereClause.append(FormatSQL(" AND iEndTime <= %u", end).c_str());
 
   CSingleLock lock(m_critSection);
   return DeleteValues("epgtags", strWhereClause);
@@ -195,7 +203,7 @@ bool CEpgDatabase::DeleteOldEpgEntries(void)
 
 bool CEpgDatabase::Delete(const CEpgInfoTag &tag)
 {
-  /* tag without a database ID was not peristed */
+  /* tag without a database ID was not persisted */
   if (tag.BroadcastId() <= 0)
     return false;
 
@@ -232,6 +240,7 @@ int CEpgDatabase::Get(CEpgContainer &container)
               __FUNCTION__, iEpgID);
 
           CStdString strWhereClause = FormatSQL("idEpg = %u", iEpgID);
+          DeleteValues("lastepgscan", strWhereClause);
           DeleteValues("epgtags", strWhereClause);
           DeleteValues("epg", strWhereClause);
         }
@@ -254,7 +263,7 @@ int CEpgDatabase::Get(CEpg &epg)
   int iReturn(-1);
   CSingleLock lock(m_critSection);
 
-  CStdString strQuery = FormatSQL("SELECT * FROM epgtags WHERE idEpg = %u ORDER BY iStartTime ASC;", epg.EpgID());
+  CStdString strQuery = FormatSQL("SELECT * FROM epgtags WHERE idEpg = %u;", epg.EpgID());
   if (ResultQuery(strQuery))
   {
     iReturn = 0;
@@ -364,7 +373,7 @@ int CEpgDatabase::Persist(const CEpg &epg, bool bQueueWrite /* = false */)
   return iReturn;
 }
 
-int CEpgDatabase::Persist(const CEpgInfoTag &tag, bool bSingleUpdate /* = true */, bool bLastUpdate /* = false */)
+int CEpgDatabase::Persist(const CEpgInfoTag &tag, bool bSingleUpdate /* = true */)
 {
   int iReturn(-1);
 
@@ -381,27 +390,13 @@ int CEpgDatabase::Persist(const CEpgInfoTag &tag, bool bSingleUpdate /* = true *
   tag.FirstAiredAsUTC().GetAsTime(iFirstAired);
   int iEpgId = epg->EpgID();
 
-  int iBroadcastId = tag.BroadcastId();
-  CSingleLock lock(m_critSection);
-  if (iBroadcastId <= 0)
+  if (bSingleUpdate)
   {
-    CStdString strWhereClause;
-    if (tag.UniqueBroadcastID() > 0)
-    {
-      strWhereClause = FormatSQL("(iBroadcastUid = '%u' OR iStartTime = %u) AND idEpg = %u",
-          tag.UniqueBroadcastID(), iStartTime, iEpgId);
-    }
-    else
-    {
-      strWhereClause = FormatSQL("iStartTime = %u AND idEpg = '%u'",
-          iStartTime, iEpgId);
-    }
-    CStdString strValue = GetSingleValue("epgtags", "idBroadcast", strWhereClause);
-
-    if (!strValue.IsEmpty())
-      iBroadcastId = atoi(strValue);
+    Delete(*tag.GetTable(), iStartTime, iEndTime);
   }
 
+  int iBroadcastId = tag.BroadcastId();
+  CSingleLock lock(m_critSection);
   CStdString strQuery;
   
   /* Only store the genre string when needed */
@@ -429,7 +424,7 @@ int CEpgDatabase::Persist(const CEpgInfoTag &tag, bool bSingleUpdate /* = true *
         "VALUES (%u, %u, %u, '%s', '%s', '%s', %i, %i, '%s', %u, %i, %i, %i, %i, %i, %i, '%s', %i, %i);",
         iEpgId, iStartTime, iEndTime,
         tag.Title().c_str(), tag.PlotOutline().c_str(), tag.Plot().c_str(), tag.GenreType(), tag.GenreSubType(), strGenre.c_str(),
-        tag.FirstAiredAsUTC().GetAsDBDateTime().c_str(), tag.ParentalRating(), tag.StarRating(), tag.Notify(),
+        iFirstAired, tag.ParentalRating(), tag.StarRating(), tag.Notify(),
         tag.SeriesNum(), tag.EpisodeNum(), tag.EpisodePart(), tag.EpisodeName().c_str(),
         tag.UniqueBroadcastID(), iBroadcastId);
   }
@@ -442,10 +437,6 @@ int CEpgDatabase::Persist(const CEpgInfoTag &tag, bool bSingleUpdate /* = true *
   else
   {
     QueueInsertQuery(strQuery);
-
-    if (bLastUpdate)
-      CommitInsertQueries();
-
     iReturn = 0;
   }
 

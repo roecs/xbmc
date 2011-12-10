@@ -23,6 +23,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "recording.h"
+#include "client.h"
 
 cRecording::cRecording(void)
 {
@@ -124,13 +125,27 @@ bool cRecording::Parse(const Json::Value& data)
   title = data["Title"].asString();
   videoaspect = (ForTheRecord::VideoAspectRatio) data["VideoAspect"].asInt();
   std::string CIFSname = recordingfilename;
+  std::string SMBPrefix = "smb://";
+  if (g_szUser.length() > 0)
+  {
+    SMBPrefix += g_szUser;
+    if (g_szPass.length() > 0)
+    {
+      SMBPrefix += ":" + g_szPass;
+    }
+  }
+  else
+  {
+    SMBPrefix += "Guest";
+  }
+  SMBPrefix += "@";
   size_t found;
   while ((found = CIFSname.find("\\")) != std::string::npos)
   {
     CIFSname.replace(found, 1, "/");
   }
   CIFSname.erase(0,2);
-  CIFSname.insert(0, "smb://Guest@");
+  CIFSname.insert(0, SMBPrefix);
   cifsrecordingfilename = CIFSname;  
 
   return true;

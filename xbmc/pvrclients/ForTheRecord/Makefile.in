@@ -6,8 +6,16 @@
 #
 
 LIBS   = -ldl -lpthread -lcurl
-LIBDIR = @abs_top_srcdir@/addons/pvr.fortherecord.argus-rtsp
-LIB    = @abs_top_srcdir@/addons/pvr.fortherecord.argus-rtsp/XBMC_ForTheRecord.pvr
+LIBDIR = @abs_top_srcdir@/addons/pvr.fortherecord.argus
+ifeq ($(findstring osx,@ARCH@),osx)
+ifeq ($(findstring x86-osx,@ARCH@),x86-osx)
+LIB    = @abs_top_srcdir@/addons/pvr.fortherecord.argus/XBMC_ForTheRecord_osx.pvr
+else
+LIB    = @abs_top_srcdir@/addons/pvr.fortherecord.argus/XBMC_ForTheRecord_ios.pvr
+endif
+else
+LIB    = @abs_top_srcdir@/addons/pvr.fortherecord.argus/XBMC_ForTheRecord_linux.pvr
+endif
 
 SRCS   = utils.cpp \
         activerecording.cpp \
@@ -20,9 +28,14 @@ SRCS   = utils.cpp \
         tools.cpp \
         upcomingrecording.cpp \
         uri.cpp \
+	CriticalSection.cpp \
+	AutoLock.cpp \
         lib/jsoncpp/src/lib_json/json_reader.cpp \
         lib/jsoncpp/src/lib_json/json_writer.cpp \
         lib/jsoncpp/src/lib_json/json_value.cpp \
+	lib/tsreader/FileReader.cpp \
+	lib/tsreader/MultiFileReader.cpp \
+	lib/tsreader/TSReader.cpp \
         KeepAliveThread.cpp \
         fortherecordrpc.cpp \
         pvrclient-fortherecord.cpp \
@@ -31,6 +44,14 @@ SRCS   = utils.cpp \
 include ../Makefile.include
 
 INCLUDES += -Ilib/jsoncpp/include/
+INCLUDES += -I@abs_top_srcdir@/xbmc/filesystem
+
+CXXFLAGS += -DTSREADER
+ifeq ($(findstring osx,@ARCH@),osx)
+CXXFLAGS += -DTARGET_OSX
+else
+CXXFLAGS += -DTARGET_LINUX
+endif
 
 clean:
 	-rm -f $(OBJS) $(LIB) *.P *~

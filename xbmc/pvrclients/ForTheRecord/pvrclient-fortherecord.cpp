@@ -52,6 +52,10 @@ cPVRClientForTheRecord::cPVRClientForTheRecord()
   m_channel_id_offset      = 0;
   m_epg_id_offset          = 0;
   m_iCurrentChannel        = 0;
+#if defined(FTR_DUMPTS)
+  strncpy(ofn, "/tmp/ftr.XXXXXX", sizeof(ofn));
+  ofd = -1;
+#endif
 }
 
 cPVRClientForTheRecord::~cPVRClientForTheRecord()
@@ -334,7 +338,7 @@ PVR_ERROR cPVRClientForTheRecord::GetChannels(PVR_HANDLE handle, bool bRadio)
         //Use OpenLiveStream to read from the timeshift .ts file or an rtsp stream
 #ifdef TSREADER
         tag.strStreamURL = "";
-        tag.strInputFormat = "mpegts";
+        tag.strInputFormat = "video/x-mpegts";
 #else
         //Use GetLiveStreamURL to fetch an rtsp stream
         if(bRadio)
@@ -884,6 +888,33 @@ bool cPVRClientForTheRecord::_OpenLiveStream(const PVR_CHANNEL &channelinfo)
     }
     int retval = ForTheRecord::TuneLiveStream(channel->Guid(), channel->Type(), filename);
 
+#if defined(TARGET_LINUX) || defined(TARGET_OSX)
+    // TODO FHo: merge this code and the code that translates names from recordings
+    std::string CIFSname = filename;
+    std::string SMBPrefix = "smb://";
+    if (g_szUser.length() > 0)
+    {
+      SMBPrefix += g_szUser;
+      if (g_szPass.length() > 0)
+      {
+        SMBPrefix += ":" + g_szPass;
+      }
+    }
+    else
+    {
+      SMBPrefix += "Guest";
+    }
+    SMBPrefix += "@";
+    size_t found;
+    while ((found = CIFSname.find("\\")) != std::string::npos)
+    {
+      CIFSname.replace(found, 1, "/");
+    }
+    CIFSname.erase(0,2);
+    CIFSname.insert(0, SMBPrefix.c_str());
+    filename = CIFSname;
+#endif
+
     if (retval < 0 || filename.length() == 0)
     {
       XBMC->Log(LOG_ERROR, "Could not start the timeshift for channel %i (%s)", channelinfo.iUniqueId, channel->Guid().c_str());
@@ -898,18 +929,37 @@ bool cPVRClientForTheRecord::_OpenLiveStream(const PVR_CHANNEL &channelinfo)
       XBMC->Log(LOG_ERROR, "Start keepalive thread failed.");
     }
 
+#if defined(FTR_DUMPTS)
+    if (ofd != -1) close(ofd);
+    strncpy(ofn, "/tmp/ftr.XXXXXX", sizeof(ofn));
+    if ((ofd = mkostemp(ofn, O_CREAT|O_TRUNC)) == -1)
+    {
+      XBMC->Log(LOG_ERROR, "couldn't open dumpfile %s (error %d: %s).", ofn, errno, strerror(errno));
+    }
+    else
+    {
+      XBMC->Log(LOG_INFO, "opened dumpfile %s.", ofn);
+    }
+#endif
+
 #ifdef TSREADER
     if (m_tsreader != NULL)
     {
-      XBMC->Log(LOG_DEBUG, "Re-using existing TsReader...");
+      //XBMC->Log(LOG_DEBUG, "Re-using existing TsReader...");
+      //usleep(5000000);
+      //m_tsreader->OnZap();
+      XBMC->Log(LOG_DEBUG, "Close existing and open new TsReader...");
+      m_tsreader->Close();
+      m_tsreader = new CTsReader();
+      m_tsreader->Open(filename.c_str());
       m_tsreader->OnZap();
-      usleep(100000);
     } else {
       m_tsreader = new CTsReader();
       // Open Timeshift buffer
       // TODO: rtsp support
       XBMC->Log(LOG_DEBUG, "Open TsReader");
       m_tsreader->Open(filename.c_str());
+      //usleep(200000);
     }
 
 #endif
@@ -942,7 +992,7 @@ int cPVRClientForTheRecord::ReadLiveStream(unsigned char* pBuffer, unsigned int 
   static int read_timeouts  = 0;
   unsigned char* bufptr = pBuffer;
 
-  //XBMC->Log(LOG_DEBUG, "->ReadLiveStream(buf_size=%i)", buf_size);
+  // XBMC->Log(LOG_DEBUG, "->ReadLiveStream(buf_size=%i)", iBufferSize);
   if (!m_tsreader)
     return -1;
 
@@ -955,6 +1005,7 @@ int cPVRClientForTheRecord::ReadLiveStream(unsigned char* pBuffer, unsigned int 
     {
       usleep(400000);
       read_timeouts++;
+      XBMC->Log(LOG_NOTICE, "ReadLiveStream requested %d but only read %d bytes.", iBufferSize, read_wanted);
       return read_wanted;
     }
     read_done += read_wanted;
@@ -972,6 +1023,13 @@ int cPVRClientForTheRecord::ReadLiveStream(unsigned char* pBuffer, unsigned int 
       usleep(40000);
     }
   }
+#if defined(FTR_DUMPTS)
+  if (write(ofd, pBuffer, read_done) < 0)
+  {
+    XBMC->Log(LOG_ERROR, "couldn't write %d bytes to dumpfile %s (error %d: %s).", read_done, ofn, errno, strerror(errno));
+  }
+#endif
+  // XBMC->Log(LOG_DEBUG, "ReadLiveStream(buf_size=%i), %d timeouts", iBufferSize, read_timeouts);
   read_timeouts = 0;
   return read_done;
 #else
@@ -992,6 +1050,17 @@ void cPVRClientForTheRecord::CloseLiveStream()
       XBMC->Log(LOG_ERROR, "Stop keepalive thread failed with %x.", hr);
     }
   } 
+
+#if defined(FTR_DUMPTS)
+  if (ofd != -1)
+  {
+    if (close(ofd) == -1)
+    {
+      XBMC->Log(LOG_ERROR, "couldn't close dumpfile %s (error %d: %s).", ofn, errno, strerror(errno));
+    }
+    ofd = -1;
+  }
+#endif
 
   if (m_bTimeShiftStarted)
   {

@@ -108,6 +108,8 @@ void CSettings::Initialize()
   m_discStubExtensions = ".disc";
   // internal music extensions
   m_musicExtensions += "|.sidstream|.oggstream|.nsfstream|.asapstream|.cdda";
+  // internal video extensions
+  m_videoExtensions += "|.pvr";
 
   #ifdef __APPLE__
     CStdString logDir = getenv("HOME");
@@ -138,8 +140,6 @@ void CSettings::Initialize()
   m_lastUsedProfile = 0;
   m_currentProfile = 0;
   m_nextIdProfile = 0;
-
-  m_activeKeyboardMapping = "default";
 }
 
 CSettings::~CSettings(void)

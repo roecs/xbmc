@@ -30,7 +30,12 @@
 #if defined TSREADER
 
 #include "libPlatform/os-dependent.h"
-//#include "os-dependent.h"
+#if !defined(TARGET_WINDOWS)
+#include "File.h"
+#undef S_OK
+#define S_OK 0x0L
+#define S_FALSE 0x1L
+#endif
 
 class FileReader
 {
@@ -50,7 +55,6 @@ class FileReader
     virtual long set_DelayMode(bool DelayMode);
     virtual long get_ReaderMode(unsigned short *ReaderMode);
     virtual long GetFileSize(int64_t *pStartPosition, int64_t *pLength);
-    long GetInfoFileSize(int64_t *lpllsize);
     long GetStartPosition(int64_t *lpllpos);
     virtual bool IsFileInvalid();
     virtual unsigned long SetFilePointer(int64_t llDistanceToMove, unsigned long dwMoveMethod);
@@ -64,22 +68,19 @@ class FileReader
 
     virtual int64_t GetFileSize();
     virtual bool IsBuffer(){return false;};
-    virtual bool HasMoreData(){return false;};
+    virtual bool HasMoreData(int bytes){return false;};
     virtual int HasData(){return 0; } ;
 
   protected:
-#ifdef _WIN32
+#if defined(TARGET_WINDOWS)
     HANDLE   m_hFile;               // Handle to file for streaming
-    HANDLE   m_hInfoFile;           // Handle to Infofile for filesize from FileWriter
-#elif defined _LINUX
-    int      m_hFile;               // Handle to file for streaming
-    int      m_hInfoFile;           // Handle to Infofile for filesize from FileWriter
+#elif defined(TARGET_LINUX) || defined(TARGET_OSX)
+    XFILE::CFile m_hFile;           // Handle to file for streaming
 #endif
     char*    m_pFileName;           // The filename where we stream
     bool     m_bReadOnly;
     bool     m_bDelay;
     int64_t  m_fileSize;
-    int64_t  m_infoFileSize;
     int64_t  m_fileStartPos;
     int64_t  m_llBufferPointer;
 
