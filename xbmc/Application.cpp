@@ -245,6 +245,7 @@
 
 /* PVR related include Files */
 #include "pvr/PVRManager.h"
+#include "pvr/timers/PVRTimers.h"
 #include "pvr/windows/GUIWindowPVR.h"
 #include "pvr/dialogs/GUIDialogPVRChannelManager.h"
 #include "pvr/dialogs/GUIDialogPVRChannelsOSD.h"
@@ -350,6 +351,7 @@ CApplication::CApplication(void) : m_itemCurrentFile(new CFileItem), m_progressT
 {
   m_iPlaySpeed = 1;
   m_pPlayer = NULL;
+  m_bInhibitIdleShutdown = false;
   m_bScreenSave = false;
   m_dpms = NULL;
   m_dpmsIsActive = false;
@@ -619,6 +621,10 @@ bool CApplication::Create()
     CLog::Log(LOGFATAL, "XBAppEx: Unable to initialize SDL: %s", SDL_GetError());
     return false;
   }
+  #if defined(TARGET_DARWIN)
+  // SDL_Init will install a handler for segfaults, restore the default handler.
+  signal(SIGSEGV, SIG_DFL);
+  #endif
 #endif
 
   // for python scripts that check the OS
@@ -762,9 +768,10 @@ bool CApplication::Create()
     m_splash->Show();
   }
 
+  // The key mappings may already have been loaded by a peripheral
   CLog::Log(LOGINFO, "load keymapping");
   if (!CButtonTranslator::GetInstance().Load())
-    FatalErrorHandler(false, false, true);
+      FatalErrorHandler(false, false, true);
 
   int iResolution = g_graphicsContext.GetVideoResolution();
   CLog::Log(LOGINFO, "GUI format %ix%i %s",
@@ -979,45 +986,16 @@ bool CApplication::InitDirectoriesWin32()
   CSpecialProtocol::SetXBMCBinPath(xbmcPath);
   CSpecialProtocol::SetXBMCPath(xbmcPath);
 
-  if (m_bPlatformDirectories)
-  {
+  CStdString strWin32UserFolder = CWIN32Util::GetProfilePath();
 
-    CStdString strWin32UserFolder = CWIN32Util::GetProfilePath();
+  g_settings.m_logFolder = strWin32UserFolder;
+  CSpecialProtocol::SetHomePath(strWin32UserFolder);
+  CSpecialProtocol::SetMasterProfilePath(URIUtils::AddFileToFolder(strWin32UserFolder, "userdata"));
+  CSpecialProtocol::SetTempPath(URIUtils::AddFileToFolder(strWin32UserFolder,"cache"));
 
-    // create user/app data/XBMC
-    CStdString homePath = URIUtils::AddFileToFolder(strWin32UserFolder, "XBMC");
+  SetEnvironmentVariable("XBMC_PROFILE_USERDATA",_P("special://masterprofile/").c_str());
 
-    // move log to platform dirs
-    g_settings.m_logFolder = homePath;
-    URIUtils::AddSlashAtEnd(g_settings.m_logFolder);
-
-    // map our special drives
-    CSpecialProtocol::SetXBMCBinPath(xbmcPath);
-    CSpecialProtocol::SetXBMCPath(xbmcPath);
-    CSpecialProtocol::SetHomePath(homePath);
-    CSpecialProtocol::SetMasterProfilePath(URIUtils::AddFileToFolder(homePath, "userdata"));
-    SetEnvironmentVariable("XBMC_PROFILE_USERDATA",_P("special://masterprofile").c_str());
-
-    CSpecialProtocol::SetTempPath(URIUtils::AddFileToFolder(homePath,"cache"));
-
-    CreateUserDirs();
-
-  }
-  else
-  {
-    URIUtils::AddSlashAtEnd(xbmcPath);
-    g_settings.m_logFolder = xbmcPath;
-
-    CSpecialProtocol::SetHomePath(URIUtils::AddFileToFolder(xbmcPath, "portable_data"));
-    CSpecialProtocol::SetMasterProfilePath(URIUtils::AddFileToFolder(xbmcPath, "portable_data/userdata"));
-
-    CStdString strTempPath = URIUtils::AddFileToFolder(xbmcPath, "portable_data/temp");
-    CSpecialProtocol::SetTempPath(strTempPath);
-
-    CreateUserDirs();
-
-    SetEnvironmentVariable("XBMC_PROFILE_USERDATA",_P("special://masterprofile/").c_str());
-  }
+  CreateUserDirs();
 
   // Expand the DLL search path with our directories
   CWIN32Util::ExtendDllPath();
@@ -1579,13 +1557,11 @@ void CApplication::StopPVRManager()
   CLog::Log(LOGINFO, "stopping PVRManager");
   StopPlaying();
   g_PVRManager.Stop();
-  g_PVRManager.Cleanup();
 }
 
 void CApplication::StopEPGManager(void)
 {
   g_EpgContainer.Stop();
-  g_EpgContainer.Clear();
 }
 
 void CApplication::DimLCDOnPlayback(bool dim)
@@ -3744,6 +3720,8 @@ bool CApplication::PlayFile(const CFileItem& item, bool bRestart)
         CStdString path = item.GetPath();
         if (item.IsDVD()) 
           path = item.GetVideoInfoTag()->m_strFileNameAndPath;
+        if (item.HasProperty("original_listitem_url") && URIUtils::IsPlugin(item.GetProperty("original_listitem_url").asString()))
+          path = item.GetProperty("original_listitem_url").asString();
         if(dbs.GetResumeBookMark(path, bookmark))
         {
           options.starttime = bookmark.timeInSeconds;
@@ -4499,7 +4477,8 @@ void CApplication::CheckShutdown()
   CGUIDialogVideoScan *pVideoScan = (CGUIDialogVideoScan *)g_windowManager.GetWindow(WINDOW_DIALOG_VIDEO_SCAN);
 
   // first check if we should reset the timer
-  bool resetTimer = false;
+  bool resetTimer = m_bInhibitIdleShutdown;
+
   if (IsPlaying() || IsPaused()) // is something playing?
     resetTimer = true;
 
@@ -4510,6 +4489,9 @@ void CApplication::CheckShutdown()
     resetTimer = true;
 
   if (g_windowManager.IsWindowActive(WINDOW_DIALOG_PROGRESS)) // progress dialog is onscreen
+    resetTimer = true;
+
+  if (g_guiSettings.GetBool("pvrmanager.enabled") &&  !g_PVRManager.IsIdle())
     resetTimer = true;
 
   if (resetTimer)
@@ -4526,6 +4508,16 @@ void CApplication::CheckShutdown()
     // Sleep the box
     getApplicationMessenger().Shutdown();
   }
+}
+
+void CApplication::InhibitIdleShutdown(bool inhibit)
+{
+  m_bInhibitIdleShutdown = inhibit;
+}
+
+bool CApplication::IsIdleShutdownInhibited() const
+{
+  return m_bInhibitIdleShutdown;
 }
 
 bool CApplication::OnMessage(CGUIMessage& message)
