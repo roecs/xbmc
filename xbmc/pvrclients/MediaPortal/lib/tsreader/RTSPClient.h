@@ -89,7 +89,8 @@ public:
   //thread
   void StartBufferThread();
   void StopBufferThread();
-  virtual void Run();
+  //virtual void Run();
+  virtual void Process();
   bool m_BufferThreadActive;
   long m_duration;
   double m_fStart;

@@ -516,13 +516,13 @@ void CRTSPClient::FillBuffer(unsigned long byteCount)
   XBMC->Log(LOG_DEBUG, "CRTSPClient::Fillbuffer...%d/%d\n", byteCount, m_buffer->Size() );
 }
 
-void CRTSPClient::Run()
-//void CRTSPClient::Process()
+//void CRTSPClient::Run()
+void CRTSPClient::Process()
 {
   m_BufferThreadActive = TRUE;
   m_bRunning=true;
 #ifdef TARGET_WINDOWS
-  this->SetPriority(THREAD_PRIORITY_ABOVE_NORMAL);
+  //this->SetPriority(THREAD_PRIORITY_ABOVE_NORMAL);
 #else
 #warning TODO: add setpriority for your OS
 #endif
