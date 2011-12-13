@@ -23,8 +23,11 @@
 #include <json/json.h>
 #include <cstdlib>
 
-#define FTR_REST_MINIMUM_API_VERSION 40
-#define FTR_REST_MAXIMUM_API_VERSION 45
+#define FTR_1_5_0_3 (40)
+#define FTR_1_6_0_1 (45)
+#define FTR_1_6_1_0 (48)
+#define FTR_REST_MINIMUM_API_VERSION FTR_1_6_0_1
+#define FTR_REST_MAXIMUM_API_VERSION FTR_1_6_1_0
 #define E_FAILED -1
 
 namespace ForTheRecord
@@ -97,6 +100,15 @@ namespace ForTheRecord
   int ForTheRecordJSONRPC(const std::string& command, const std::string& arguments, Json::Value& json_response);
 
   /**
+   * \brief Send a REST command to 4TR, write the response to a file and return the filename
+   * \param command       The command string url (starting from "ForTheRecord/")
+   * \param newfilename   Reference to a std::string used to store the output file name
+   * \param htt_presponse Reference to a long used to store the HTTP response code
+   * \return 0 on ok, -1 on a failure
+   */
+  int ForTheRecordRPCToFile(const std::string& command, const std::string& arguments, std::string& newfilename, long& http_response);
+
+  /**
    * \brief Ping core service.
    * \param requestedApiVersion  The API version the client needs, pass in Constants.ForTheRecordRestApiVersion.
    * \return  0 if client and server are compatible, -1 if the client is too old, +1 if the client is newer than the server and -2 if the connection failed (server down?)
@@ -119,6 +131,11 @@ namespace ForTheRecord
    * \brief Returns the URL of the current live stream
    */
   std::string GetLiveStreamURL(void);
+
+  /**
+   * \brief Returns the Signal information of the current live stream
+   */
+  int SignalQuality(Json::Value& response);
 
   /**
    * \brief Tell the recorder/tuner we are still showing this stream and to keep it alive. Call this every 30 seconds or so.
@@ -228,6 +245,12 @@ namespace ForTheRecord
    * \param channelGroupId GUID of the channel group
    */
   int RequestChannelGroupMembers(const std::string& channelGroupId, Json::Value& response);
+
+  /*
+   * \brief Get the logo for a channel
+   * \param channelGUID GUID of the channel
+   */
+  std::string GetChannelLogo(const std::string& channelGUID);
 
   time_t WCFDateToTimeT(const std::string& wcfdate, int& offset);
   std::string TimeTToWCFDate(const time_t thetime);

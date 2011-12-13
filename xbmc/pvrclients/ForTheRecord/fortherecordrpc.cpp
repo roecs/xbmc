@@ -25,6 +25,7 @@
  */
 
 #include <stdio.h>
+#include <sys/stat.h>
 #include "libPlatform/os-dependent.h"
 #include "curl/curl.h"
 #include "client.h"
@@ -37,7 +38,6 @@
 using namespace ADDON;
 
 // Some version dependent API strings
-#define FTR_GETEPG_40 "ForTheRecord/Guide/Programs/%s/%i-%02i-%02iT%02i:%02i:%02i/%i-%02i-%02iT%02i:%02i:%02i"
 #define FTR_GETEPG_45 "ForTheRecord/Guide/FullPrograms/%s/%i-%02i-%02iT%02i:%02i:%02i/%i-%02i-%02iT%02i:%02i:%02i/false"
 
 
@@ -59,6 +59,17 @@ static size_t curl_write_data(void *buffer, size_t size, size_t nmemb, void *str
   *response += (char*) buffer;
 
   return realsize;
+}
+
+/**
+ * \brief CURL callback function that receives the return data from the HTTP get/post calls and writes it to a file
+ */
+static size_t curl_write_data_to_file(void *buffer, size_t size, size_t nmemb, void *stream)
+{
+  //XBMC->Log(LOG_DEBUG, "\nwrite_data size=%i, nmemb=%i\n", size, nmemb, (char*) buffer);
+
+  int written = fwrite(buffer, size, nmemb, (FILE *) stream);
+  return written;
 }
 
 /**
@@ -122,26 +133,107 @@ namespace ForTheRecord
       chunk = curl_slist_append(chunk, "Accept: application/json; charset=UTF-8");
 
       /* Specify the URL */
-      curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
-      curl_easy_setopt(curl, CURLOPT_TIMEOUT, g_iConnectTimeout);
-      curl_easy_setopt(curl, CURLOPT_HTTPHEADER, chunk);
+      if ((res = curl_easy_setopt(curl, CURLOPT_URL, url.c_str())) != CURLE_OK)
+        XBMC->Log(LOG_NOTICE, "curl_easy_setop CURLOPT_URL returned %d (%s).\n", res, curl_easy_strerror(res));
+      if ((res = curl_easy_setopt(curl, CURLOPT_TIMEOUT, g_iConnectTimeout)) != CURLE_OK)
+        XBMC->Log(LOG_NOTICE, "curl_easy_setop CURLOPT_TIMEOUT returned %d (%s).\n", res, curl_easy_strerror(res));
+      if ((res = curl_easy_setopt(curl, CURLOPT_HTTPHEADER, chunk)) != CURLE_OK)
+        XBMC->Log(LOG_NOTICE, "curl_easy_setop CURLOPT_HTTPHEADER returned %d (%s).\n", res, curl_easy_strerror(res));
       /* Now specify the POST data */
-      curl_easy_setopt(curl, CURLOPT_POSTFIELDS, arguments.c_str());
+      if ((res = curl_easy_setopt(curl, CURLOPT_POSTFIELDS, arguments.c_str())) != CURLE_OK)
+        XBMC->Log(LOG_NOTICE, "curl_easy_setop CURLOPT_POSTFIELDS returned %d (%s).\n", res, curl_easy_strerror(res));
       /* Define our callback to get called when there's data to be written */ 
-      curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, curl_write_data); 
+      if ((res = curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, curl_write_data)) != CURLE_OK)
+        XBMC->Log(LOG_NOTICE, "curl_easy_setop CURLOPT_WRITEFUNCTION returned %d (%s).\n", res, curl_easy_strerror(res));
       /* Set a pointer to our struct to pass to the callback */ 
       json_response = "";
-      curl_easy_setopt(curl, CURLOPT_WRITEDATA, &json_response);
+      if ((res = curl_easy_setopt(curl, CURLOPT_WRITEDATA, &json_response)) != CURLE_OK)
+        XBMC->Log(LOG_NOTICE, "curl_easy_setop CURLOPT_WRITEDATA returned %d (%s).\n", res, curl_easy_strerror(res));
 
       /* debugging only */
       if (l_logCurl)
       {
-        curl_easy_setopt(curl, CURLOPT_DEBUGFUNCTION, my_curl_debug_callback);
-        curl_easy_setopt(curl, CURLOPT_VERBOSE, 1);
+        if ((res = curl_easy_setopt(curl, CURLOPT_DEBUGFUNCTION, my_curl_debug_callback)) != CURLE_OK)
+          XBMC->Log(LOG_NOTICE, "curl_easy_setop CURLOPT_DEBUGFUNCTION returned %d (%s).\n", res, curl_easy_strerror(res));
+        if ((res = curl_easy_setopt(curl, CURLOPT_VERBOSE, 1)) != CURLE_OK)
+          XBMC->Log(LOG_NOTICE, "curl_easy_setop CURLOPT_VERBOSE returned %d (%s).\n", res, curl_easy_strerror(res));
       }
 
       /* Perform the request */
-      res = curl_easy_perform(curl);
+      if ((res = curl_easy_perform(curl)) != CURLE_OK)
+        XBMC->Log(LOG_NOTICE, "curl_easy_perform returned %d (%s).\n", res, curl_easy_strerror(res));
+
+      /* always cleanup */
+      curl_easy_cleanup(curl);
+      return 0;
+    }
+    else
+    {
+      return E_FAILED;
+    }
+  }
+
+  int ForTheRecordRPCToFile(const std::string& command, const std::string& arguments, std::string& filename, long& http_response)
+  {
+    CURL *curl;
+    CURLcode res;
+    std::string url = g_szBaseURL + command;
+    CAutoLock critsec(&communication_mutex);
+
+    XBMC->Log(LOG_DEBUG, "URL: %s writing to file %s\n", url.c_str(), filename.c_str());
+
+    curl = curl_easy_init();
+
+    if(curl)
+    {
+      struct curl_slist *chunk = NULL;
+
+      chunk = curl_slist_append(chunk, "Content-type: application/json; charset=UTF-8");
+      chunk = curl_slist_append(chunk, "Accept: application/json; charset=UTF-8");
+
+      /* Specify the URL */
+      if ((res = curl_easy_setopt(curl, CURLOPT_URL, url.c_str())) != CURLE_OK)
+        XBMC->Log(LOG_NOTICE, "curl_easy_setop CURLOPT_URL returned %d (%s).\n", res, curl_easy_strerror(res));
+      if ((res = curl_easy_setopt(curl, CURLOPT_TIMEOUT, g_iConnectTimeout)) != CURLE_OK)
+        XBMC->Log(LOG_NOTICE, "curl_easy_setop CURLOPT_TIMEOUT returned %d (%s).\n", res, curl_easy_strerror(res));
+      if ((res = curl_easy_setopt(curl, CURLOPT_HTTPHEADER, chunk)) != CURLE_OK)
+        XBMC->Log(LOG_NOTICE, "curl_easy_setop CURLOPT_HTTPHEADER returned %d (%s).\n", res, curl_easy_strerror(res));
+      /* Now specify the POST data */
+      if ((res = curl_easy_setopt(curl, CURLOPT_POSTFIELDS, arguments.c_str())) != CURLE_OK)
+        XBMC->Log(LOG_NOTICE, "curl_easy_setop CURLOPT_POSTFIELDS returned %d (%s).\n", res, curl_easy_strerror(res));
+      /* ask curl to write to file */ 
+      if ((res = curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, curl_write_data_to_file)) != CURLE_OK)
+        XBMC->Log(LOG_NOTICE, "curl_easy_setop CURLOPT_WRITEFUNCTION returned %d (%s).\n", res, curl_easy_strerror(res));
+      /* Open the output file */
+      FILE *ofile = fopen(filename.c_str(), "w+b");
+      if (ofile == NULL)
+      {
+        XBMC->Log(LOG_ERROR, "can not open %s", filename.c_str());
+        curl_easy_cleanup(curl);
+        return E_FAILED;
+      }
+      if ((res = curl_easy_setopt(curl, CURLOPT_WRITEDATA, ofile)) != CURLE_OK)
+        XBMC->Log(LOG_NOTICE, "curl_easy_setop CURLOPT_WRITEDATA returned %d (%s).\n", res, curl_easy_strerror(res));
+
+      /* debugging only */
+      if (l_logCurl)
+      {
+        if ((res = curl_easy_setopt(curl, CURLOPT_DEBUGFUNCTION, my_curl_debug_callback)) != CURLE_OK)
+          XBMC->Log(LOG_NOTICE, "curl_easy_setop CURLOPT_DEBUGFUNCTION returned %d (%s).\n", res, curl_easy_strerror(res));
+        if ((res = curl_easy_setopt(curl, CURLOPT_VERBOSE, 1)) != CURLE_OK)
+          XBMC->Log(LOG_NOTICE, "curl_easy_setop CURLOPT_VERBOSE returned %d (%s).\n", res, curl_easy_strerror(res));
+      }
+
+      /* Perform the request */
+      if ((res = curl_easy_perform(curl)) != CURLE_OK)
+        XBMC->Log(LOG_NOTICE, "curl_easy_perform returned %d (%s).\n", res, curl_easy_strerror(res));
+
+      /* Retrieve HTTP response code */
+      if ((res = curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_response)) != CURLE_OK)
+        XBMC->Log(LOG_NOTICE, "curl_easy_getinfo CURLINFO_RESPONSE_CODE returned %d (%s).\n", res, curl_easy_strerror(res));
+
+      /* close output file */
+      fclose(ofile);
 
       /* always cleanup */
       curl_easy_cleanup(curl);
@@ -228,6 +320,76 @@ namespace ForTheRecord
     }
 
     return retval;
+  }
+
+  /*
+   * \brief Get the logo for a channel
+   * \param channelGUID GUID of the channel
+   */
+  std::string GetChannelLogo(const std::string& channelGUID)
+  {
+#if defined(TARGET_WINDOWS)
+    char tmppath[MAX_PATH];
+    GetTempPath(MAX_PATH, tmppath);
+#elif defined(TARGET_LINUX) || defined(TARGET_OSX)
+    std::string tmppath = "/tmp/";
+#else
+#error implement for your OS!
+#endif
+    std::string finalpath = tmppath;
+    finalpath += channelGUID;
+    std::string path = finalpath;
+    finalpath += ".png";
+    path += ".$$$";
+
+    struct tm* modificationtime;
+    struct stat buf;
+    if (stat(finalpath.c_str(), &buf) != -1)
+    {
+      modificationtime = localtime(&buf.st_mtime);
+    }
+    else
+    {
+      time_t prehistoric = 0;
+      modificationtime = localtime(&prehistoric);
+    }
+
+    char command[512];
+
+    snprintf(command, 512, "ForTheRecord/Scheduler/ChannelLogo/%s/100/100/false/%d-%02d-%02d", channelGUID.c_str(), 
+    //snprintf(command, 512, "ForTheRecord/Scheduler/ChannelLogo/%s/100/100/false/2011-01-01", channelGUID.c_str(), 
+      modificationtime->tm_year + 1900, modificationtime->tm_mon + 1, modificationtime->tm_mday);
+
+    long http_response;
+    int retval = ForTheRecordRPCToFile(command, "", path, http_response);
+    if (retval != 0)
+    {
+      XBMC->Log(LOG_ERROR, "couldn't retrieve the temporary channel logo file %s.\n", path.c_str());
+      return "";
+    }
+
+    if (http_response == 200)
+    {
+      (void) remove(finalpath.c_str());
+      if (rename(path.c_str(), finalpath.c_str()) == -1)
+      {
+        XBMC->Log(LOG_ERROR, "couldn't rename temporary channel logo file %s to %s.\n", path.c_str(), finalpath.c_str());
+        finalpath = "";
+      }
+    }
+    else
+    {
+      // cleanup temporary file
+      if (remove(path.c_str()) == -1)
+        XBMC->Log(LOG_ERROR, "couldn't delete temporary channel logo file %s.\n", path.c_str());
+      // so was the logo not there (204) or was our local version still valid (304)?
+      if (http_response == 204)
+      {
+        finalpath = "";
+      }
+    }
+
+    return finalpath;
   }
 
   /*
@@ -353,6 +515,25 @@ namespace ForTheRecord
 
     return retval;
   }
+
+#if FALSE
+  /**
+   * \brief Fetch the Logo for the given channel id
+   * \param channel_id       String containing the 4TR channel_id
+   * \param filename         filename returned here
+   */
+  int GetChannelLogo(const std::string& channel_id, std::string& filename)
+  {
+    char command[512];
+
+    snprintf(command, 512, "ForTheRecord/Scheduler/ChannelLogo/%s/100/100/false/2011-01-01", channel_id.c_str());
+    
+    filename = _tempnam(NULL, "ftrico");
+    int retval = ForTheRecordRPCToFile(command, "", filename);
+
+    return retval;
+  }
+#endif
 
   /*
    * \brief Ping core service.
@@ -511,6 +692,27 @@ namespace ForTheRecord
     return stream;
   }
 
+  int SignalQuality(Json::Value& response)
+  {
+    if(!g_current_livestream.empty())
+    {
+      Json::StyledWriter writer;
+      std::string arguments = writer.write(g_current_livestream);
+
+      int retval = ForTheRecordJSONRPC("ForTheRecord/Control/GetLiveStreamTuningDetails", arguments, response);
+
+      //if (retval != E_FAILED)
+      //{
+      //  printValueTree(response);
+      //}
+
+      return retval;
+    }
+    else
+    {
+      return E_FAILED;
+    }
+  }
 
   bool KeepLiveStreamAlive()
   {
@@ -545,7 +747,7 @@ namespace ForTheRecord
       char command[256];
       
       //Format: ForTheRecord/Guide/Programs/{guideChannelId}/{lowerTime}/{upperTime}
-      snprintf(command, 256, backendversion == 45 ? FTR_GETEPG_45 : FTR_GETEPG_40 , 
+      snprintf(command, 256, FTR_GETEPG_45, 
                guidechannel_id.c_str(),
                epg_start.tm_year + 1900, epg_start.tm_mon + 1, epg_start.tm_mday,
                epg_start.tm_hour, epg_start.tm_min, epg_start.tm_sec,

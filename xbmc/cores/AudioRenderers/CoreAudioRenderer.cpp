@@ -439,7 +439,7 @@ CCoreAudioRenderer::~CCoreAudioRenderer()
 if (!m_Initialized) \
 return x
 
-bool CCoreAudioRenderer::Initialize(IAudioCallback* pCallback, const CStdString& device, int iChannels, enum PCMChannels *channelMap, unsigned int uiSamplesPerSec, unsigned int uiBitsPerSample, bool bResample, bool bIsMusic /*Useless Legacy Parameter*/, bool bPassthrough)
+bool CCoreAudioRenderer::Initialize(IAudioCallback* pCallback, const CStdString& device, int iChannels, enum PCMChannels *channelMap, unsigned int uiSamplesPerSec, unsigned int uiBitsPerSample, bool bResample, bool bIsMusic /*Useless Legacy Parameter*/, EEncoded bPassthrough)
 {
   // Have to clean house before we start again.
   // TODO: Should we return failure instead?
@@ -475,9 +475,19 @@ bool CCoreAudioRenderer::Initialize(IAudioCallback* pCallback, const CStdString&
   // If this is a passthrough (AC3/DTS) stream, attempt to handle it natively
   if (bPassthrough)
   {
+    if (g_guiSettings.GetBool("videoplayer.adjustrefreshrate"))
+    {
+      int delay = g_guiSettings.GetInt("videoplayer.pauseafterrefreshchange");
+      if (delay < 2)
+        delay += 20;
+      CLog::Log(LOGDEBUG, "CoreAudioRenderer::Initialize: "
+        "delay(%d seconds) audio init for adjust refresh rate when passthrough",
+        delay/10);
+      Sleep(delay * 100);
+    }
     m_Passthrough = InitializeEncoded(outputDevice, uiSamplesPerSec);
     // TODO: wait for audio device startup
-    Sleep(100);
+    Sleep(200);
   }
   
   // If this is a PCM stream, or we failed to handle a passthrough stream natively,
