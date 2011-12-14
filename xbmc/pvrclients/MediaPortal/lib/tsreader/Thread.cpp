@@ -30,22 +30,53 @@
 
 #ifdef TSREADER
 
+#include "client.h"
 #include "Thread.h"
+
+#include "threads/platform/ThreadImpl.cpp"
+
+using namespace ADDON;
 
 CThread::CThread(const char* ThreadName)
 {
   m_hStopEvent = CreateEvent(NULL, TRUE, TRUE, NULL);
   m_hDoneEvent = CreateEvent(NULL, TRUE, TRUE, NULL);
-  m_ThreadHandle = INVALID_HANDLE_VALUE;
+  m_ThreadOpaque.handle = INVALID_HANDLE_VALUE;
   m_bThreadRunning=FALSE;
+
+  m_bStop = false;
+
+  m_bAutoDelete = false;
+  m_ThreadId = 0;
+
+  m_pRunnable=NULL;
 
   if (ThreadName)
     m_ThreadName = ThreadName;
 }
 
+CThread::CThread(IRunnable* pRunnable, const char* ThreadName)
+{
+  m_hStopEvent = CreateEvent(NULL, TRUE, TRUE, NULL);
+  m_hDoneEvent = CreateEvent(NULL, TRUE, TRUE, NULL);
+  m_ThreadOpaque.handle = INVALID_HANDLE_VALUE;
+  m_bThreadRunning=FALSE;
+
+  m_bStop = false;
+
+  m_bAutoDelete = false;
+  m_ThreadId = 0;
+
+  m_pRunnable=pRunnable;
+
+  if (ThreadName)
+    m_ThreadName = ThreadName;
+}
+
+
 CThread::~CThread()
 {
-  StopThread();
+  WaitForThreadExit();
   CloseHandle(m_hStopEvent);
   CloseHandle(m_hDoneEvent);
 }
@@ -53,46 +84,6 @@ CThread::~CThread()
 bool CThread::IsThreadRunning()
 {
   return m_bThreadRunning;
-}
-
-long CThread::StartThread()
-{
-  ResetEvent(m_hStopEvent);
-  m_ThreadHandle = (HANDLE) _beginthread(&CThread::staticThread, 0, (void *) this);
-  if (m_ThreadHandle == INVALID_HANDLE_VALUE)
-    return E_FAIL;
-
-  return S_OK;
-}
-
-long CThread::StopThread(unsigned long dwTimeoutMilliseconds)
-{
-  long hr = S_OK;
-
-  SetEvent(m_hStopEvent);
-  long result = WaitForSingleObject(m_hDoneEvent, dwTimeoutMilliseconds);
-
-  if ((result == WAIT_TIMEOUT) && (m_ThreadHandle != INVALID_HANDLE_VALUE))
-  {
-    TerminateThread(m_ThreadHandle, -1);
-    CloseHandle(m_ThreadHandle);
-    hr = S_FALSE;
-  }
-  else if (result != WAIT_OBJECT_0)
-  {
-    DWORD err = GetLastError();
-    return HRESULT_FROM_WIN32(err);
-  }
-
-  m_ThreadHandle = INVALID_HANDLE_VALUE;
-
-  return hr;
-}
-
-bool CThread::ThreadIsStopping(unsigned long dwTimeoutMilliseconds)
-{
-  DWORD result = WaitForSingleObject(m_hStopEvent, dwTimeoutMilliseconds);
-  return (result != WAIT_TIMEOUT);
 }
 
 void CThread::Process()
@@ -113,39 +104,45 @@ void CThread::Process()
 
 THREADFUNC CThread::staticThread(void* data)
 {
-  CThread *thread = reinterpret_cast<CThread *>(data);
-  thread->Process();
-}
+  CThread* pThread = (CThread*)(data);
+  std::string name;
+  ThreadIdentifier id;
+  bool autodelete;
 
-tThreadId CThread::ThreadId(void)
-{
-#ifdef __APPLE__
-    return (int)pthread_self();
-#else
-#ifdef TARGET_WINDOWS
-  return GetCurrentThreadId();
-#else
-  return syscall(__NR_gettid);
-#endif
-#endif
-}
-
-bool CThread::SetPriority(const int iPriority)
-// Set thread priority
-// Return true for success
-{
-  bool rtn = false;
-
-#ifdef TARGET_WINDOWS
-  if (m_ThreadHandle)
-  {
-    rtn = SetThreadPriority( m_ThreadHandle, iPriority ) == TRUE;
+  if (!pThread) {
+    XBMC->Log(LOG_ERROR,"%s, sanity failed. thread is NULL.",__FUNCTION__);
+    return 1;
   }
-#else
-#warning TODO: implement me
-#endif
 
-  return(rtn);
+  name = pThread->m_ThreadName;
+  id = pThread->m_ThreadId;
+  autodelete = pThread->m_bAutoDelete;
+
+  pThread->SetThreadInfo();
+
+  XBMC->Log(LOG_NOTICE,"Thread %s start, auto delete: %s", name.c_str(), (pThread->IsAutoDelete() ? "true" : "false"));
+  pThread->OnStartup();
+  pThread->Process();
+  pThread->OnExit();
+
+  pThread->m_ThreadId = 0;
+  pThread->TermHandler();
+
+  if (autodelete)
+  {
+    XBMC->Log(LOG_DEBUG,"Thread %s %li terminating (autodelete)", name.c_str(), id);
+    delete pThread;
+    pThread = NULL;
+  }
+  else
+    XBMC->Log(LOG_DEBUG,"Thread %s %li terminating", name.c_str(), id);
+
+  return 0;
+}
+
+bool CThread::IsAutoDelete() const
+{
+  return m_bAutoDelete;
 }
 
 #endif //TSREADER
