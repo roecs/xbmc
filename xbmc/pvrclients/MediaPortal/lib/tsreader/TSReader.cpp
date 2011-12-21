@@ -96,7 +96,7 @@ long CTsReader::Open(const char* pszFileName)
   {
     // rtsp:// stream
     // open stream
-    XBMC->Log(LOG_DEBUG, "open rtsp:%s", url);
+    XBMC->Log(LOG_DEBUG, "open rtsp: %s", url);
 #ifdef LIVE555
     //strcpy(m_rtspClient.m_outFileName, "e:\\temp\\rtsptest.ts");
     if ( !m_rtspClient.OpenStream(url))
@@ -120,7 +120,7 @@ long CTsReader::Open(const char* pszFileName)
     m_rtspClient.Play(0.0,0.0);
     m_fileReader = new CMemoryReader(m_buffer);
 #else
-    XBMC->Log(LOG_DEBUG, "Failed to open %s. PVR client is compiled without LIVE555 RTSP support.", url);
+    XBMC->Log(LOG_ERROR, "Failed to open %s. PVR client is compiled without LIVE555 RTSP support.", url);
     XBMC->QueueNotification(QUEUE_ERROR, "PVR client has no RTSP support: %s", url);
     return E_FAIL;
 #endif //LIVE555
@@ -158,7 +158,7 @@ long CTsReader::Open(const char* pszFileName)
   }
   else
   {
-    if ((length < 9) || (_strcmpi(&url[length-9], ".tsbuffer") != 0))
+    if ((length < 9) || (strnicmp(&url[length-9], ".tsbuffer", 9) != 0))
     {
       // local .ts file
       m_bTimeShifting = false;

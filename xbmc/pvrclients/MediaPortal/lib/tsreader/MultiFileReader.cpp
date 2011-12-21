@@ -101,7 +101,7 @@ long MultiFileReader::OpenFile()
   {
     if (GetTickCount()-tc>MAX_BUFFER_TIMEOUT)
     {
-      XBMC->Log(LOG_DEBUG, "MultiFileReader: timedout while waiting for buffer file to become available");
+      XBMC->Log(LOG_ERROR, "MultiFileReader: timedout while waiting for buffer file to become available");
       XBMC->QueueNotification(QUEUE_ERROR, "Time out while waiting for buffer file");
       return S_FALSE;
     }
@@ -162,7 +162,7 @@ unsigned long MultiFileReader::SetFilePointer(int64_t llDistanceToMove, unsigned
     m_currentPosition = m_startPosition;
 
   if (m_currentPosition > m_endPosition) {
-    XBMC->Log(LOG_DEBUG, "Seeking beyond the end position: %I64d > %I64d", m_currentPosition, m_endPosition);
+    XBMC->Log(LOG_ERROR, "Seeking beyond the end position: %I64d > %I64d", m_currentPosition, m_endPosition);
     m_currentPosition = m_endPosition;
   }
 
@@ -188,7 +188,10 @@ long MultiFileReader::Read(unsigned char* pbData, unsigned long lDataLength, uns
   RefreshFileSize();
 
   if (m_currentPosition < m_startPosition)
+  {
+    XBMC->Log(LOG_DEBUG, "%s: current position adjusted from %d to %d.", __FUNCTION__, m_currentPosition, m_startPosition);
     m_currentPosition = m_startPosition;
+  }
 
   // Find out which file the currentPosition is in.
   MultiFileReaderFile *file = NULL;
@@ -200,9 +203,12 @@ long MultiFileReader::Read(unsigned char* pbData, unsigned long lDataLength, uns
       break;
   };
 
+  // XBMC->Log(LOG_DEBUG, "%s: reading %ld bytes. File %s, start %d, current %d, end %d.", __FUNCTION__, lDataLength, file->filename.c_str(), m_startPosition, m_currentPosition, m_endPosition);
+
+
   if(!file)
   {
-    XBMC->Log(LOG_DEBUG, "MultiFileReader::no file");
+    XBMC->Log(LOG_ERROR, "MultiFileReader::no file");
     XBMC->QueueNotification(QUEUE_ERROR, "No buffer file");
     return S_FALSE;
   }
@@ -228,7 +234,7 @@ long MultiFileReader::Read(unsigned char* pbData, unsigned long lDataLength, uns
     int64_t posSeeked=m_TSFile.GetFilePointer();
     if (posSeeked!=seekPosition)
     {
-      XBMC->Log(LOG_DEBUG, "SEEK FAILED");
+      XBMC->Log(LOG_ERROR, "SEEK FAILED");
     }
 
     unsigned long bytesRead = 0;
@@ -236,17 +242,18 @@ long MultiFileReader::Read(unsigned char* pbData, unsigned long lDataLength, uns
     int64_t bytesToRead = file->length - seekPosition;
     if (lDataLength > bytesToRead)
     {
+      // XBMC->Log(LOG_DEBUG, "%s: datalength %lu bytesToRead %lli.", __FUNCTION__, lDataLength, bytesToRead);
       hr = m_TSFile.Read(pbData, (unsigned long)bytesToRead, &bytesRead);
       if (FAILED(hr))
       {
-        XBMC->Log(LOG_DEBUG, "READ FAILED1");
+        XBMC->Log(LOG_ERROR, "READ FAILED1");
       }
       m_currentPosition += bytesToRead;
 
       hr = this->Read(pbData + bytesToRead, lDataLength - (unsigned long)bytesToRead, dwReadBytes);
       if (FAILED(hr))
       {
-        XBMC->Log(LOG_DEBUG, "READ FAILED2");
+        XBMC->Log(LOG_ERROR, "READ FAILED2");
       }
       *dwReadBytes += bytesRead;
     }
@@ -255,7 +262,7 @@ long MultiFileReader::Read(unsigned char* pbData, unsigned long lDataLength, uns
       hr = m_TSFile.Read(pbData, lDataLength, dwReadBytes);
       if (FAILED(hr))
       {
-        XBMC->Log(LOG_DEBUG, "READ FAILED2");
+        XBMC->Log(LOG_ERROR, "READ FAILED3");
       }
       m_currentPosition += lDataLength;
     }
@@ -266,6 +273,7 @@ long MultiFileReader::Read(unsigned char* pbData, unsigned long lDataLength, uns
     *dwReadBytes = 0;
   }
 
+  // XBMC->Log(LOG_DEBUG, "%s: read %lu bytes. start %lli, current %lli, end %lli.", __FUNCTION__, *dwReadBytes, m_startPosition, m_currentPosition, m_endPosition);
   return S_OK;
 }
 
@@ -309,7 +317,7 @@ long MultiFileReader::RefreshTSBufferFile()
   long Loop=10;
 
   //char* pBuffer;
-  wchar_t* pBuffer;
+  wchar_t* pBuffer = NULL;
 
   do
   {
@@ -325,11 +333,17 @@ long MultiFileReader::RefreshTSBufferFile()
 
     // Min file length is Header ( int64_t + long + long ) + filelist ( > 0 ) + Footer ( long + long ) 
     if (fileLength <= (sizeof(int64_t) + sizeof(long) + sizeof(long) + sizeof(wchar_t) + sizeof(long) + sizeof(long)))
+    {
+      if (m_bDebugOutput)
+      {
+        XBMC->Log(LOG_DEBUG, "MultiFileReader::RefreshTSBufferFile() TSBufferFile too short");
+      }
       return S_FALSE;
+    }
 
     m_TSBufferFile.SetFilePointer(0, FILE_BEGIN);
 
-    int readLength = sizeof(currentPosition) + sizeof(filesAdded) + sizeof(filesRemoved);
+    unsigned long readLength = sizeof(currentPosition) + sizeof(filesAdded) + sizeof(filesRemoved);
     unsigned char* readBuffer = new unsigned char[readLength];
 
     result = m_TSBufferFile.Read(readBuffer, readLength, &bytesRead);
@@ -342,6 +356,7 @@ long MultiFileReader::RefreshTSBufferFile()
       currentPosition = *((int64_t*)(readBuffer + 0));
 		  filesAdded = *((long*)(readBuffer + sizeof(int64_t)));
 		  filesRemoved = *((long*)(readBuffer + sizeof(int64_t) + sizeof(long)));
+      // XBMC->Log(LOG_DEBUG, "MultiFileReader::RefreshTSBufferFile() currentPosition %lli", currentPosition);
     }
 
     delete[] readBuffer;
@@ -401,7 +416,7 @@ long MultiFileReader::RefreshTSBufferFile()
 
     if(Error)
     {
-      XBMC->Log(LOG_DEBUG, "MultiFileReader has failed for TSbuffer integrity. Error : %x", Error) ;
+      XBMC->Log(LOG_ERROR, "MultiFileReader has failed for TSbuffer integrity. Error : %x", Error) ;
       return E_FAIL ;
     }
   }
@@ -589,7 +604,7 @@ long MultiFileReader::RefreshTSBufferFile()
 //TODO: make OS independent. Currently Windows specific
 long MultiFileReader::GetFileLength(const char* pFilename, int64_t &length)
 {
-#ifdef _WIN32
+#if defined(TARGET_WINDOWS)
   //USES_CONVERSION;
 
   length = 0;
@@ -618,7 +633,7 @@ long MultiFileReader::GetFileLength(const char* pFilename, int64_t &length)
     DWORD dwErr = GetLastError();
     //swprintf((LPWSTR)&msg, L"Failed to open file %s : 0x%x\n", pFilename, dwErr);
     //::OutputDebugString(W2T((LPWSTR)&msg));
-    XBMC->Log(LOG_DEBUG, "Failed to open file %s : 0x%x\n", pFilename, dwErr);
+    XBMC->Log(LOG_ERROR, "Failed to open file %s : 0x%x\n", pFilename, dwErr);
     XBMC->QueueNotification(QUEUE_ERROR, "Failed to open file %s", pFilename);
     return HRESULT_FROM_WIN32(dwErr);
   }

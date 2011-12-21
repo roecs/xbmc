@@ -31,6 +31,7 @@
 #define ERROR_FILENAME_EXCED_RANGE       206L
 #define E_OUTOFMEMORY                    0x8007000EL
 #define E_FAIL                           0x8004005EL
+#define ERROR_INVALID_NAME               123L
 
 #define THREAD_FUNC_PREFIX void *
 #define THREAD_PRIORITY_LOWEST          THREAD_BASE_PRIORITY_MIN
@@ -89,5 +90,30 @@ inline unsigned long GetTickCount(void)
   return (unsigned long)( (ts.tv_sec * 1000) + (ts.tv_usec / 1000) );
 };
 #endif /* TARGET_LINUX || TARGET_DARWIN */
+
+// For TSReader
+//#include <sys/time.h>
+#define SUCCEEDED(hr) (((HRESULT)(hr)) >= 0)
+
+size_t wcslen(const wchar_t *str)
+{
+  const unsigned short *eos = (const unsigned short*)str;
+  while( *eos++ ) ;
+  return( (size_t)(eos - (const unsigned short*)str) -1);
+}
+
+size_t wcstombs(char *s, const wchar_t *w, size_t n)
+{
+  size_t i = 0;
+  const unsigned short *wc = (const unsigned short*) w;
+  while(wc[i] && (i < n))
+  {
+    s[i] = wc[i];
+    ++i;
+  }
+  if (i < n) s[i] = '\0';
+
+  return (i);
+}
 
 #endif
