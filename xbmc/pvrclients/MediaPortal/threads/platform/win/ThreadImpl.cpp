@@ -23,7 +23,7 @@
 
 long CThread::Create(bool bAutoDelete, unsigned stacksize)
 {
-  ResetEvent(m_hStopEvent);
+  m_hStopEvent->ResetEvent();
 
   m_bAutoDelete = bAutoDelete;
   m_bStop = false;
@@ -144,20 +144,13 @@ bool CThread::WaitForThreadExit(unsigned long dwTimeoutMilliseconds)
 {
   bool bReturn = true;
 
-  SetEvent(m_hStopEvent);
-  long result = WaitForSingleObject(m_hDoneEvent, dwTimeoutMilliseconds);
+  m_hStopEvent->SetEvent();
 
-  if ((result == WAIT_TIMEOUT) && (m_ThreadOpaque.handle != INVALID_HANDLE_VALUE))
+  if (!m_hDoneEvent->Wait(dwTimeoutMilliseconds))
   {
     TerminateThread(m_ThreadOpaque.handle, -1);
     TermHandler();
-	bReturn = false;
-  }
-  else if (result != WAIT_OBJECT_0)
-  {
-    DWORD err = GetLastError();
-	XBMC->Log(ADDON::LOG_ERROR, "%s: Error %l\n", __FUNCTION__, HRESULT_FROM_WIN32(err));
-	bReturn =false;
+    bReturn = false;
   }
 
   m_ThreadOpaque.handle = INVALID_HANDLE_VALUE;
@@ -167,8 +160,7 @@ bool CThread::WaitForThreadExit(unsigned long dwTimeoutMilliseconds)
 
 bool CThread::ThreadIsStopping(unsigned long dwTimeoutMilliseconds)
 {
-  DWORD result = WaitForSingleObject(m_hStopEvent, dwTimeoutMilliseconds);
-  return (result != WAIT_TIMEOUT);
+  return m_hStopEvent->Wait(dwTimeoutMilliseconds);
 }
 
 void CThread::TermHandler()

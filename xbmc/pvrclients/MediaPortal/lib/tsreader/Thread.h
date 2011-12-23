@@ -35,6 +35,7 @@
 #include "threads/ThreadImpl.h"
 #include "SingleLock.h"
 #include "CriticalSection.h"
+#include "WaitEvent.h"
 
 class IRunnable
 {
@@ -73,8 +74,8 @@ class CThread: public IRunnable
     virtual void OnExit(){};
     virtual void OnException(){} // signal termination handler
     virtual void Process();
-    wait_event_t m_hDoneEvent;
-    wait_event_t m_hStopEvent;
+    CWaitEvent* m_hDoneEvent;
+    CWaitEvent* m_hStopEvent;
     volatile bool m_bStop;
 
   private:

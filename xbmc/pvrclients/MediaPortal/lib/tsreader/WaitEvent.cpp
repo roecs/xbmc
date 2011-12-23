@@ -19,6 +19,7 @@
 #ifdef TSREADER
 
 #include "WaitEvent.h"
+#include "client.h"
 
 #ifdef TARGET_WINDOWS
 
@@ -51,7 +52,28 @@ bool CWaitEvent::Wait()
   return false;
 }
 
-#elif defined _LINUX || defined __APPLE__
+bool CWaitEvent::Wait(unsigned long dwTimeoutMilliseconds)
+{
+  DWORD dwResult=::WaitForSingleObject(m_waitevent,dwTimeoutMilliseconds);
+  switch (dwResult)
+  {
+    case WAIT_OBJECT_0:
+      return true;
+    case WAIT_TIMEOUT:
+      return false;
+    case WAIT_FAILED:
+    {
+      DWORD err = GetLastError();
+      XBMC->Log(ADDON::LOG_ERROR, "%s: Error %l\n", __FUNCTION__, HRESULT_FROM_WIN32(err));
+    }
+    default:
+      return false;
+  }
+  return false;
+}
+
+
+#elif (defined TARGET_LINUX) || (defined TARGET_DARWIN)
 #ifndef _XOPEN_SOURCE
 #define _XOPEN_SOURCE 600
 #endif
@@ -96,6 +118,25 @@ bool CWaitEvent::Wait()
     return false;
   }
 }
+
+bool CWaitEvent::Wait(unsigned long dwTimeoutMilliseconds)
+{
+  // Wait for the event be signaled (infinite time)
+  //int retCode = sem_trywait(&m_waitevent);
+  // Wait for the event be signaled with time-out
+  struct timespec ts;
+  ts.tv_sec = 0;
+  ts.tv_nsec = dwTimeoutMilliseconds * 1000000;
+  int retCode = sem_timedwait(&m_waitevent, &ts);
+
+  if (retCode == 0) {
+    return true;
+  } else {
+    return false;
+  }
+}
+
+
 #else
 #error FIXME: Add a WaitEvent implementation for your OS
 #endif //WIN32

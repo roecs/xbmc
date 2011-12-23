@@ -39,8 +39,8 @@ using namespace ADDON;
 
 CThread::CThread(const char* ThreadName)
 {
-  m_hStopEvent = CreateEvent(NULL, TRUE, TRUE, NULL);
-  m_hDoneEvent = CreateEvent(NULL, TRUE, TRUE, NULL);
+  m_hStopEvent = new CWaitEvent(NULL, TRUE, TRUE, NULL);
+  m_hDoneEvent = new CWaitEvent(NULL, TRUE, TRUE, NULL);
   m_ThreadOpaque.handle = INVALID_HANDLE_VALUE;
   m_bThreadRunning=FALSE;
 
@@ -57,8 +57,8 @@ CThread::CThread(const char* ThreadName)
 
 CThread::CThread(IRunnable* pRunnable, const char* ThreadName)
 {
-  m_hStopEvent = CreateEvent(NULL, TRUE, TRUE, NULL);
-  m_hDoneEvent = CreateEvent(NULL, TRUE, TRUE, NULL);
+  m_hStopEvent = new CWaitEvent(NULL, TRUE, TRUE, NULL);
+  m_hDoneEvent = new CWaitEvent(NULL, TRUE, TRUE, NULL);
   m_ThreadOpaque.handle = INVALID_HANDLE_VALUE;
   m_bThreadRunning=FALSE;
 
@@ -77,8 +77,8 @@ CThread::CThread(IRunnable* pRunnable, const char* ThreadName)
 CThread::~CThread()
 {
   WaitForThreadExit();
-  CloseHandle(m_hStopEvent);
-  CloseHandle(m_hDoneEvent);
+  delete m_hStopEvent;
+  delete m_hDoneEvent;
 }
 
 bool CThread::IsThreadRunning()
@@ -88,7 +88,7 @@ bool CThread::IsThreadRunning()
 
 void CThread::Process()
 {
-  ResetEvent(m_hDoneEvent);
+  m_hDoneEvent->ResetEvent();
   m_bThreadRunning=TRUE;
   try
   {
@@ -98,7 +98,7 @@ void CThread::Process()
   {
     pStr = NULL;
   }
-  SetEvent(m_hDoneEvent);
+  m_hDoneEvent->SetEvent();
   m_bThreadRunning=FALSE;
 }
 

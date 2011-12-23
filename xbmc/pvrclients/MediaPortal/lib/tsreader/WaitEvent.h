@@ -27,6 +27,7 @@ class CWaitEvent
     CWaitEvent(LPSECURITY_ATTRIBUTES lpEventAttributes, int bManualReset, int bInitialState, const char* lpName);
     virtual ~CWaitEvent(void);
     bool Wait();
+    bool Wait(unsigned long dwTimeoutMilliseconds);
     void SetEvent();
     void ResetEvent();
 
