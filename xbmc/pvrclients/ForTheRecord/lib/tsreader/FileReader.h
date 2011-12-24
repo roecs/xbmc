@@ -29,13 +29,7 @@
 
 #if defined TSREADER
 
-#include "libPlatform/os-dependent.h"
-#if !defined(TARGET_WINDOWS)
-#include "File.h"
-#undef S_OK
-#define S_OK 0x0L
-#define S_FALSE 0x1L
-#endif
+#include "os-dependent.h"
 
 class FileReader
 {

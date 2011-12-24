@@ -34,10 +34,6 @@
 #include "utils.h"
 #include <wchar.h>
 #if !defined(TARGET_WINDOWS)
-#include <sys/time.h>
-#include "PlatformInclude.h"
-#include "File.h"
-#define SUCCEEDED(hr) (((HRESULT)(hr)) >= 0)
 using namespace XFILE;
 #endif
 
@@ -796,38 +792,4 @@ void MultiFileReader::RefreshFileSize()
   // XBMC->Log(LOG_DEBUG, "%s: m_cachedFileSize %d.", __FUNCTION__, m_cachedFileSize);
 }
 
-// The ts.tsbuffer file will contain 'Windows' wchars which are
-// 16 bit each, this is the platform independent wcslen
-size_t MultiFileReader::WcsLen(const void *str)
-{
-#if defined(TARGET_WINDOWS)
-  return wcslen((const wchar_t *)str);
-#elif defined(TARGET_LINUX) || defined(TARGET_OSX)
-  const unsigned short *eos = (const unsigned short*)str;
-  while( *eos++ ) ;
-  return( (size_t)(eos - (const unsigned short*)str) -1);
-#else
-#endif
-}
-
-// The ts.tsbuffer file will contain 'Windows' wchars which are
-// 16 bit each, this is the platform independent wcstombs
-size_t MultiFileReader::WcsToMbs(char *s, const void *w, size_t n)
-{
-#if defined(TARGET_WINDOWS)
-  return wcstombs(s, (const wchar_t *)w, n);
-#elif defined(TARGET_LINUX) || defined(TARGET_OSX)
-  size_t i = 0;
-  const unsigned short *wc = (const unsigned short*) w;
-  while(wc[i] && (i < n))
-  {
-    s[i] = wc[i];
-    ++i;
-  }
-  if (i < n) s[i] = '\0';
-
-  return (i);
-#else
-#endif
-}
 #endif //TSREADER

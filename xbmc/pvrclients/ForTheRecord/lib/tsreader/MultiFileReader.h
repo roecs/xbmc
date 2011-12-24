@@ -33,14 +33,6 @@
 #include <vector>
 #include <string>
 
-#ifdef _WIN32
-#define PATH_SEPARATOR_CHAR '\\'
-#define PATH_SEPARATOR_STRING "\\"
-#else
-#define PATH_SEPARATOR_CHAR '/'
-#define PATH_SEPARATOR_STRING "/"
-#endif
-
 class MultiFileReaderFile
 {
   public:
@@ -84,8 +76,6 @@ class MultiFileReader : public FileReader
     long RefreshTSBufferFile();
     long GetFileLength(const char* pFilename, int64_t &length);
     void RefreshFileSize();
-    size_t WcsLen(const void *str);
-    size_t WcsToMbs(char *s, const void *w, size_t n);
 
     //  SharedMemory* m_pSharedMemory;
     FileReader m_TSBufferFile;

@@ -21,6 +21,12 @@
     <Filter Include="Header Files\tsreader">
       <UniqueIdentifier>{f37aa152-f1e2-4d22-a1b1-34c708ae8562}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\posix">
+      <UniqueIdentifier>{58264073-8c1b-4d0d-87e2-25c302d58427}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\windows">
+      <UniqueIdentifier>{65b182d7-504f-43fb-af83-7d2ec60a77f8}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\channel.cpp">
@@ -164,6 +170,15 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\..\CriticalSection.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\posix\os_posix.h">
+      <Filter>Header Files\posix</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\windows\os_windows.h">
+      <Filter>Header Files\windows</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\os-dependent.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

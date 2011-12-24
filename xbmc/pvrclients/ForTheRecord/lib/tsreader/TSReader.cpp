@@ -27,11 +27,6 @@
 #include "client.h" //for XBMC->Log
 #include "MultiFileReader.h"
 #include "utils.h"
-#if !defined(TARGET_WINDOWS)
-#include "PlatformInclude.h"
-#include "limits.h"
-#define _strcmpi strcasecmp
-#endif
 
 using namespace ADDON;
 
