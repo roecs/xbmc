@@ -135,9 +135,9 @@ bool CThread::WaitForThreadExit(unsigned long dwTimeoutMilliseconds)
 {
   bool bReturn = true;
 
-  m_hStopEvent->SetEvent();
+  m_StopEvent->SetEvent();
 
-  if (!m_hDoneEvent->Wait(dwTimeoutMilliseconds))
+  if (!m_TermEvent->Wait(dwTimeoutMilliseconds))
   {
     TerminateThread(m_ThreadOpaque.handle, -1);
     TermHandler();
@@ -151,5 +151,5 @@ bool CThread::WaitForThreadExit(unsigned long dwTimeoutMilliseconds)
 
 bool CThread::ThreadIsStopping(unsigned long dwTimeoutMilliseconds)
 {
-  return m_hStopEvent->Wait(dwTimeoutMilliseconds);
+  return m_StopEvent->Wait(dwTimeoutMilliseconds);
 }
