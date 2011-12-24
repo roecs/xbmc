@@ -74,8 +74,9 @@ class CThread: public IRunnable
     virtual void OnExit(){};
     virtual void OnException(){} // signal termination handler
     virtual void Process();
-    CWaitEvent* m_hDoneEvent;
-    CWaitEvent* m_hStopEvent;
+    CWaitEvent* m_TermEvent;
+    CWaitEvent* m_StopEvent;
+    CWaitEvent* m_StartEvent;
     volatile bool m_bStop;
 
   private:

@@ -39,9 +39,14 @@ using namespace ADDON;
 
 CThread::CThread(const char* ThreadName)
 {
-  m_hStopEvent = new CWaitEvent(NULL, TRUE, TRUE, NULL);
-  m_hDoneEvent = new CWaitEvent(NULL, TRUE, TRUE, NULL);
+  m_StartEvent = new CWaitEvent(NULL, TRUE, TRUE, NULL);
+  m_StopEvent = new CWaitEvent(NULL, TRUE, TRUE, NULL);
+  m_TermEvent = new CWaitEvent(NULL, TRUE, TRUE, NULL);
+#ifdef TARGET_WINDOWS
   m_ThreadOpaque.handle = INVALID_HANDLE_VALUE;
+#else
+  m_ThreadOpaque.LwpId = 0;
+#endif
   m_bThreadRunning=FALSE;
 
   m_bStop = false;
@@ -55,11 +60,17 @@ CThread::CThread(const char* ThreadName)
     m_ThreadName = ThreadName;
 }
 
+/*
 CThread::CThread(IRunnable* pRunnable, const char* ThreadName)
 {
-  m_hStopEvent = new CWaitEvent(NULL, TRUE, TRUE, NULL);
-  m_hDoneEvent = new CWaitEvent(NULL, TRUE, TRUE, NULL);
+  m_StartEvent = new CWaitEvent(NULL, TRUE, TRUE, NULL);
+  m_StopEvent = new CWaitEvent(NULL, TRUE, TRUE, NULL);
+  m_TermEvent = new CWaitEvent(NULL, TRUE, TRUE, NULL);
+#ifdef TARGET_WINDOWS
   m_ThreadOpaque.handle = INVALID_HANDLE_VALUE;
+#else
+  m_ThreadOpaque.LwpId = 0;
+#endif
   m_bThreadRunning=FALSE;
 
   m_bStop = false;
@@ -72,13 +83,14 @@ CThread::CThread(IRunnable* pRunnable, const char* ThreadName)
   if (ThreadName)
     m_ThreadName = ThreadName;
 }
-
+*/
 
 CThread::~CThread()
 {
   WaitForThreadExit();
-  delete m_hStopEvent;
-  delete m_hDoneEvent;
+  delete m_StartEvent;
+  delete m_StopEvent;
+  delete m_TermEvent;
 }
 
 bool CThread::IsThreadRunning()
@@ -88,18 +100,24 @@ bool CThread::IsThreadRunning()
 
 void CThread::Process()
 {
-  m_hDoneEvent->ResetEvent();
-  m_bThreadRunning=TRUE;
+  m_TermEvent->ResetEvent();
+  m_bThreadRunning = true;
   try
   {
     Run();
   }
+#ifdef TARGET_WINDOWS
   catch (LPWSTR pStr)
   {
     pStr = NULL;
   }
-  m_hDoneEvent->SetEvent();
-  m_bThreadRunning=FALSE;
+#endif
+  catch (...)
+  {
+    XBMC->Log(LOG_ERROR, "%s An unknown error happened in thread %s", __FUNCTION__, m_ThreadName.c_str());
+  }
+  m_TermEvent->SetEvent();
+  m_bThreadRunning = false;
 }
 
 THREADFUNC CThread::staticThread(void* data)
@@ -121,6 +139,9 @@ THREADFUNC CThread::staticThread(void* data)
   pThread->SetThreadInfo();
 
   XBMC->Log(LOG_NOTICE,"Thread %s start, auto delete: %s", name.c_str(), (pThread->IsAutoDelete() ? "true" : "false"));
+  
+  pThread->m_StartEvent->SetEvent();
+  
   pThread->OnStartup();
   pThread->Process();
   pThread->OnExit();

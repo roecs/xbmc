@@ -21,19 +21,34 @@
 
 #include <windows.h>
 
+using namespace ADDON;
+
 long CThread::Create(bool bAutoDelete, unsigned stacksize)
 {
-  m_hStopEvent->ResetEvent();
+  if (m_ThreadId != 0)
+  {
+    XBMC->Log(LOG_ERROR, "%s - fatal error creating thread- old thread id not null", __FUNCTION__);
+    return E_FAIL;
+  }
 
   m_bAutoDelete = bAutoDelete;
   m_bStop = false;
 
-  //m_ThreadHandle = (HANDLE) _beginthread(&CThread::staticThread, 0, (void *) this);
+  m_StartEvent->ResetEvent();
+  m_StopEvent->ResetEvent();
+  m_TermEvent->ResetEvent();
+
   m_ThreadOpaque.handle = CreateThread(NULL,stacksize, (LPTHREAD_START_ROUTINE)&staticThread, this, 0, &m_ThreadId);
   if (m_ThreadOpaque.handle == INVALID_HANDLE_VALUE)
     return E_FAIL;
 
   return S_OK;
+}
+
+void CThread::TermHandler()
+{
+  CloseHandle(m_ThreadOpaque.handle);
+  m_ThreadOpaque.handle = NULL;
 }
 
 void CThread::SetThreadInfo()
@@ -116,30 +131,6 @@ int CThread::GetPriority()
   return iReturn;
 }
 
-//bool CThread::WaitForThreadExit(unsigned int milliseconds)
-//{
-//  bool bReturn = true;
-//
-//  CSingleLock lock(m_CriticalSection);
-//  if (m_ThreadId && m_ThreadOpaque.handle != NULL)
-//  {
-//    // boost priority of thread we are waiting on to same as caller
-//    int callee = GetThreadPriority(m_ThreadOpaque.handle);
-//    int caller = GetThreadPriority(GetCurrentThread());
-//    if(caller > callee)
-//      SetThreadPriority(m_ThreadOpaque.handle, caller);
-//
-//    lock.Leave();
-//    bReturn = m_TermEvent.WaitMSec(milliseconds);
-//    lock.Enter();
-//
-//    // restore thread priority if thread hasn't exited
-//    if(caller > callee && m_ThreadOpaque.handle)
-//      SetThreadPriority(m_ThreadOpaque.handle, callee);
-//  }
-//  return bReturn;
-//}
-
 bool CThread::WaitForThreadExit(unsigned long dwTimeoutMilliseconds)
 {
   bool bReturn = true;
@@ -161,10 +152,4 @@ bool CThread::WaitForThreadExit(unsigned long dwTimeoutMilliseconds)
 bool CThread::ThreadIsStopping(unsigned long dwTimeoutMilliseconds)
 {
   return m_hStopEvent->Wait(dwTimeoutMilliseconds);
-}
-
-void CThread::TermHandler()
-{
-  CloseHandle(m_ThreadOpaque.handle);
-  m_ThreadOpaque.handle = NULL;
 }

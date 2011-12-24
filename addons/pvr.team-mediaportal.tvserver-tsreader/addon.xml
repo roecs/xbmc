@@ -9,6 +9,7 @@
   </requires>
   <extension
     point="xbmc.pvrclient"
+    library_linux="XBMC_MPTV-tsreader.pvr"
     library_wingl="XBMC_MPTV-tsreader_win32.pvr"
     library_windx="XBMC_MPTV-tsreader_win32.pvr"/>
   <extension point="xbmc.addon.metadata">

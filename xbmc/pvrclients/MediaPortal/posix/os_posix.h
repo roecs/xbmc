@@ -95,6 +95,7 @@ inline unsigned long GetTickCount(void)
 //#include <sys/time.h>
 #define SUCCEEDED(hr) (((HRESULT)(hr)) >= 0)
 
+#if 0
 size_t wcslen(const wchar_t *str)
 {
   const unsigned short *eos = (const unsigned short*)str;
@@ -115,5 +116,5 @@ size_t wcstombs(char *s, const wchar_t *w, size_t n)
 
   return (i);
 }
-
+#endif 
 #endif
