@@ -755,7 +755,6 @@ PVR_ERROR cPVRClientForTheRecord::AddTimer(const PVR_TIMER &timerinfo)
   cChannel* pChannel = FetchChannel(timerinfo.iClientChannelUid);
 
   Json::Value addScheduleResponse;
-  struct tm* convert = localtime(&timerinfo.endTime);
   time_t starttime = timerinfo.startTime;
   if (starttime == 0) starttime = time(NULL);
   int retval = ForTheRecord::AddOneTimeSchedule(pChannel->Guid(), starttime, timerinfo.strTitle, timerinfo.iMarginStart * 60, timerinfo.iMarginEnd * 60, addScheduleResponse);

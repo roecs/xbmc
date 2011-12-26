@@ -748,10 +748,9 @@ unsigned long MultiFileReader::setFilePointer(int64_t llDistanceToMove, unsigned
 
 int64_t MultiFileReader::getFilePointer()
 {
-  int64_t fileStart, fileEnd, fileLength;
+  int64_t fileStart, fileLength;
 
   GetFileSize(&fileStart, &fileLength);
-  fileEnd = fileLength + fileStart;
 
   return (int64_t)(GetFilePointer() - fileStart);
 }
