@@ -95,9 +95,6 @@
     <ClCompile Include="..\..\windows\CriticalSection.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\SingleLock.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\lib\tsreader\Thread.cpp">
       <Filter>Source Files\tsreader</Filter>
     </ClCompile>
