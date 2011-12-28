@@ -35,6 +35,7 @@
 #include "MultiFileReader.h"
 #include "utils.h"
 #include "MemoryReader.h"
+#include "RTSPClient.h"
 
 using namespace ADDON;
 
@@ -48,8 +49,17 @@ CTsReader::CTsReader()
   m_cardSettings    = NULL;
 
 #ifdef LIVE555
-  m_rtspClient.Initialize(&m_buffer);
+  m_rtspClient      = NULL;
+  m_buffer          = NULL;
 #endif
+}
+
+CTsReader::~CTsReader(void)
+{
+  if (m_buffer)
+    delete m_buffer;
+  if (m_rtspClient)
+    delete m_rtspClient;
 }
 
 std::string CTsReader::TranslatePath(const char*  pszFileName)
@@ -99,8 +109,19 @@ long CTsReader::Open(const char* pszFileName)
     XBMC->Log(LOG_DEBUG, "open rtsp: %s", url);
 #ifdef LIVE555
     //strcpy(m_rtspClient.m_outFileName, "e:\\temp\\rtsptest.ts");
-    if ( !m_rtspClient.OpenStream(url))
+    if (m_buffer)
+      delete m_buffer;
+    if (m_rtspClient)
+      delete m_rtspClient;
+    m_buffer = new CMemoryBuffer();
+    m_rtspClient = new CRTSPClient();
+    m_rtspClient->Initialize(m_buffer);
+
+    if ( !m_rtspClient->OpenStream(url))
+    {
+      SAFE_DELETE(m_rtspClient);
       return E_FAIL;
+    }
 
     m_bIsRTSP = true;
     m_bTimeShifting = true;
@@ -115,17 +136,16 @@ long CTsReader::Open(const char* pszFileName)
     }
 
     // play
-    m_buffer.Clear();
-    m_buffer.Run(true);
-    m_rtspClient.Play(0.0,0.0);
-    m_fileReader = new CMemoryReader(m_buffer);
+    //m_buffer->Clear();
+    //m_buffer->Run(true);
+    m_rtspClient->Play(0.0,0.0);
+    m_fileReader = new CMemoryReader(*m_buffer);
 #else
     XBMC->Log(LOG_ERROR, "Failed to open %s. PVR client is compiled without LIVE555 RTSP support.", url);
     XBMC->QueueNotification(QUEUE_ERROR, "PVR client has no RTSP support: %s", url);
     return E_FAIL;
 #endif //LIVE555
   }
-#ifdef TARGET_WINDOWS
   else if ((length > 5) && (strnicmp(&url[length-4], ".tsp", 4) == 0))
   {
     // .tsp file
@@ -135,7 +155,7 @@ long CTsReader::Open(const char* pszFileName)
     FILE* fd = fopen(url, "rb");
     if (fd == NULL)
       return E_FAIL;
-    fread(url, 1, 100, fd);
+    //int bytesRead = fread(url, 1, 100, fd);
     int bytesRead = fread(url, 1, sizeof(url), fd);
     if (bytesRead >= 0)
       url[bytesRead] = 0;
@@ -143,19 +163,31 @@ long CTsReader::Open(const char* pszFileName)
 
     XBMC->Log(LOG_NOTICE, "open %s", url);
 #ifdef LIVE555
-    if ( !m_rtspClient.OpenStream(url))
+    if (m_buffer)
+      delete m_buffer;
+    if (m_rtspClient)
+      delete m_rtspClient;
+    m_buffer = new CMemoryBuffer();
+    m_rtspClient = new CRTSPClient();
+    m_rtspClient->Initialize(m_buffer);
+
+    if ( !m_rtspClient->OpenStream(url))
+    {
+      SAFE_DELETE(m_rtspClient);
       return E_FAIL;
+    }
 
     m_bIsRTSP = true;
-    m_buffer.Clear();
-    m_buffer.Run(true);
-    m_rtspClient.Play(0.0,0.0);
-    m_fileReader = new CMemoryReader(m_buffer);
+    //m_buffer->Clear();
+    //m_buffer->Run(true);
+    m_rtspClient->Play(0.0,0.0);
+    m_fileReader = new CMemoryReader(*m_buffer);
 #else
     XBMC->Log(LOG_DEBUG, "Failed to open %s. PVR client is compiled without LIVE555 RTSP support.", url);
     return E_FAIL;
 #endif //LIVE555
   }
+#ifdef TARGET_WINDOWS
   else
   {
     if ((length < 9) || (strnicmp(&url[length-9], ".tsbuffer", 9) != 0))
@@ -214,7 +246,9 @@ void CTsReader::Close()
     if (m_bIsRTSP)
     {
 #ifdef LIVE555
-      m_rtspClient.Stop();
+      m_rtspClient->Stop();
+      SAFE_DELETE(m_rtspClient);
+      SAFE_DELETE(m_buffer);
 #endif
     }
 #ifdef TARGET_WINDOWS

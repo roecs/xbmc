@@ -18,18 +18,22 @@
  */
 #ifdef TSREADER
 
-#include "RTSPClient.h"
+//#include "RTSPClient.h"
 #include "client.h"
 #include "FileReader.h"
 #include "MemoryBuffer.h"
 #include "utils/StdString.h"
 #include "Cards.h"
 
+#ifdef LIVE555
+class CRTSPClient;
+#endif
+
 class CTsReader
 {
 public:
   CTsReader();
-  ~CTsReader(void) {};
+  ~CTsReader(void);
   long Open(const char* pszFileName);
   long Read(unsigned char* pbData, unsigned long lDataLength, unsigned long *dwReadBytes);
   void Close();
@@ -63,9 +67,9 @@ private:
   FileReader*     m_fileReader;
   FileReader*     m_fileDuration;
 #ifdef LIVE555
-  CRTSPClient     m_rtspClient;
+  CRTSPClient*    m_rtspClient;
+  CMemoryBuffer*  m_buffer;
 #endif
-  CMemoryBuffer   m_buffer;
   CCards*         m_cardSettings;     ///< Pointer to the MediaPortal card settings. Will be used to determine the base path of the timeshift buffer
   string          m_basePath;         ///< The base path shared by all timeshift buffers (to be determined from the Card settings)
 
