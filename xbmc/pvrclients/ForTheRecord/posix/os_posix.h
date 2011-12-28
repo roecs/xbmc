@@ -27,13 +27,13 @@
 #include <sys/time.h>
 
 // Success codes
-#define S_OK                             0L
+//#define S_OK                             0L
 #define S_FALSE                          1L
 //
 // Error codes
 #define ERROR_FILENAME_EXCED_RANGE       206L
-#define E_OUTOFMEMORY                    0x8007000EL
-#define E_FAIL                           0x8004005EL
+//#define E_OUTOFMEMORY                    0x8007000EL
+//#define E_FAIL                           0x8004005EL
 #define ERROR_INVALID_NAME               123L
 
 #define SUCCEEDED(hr) (((HRESULT)(hr)) >= 0)
@@ -43,17 +43,17 @@
 #define PATH_SEPARATOR_STRING "/"
 
 #include <string.h>
-#define strnicmp(X,Y,N) strncasecmp(X,Y,N)
+//#define strnicmp(X,Y,N) strncasecmp(X,Y,N)
 #define _strcmpi strcasecmp
 
-size_t WcsLen(const wchar_t *str)
+inline size_t WcsLen(const wchar_t *str)
 {
   const unsigned short *eos = (const unsigned short*)str;
   while( *eos++ ) ;
   return( (size_t)(eos - (const unsigned short*)str) -1);
-}
+};
 
-size_t WcsToMbs(char *s, const wchar_t *w, size_t n)
+inline size_t WcsToMbs(char *s, const wchar_t *w, size_t n)
 {
   size_t i = 0;
   const unsigned short *wc = (const unsigned short*) w;
@@ -65,6 +65,6 @@ size_t WcsToMbs(char *s, const wchar_t *w, size_t n)
   if (i < n) s[i] = '\0';
 
   return (i);
-}
+};
 
 #endif
