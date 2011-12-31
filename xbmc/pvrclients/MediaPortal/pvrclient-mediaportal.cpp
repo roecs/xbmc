@@ -378,7 +378,7 @@ PVR_ERROR cPVRClientMediaPortal::GetDriveSpace(long long *iTotal, long long *iUs
   return PVR_ERROR_NO_ERROR;
 }
 
-PVR_ERROR cPVRClientMediaPortal::GetMPTVTime(time_t *localTime, int *gmtOffset)
+PVR_ERROR cPVRClientMediaPortal::GetBackendTime(time_t *localTime, int *gmtOffset)
 {
   string result;
   vector<string> fields;
@@ -1464,7 +1464,7 @@ int cPVRClientMediaPortal::GetCurrentClientChannel()
   return m_iCurrentChannel;
 }
 
-PVR_ERROR cPVRClientMediaPortal::GetSignalStatus(PVR_SIGNAL_STATUS &signalStatus)
+PVR_ERROR cPVRClientMediaPortal::SignalStatus(PVR_SIGNAL_STATUS &signalStatus)
 {
   if (g_iTVServerXBMCBuild < 108)
   {
