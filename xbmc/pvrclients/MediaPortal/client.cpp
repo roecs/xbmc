@@ -470,7 +470,10 @@ PVR_ERROR GetStreamProperties(PVR_STREAM_PROPERTIES *pProperties)
 //-----------------------------------------------------------------------------
 const char * GetBackendName(void)
 {
-  return g_client->GetBackendName();
+  if (g_client)
+    return g_client->GetBackendName();
+  else
+    return "";
 }
 
 //-- GetBackendVersion --------------------------------------------------------
