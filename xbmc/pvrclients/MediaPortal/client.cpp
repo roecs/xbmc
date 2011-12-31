@@ -90,9 +90,9 @@ ADDON_STATUS ADDON_Create(void* hdl, void* props)
   }
 
 #ifdef TSREADER
-  XBMC->Log(LOG_DEBUG, "Creating MediaPortal PVR-Client (TSReader version)");
+  XBMC->Log(LOG_INFO, "Creating MediaPortal PVR-Client (TSReader version)");
 #else
-  XBMC->Log(LOG_DEBUG, "Creating MediaPortal PVR-Client (ffmpeg rtsp version)");
+  XBMC->Log(LOG_INFO, "Creating MediaPortal PVR-Client (ffmpeg rtsp version)");
 #endif
 
   m_CurStatus    = ADDON_STATUS_UNKNOWN;
@@ -511,7 +511,7 @@ PVR_ERROR GetBackendTime(time_t *localTime, int *gmtOffset)
   if (!g_client)
     return PVR_ERROR_SERVER_ERROR;
   else
-    return g_client->GetMPTVTime(localTime, gmtOffset);
+    return g_client->GetBackendTime(localTime, gmtOffset);
 }
 
 PVR_ERROR DialogChannelScan()
@@ -731,7 +731,7 @@ PVR_ERROR SignalStatus(PVR_SIGNAL_STATUS &signalStatus)
   if (!g_client)
     return PVR_ERROR_SERVER_ERROR;
   else
-    return g_client->GetSignalStatus(signalStatus);
+    return g_client->SignalStatus(signalStatus);
 }
 
 /*******************************************/
