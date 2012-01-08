@@ -1208,33 +1208,40 @@ bool cPVRClientMediaPortal::OpenLiveStream(const PVR_CHANNEL &channelinfo)
 
       Tokenize(result, timeshiftfields, "|");
       //[0] = string error message
-      //[1] = TvResult
+      //[1] = TvResult (optional field. SendCommand can also return a timeout)
 
-      //For TVServer 1.2.1:
-      //enum TvResult
-      //{
-      //  Succeeded = 0, (this is not an error)
-      //  AllCardsBusy = 1,
-      //  ChannelIsScrambled = 2,
-      //  NoVideoAudioDetected = 3,
-      //  NoSignalDetected = 4,
-      //  UnknownError = 5,
-      //  UnableToStartGraph = 6,
-      //  UnknownChannel = 7,
-      //  NoTuningDetails = 8,
-      //  ChannelNotMappedToAnyCard = 9,
-      //  CardIsDisabled = 10,
-      //  ConnectionToSlaveFailed = 11,
-      //  NotTheOwner = 12,
-      //  GraphBuildingFailed = 13,
-      //  SWEncoderMissing = 14,
-      //  NoFreeDiskSpace = 15,
-      //  NoPmtFound = 16,
-      //};
+      if(timeshiftfields.size()>1)
+      {
+        //For TVServer 1.2.1:
+        //enum TvResult
+        //{
+        //  Succeeded = 0, (this is not an error)
+        //  AllCardsBusy = 1,
+        //  ChannelIsScrambled = 2,
+        //  NoVideoAudioDetected = 3,
+        //  NoSignalDetected = 4,
+        //  UnknownError = 5,
+        //  UnableToStartGraph = 6,
+        //  UnknownChannel = 7,
+        //  NoTuningDetails = 8,
+        //  ChannelNotMappedToAnyCard = 9,
+        //  CardIsDisabled = 10,
+        //  ConnectionToSlaveFailed = 11,
+        //  NotTheOwner = 12,
+        //  GraphBuildingFailed = 13,
+        //  SWEncoderMissing = 14,
+        //  NoFreeDiskSpace = 15,
+        //  NoPmtFound = 16,
+        //};
 
-      tvresult = atoi(timeshiftfields[1].c_str());
-      // Display one of the localized error messages 30060-30075
-      XBMC->QueueNotification(QUEUE_ERROR, XBMC->GetLocalizedString(30059 + (int) tvresult));
+        tvresult = atoi(timeshiftfields[1].c_str());
+        // Display one of the localized error messages 30060-30075
+        XBMC->QueueNotification(QUEUE_ERROR, XBMC->GetLocalizedString(30059 + (int) tvresult));
+      }
+      else
+      {
+         XBMC->QueueNotification(QUEUE_ERROR, result.c_str());
+      }
     }
     else
     {
