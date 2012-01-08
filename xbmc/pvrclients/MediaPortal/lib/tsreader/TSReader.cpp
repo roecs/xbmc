@@ -47,6 +47,8 @@ CTsReader::CTsReader()
   m_bTimeShifting   = false;
   m_bIsRTSP         = false;
   m_cardSettings    = NULL;
+  m_State           = State_Stopped;
+  m_lastPause       = 0;
 
 #ifdef LIVE555
   m_rtspClient      = NULL;
@@ -140,6 +142,7 @@ long CTsReader::Open(const char* pszFileName)
     //m_buffer->Run(true);
     m_rtspClient->Play(0.0,0.0);
     m_fileReader = new CMemoryReader(*m_buffer);
+    m_State = State_Running;
 #else
     XBMC->Log(LOG_ERROR, "Failed to open %s. PVR client is compiled without LIVE555 RTSP support.", url);
     XBMC->QueueNotification(QUEUE_ERROR, "PVR client has no RTSP support: %s", url);
@@ -182,6 +185,9 @@ long CTsReader::Open(const char* pszFileName)
     //m_buffer->Run(true);
     m_rtspClient->Play(0.0,0.0);
     m_fileReader = new CMemoryReader(*m_buffer);
+    m_State = State_Running;
+    XBMC->Log(LOG_DEBUG, "RTSP duration %li", m_rtspClient->Duration());
+
 #else
     XBMC->Log(LOG_DEBUG, "Failed to open %s. PVR client is compiled without LIVE555 RTSP support.", url);
     return E_FAIL;
@@ -209,6 +215,7 @@ long CTsReader::Open(const char* pszFileName)
 
     // open file
     m_fileReader->SetFileName(m_fileName.c_str());
+    //m_fileReader->SetDebugOutput(true);
     long retval = m_fileReader->OpenFile();
     if (retval != S_OK)
     {
@@ -217,6 +224,7 @@ long CTsReader::Open(const char* pszFileName)
     }
 
     m_fileReader->SetFilePointer(0LL, FILE_BEGIN);
+    m_State = State_Running;
   }
 #else
   else
@@ -236,7 +244,7 @@ long CTsReader::Read(unsigned char* pbData, unsigned long lDataLength, unsigned 
   }
 
   dwReadBytes = 0;
-  return 1;
+  return S_FALSE;
 }
 
 void CTsReader::Close()
@@ -258,10 +266,11 @@ void CTsReader::Close()
     }
 #endif //TARGET_WINDOWS
     SAFE_DELETE(m_fileReader);
+    m_State = State_Stopped;
   }
 }
 
-bool CTsReader::OnZap(const char* pszFileName)
+bool CTsReader::OnZap(const char* pszFileName, int64_t timeShiftBufferPos, long timeshiftBufferID)
 {
 #ifdef TARGET_WINDOWS
   string newFileName;
@@ -282,7 +291,19 @@ bool CTsReader::OnZap(const char* pszFileName)
   {
     if (m_fileReader)
     {
+      int64_t pos_before, pos_after;
+      pos_before = m_fileReader->GetFilePointer();
       result = m_fileReader->SetFilePointer(0LL, FILE_END);
+      pos_after = m_fileReader->GetFilePointer();
+
+      if ((timeShiftBufferPos > 0) && (pos_after > timeShiftBufferPos))
+      {
+        /* Move backward */
+        result = m_fileReader->SetFilePointer((timeShiftBufferPos-pos_after), FILE_CURRENT);
+        pos_after = m_fileReader->GetFilePointer();
+      }
+
+      XBMC->Log(LOG_DEBUG,"OnZap: move from %I64d to %I64d tsbufpos  %I64d", pos_before, pos_after, timeShiftBufferPos);
       usleep(100000);
       return (result == S_OK);
     }
@@ -313,6 +334,31 @@ void CTsReader::SetDirectory( string& directory )
   //TODO: do something useful...
 #endif
   m_basePath = tmp;
+}
+
+bool CTsReader::IsTimeShifting()
+{
+  return m_bTimeShifting;
+}
+
+long CTsReader::Pause()
+{
+  XBMC->Log(LOG_DEBUG, "CTsReader::Pause() - IsTimeShifting = %d - state = %d", IsTimeShifting(), m_State);
+
+  if (m_State == State_Running)
+  {
+    m_lastPause = GetTickCount();
+    // Are we using rtsp?
+    if (m_bIsRTSP)
+    {
+        XBMC->Log(LOG_DEBUG, "CTsReader::Pause()  ->pause rtsp"); // at position: %f", (m_seekTime.Millisecs() / 1000.0f));
+        m_rtspClient->Pause();
+    }
+    m_State = State_Paused;
+  }
+
+  XBMC->Log(LOG_DEBUG, "CTsReader::Pause() - END - state = %d", m_State);
+  return S_OK;
 }
 
 #endif //TSREADER

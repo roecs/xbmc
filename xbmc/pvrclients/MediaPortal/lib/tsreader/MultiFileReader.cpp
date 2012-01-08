@@ -143,7 +143,7 @@ long MultiFileReader::GetFileSize(int64_t *pStartPosition, int64_t *pLength)
 
 unsigned long MultiFileReader::SetFilePointer(int64_t llDistanceToMove, unsigned long dwMoveMethod)
 {
-//  RefreshTSBufferFile();
+  RefreshTSBufferFile(); // This one was disabled by mepo tsreader..
 
   if (dwMoveMethod == FILE_END)
   {
@@ -161,12 +161,13 @@ unsigned long MultiFileReader::SetFilePointer(int64_t llDistanceToMove, unsigned
   if (m_currentPosition < m_startPosition)
     m_currentPosition = m_startPosition;
 
-  if (m_currentPosition > m_endPosition) {
+  if (m_currentPosition > m_endPosition)
+  {
     XBMC->Log(LOG_ERROR, "Seeking beyond the end position: %I64d > %I64d", m_currentPosition, m_endPosition);
     m_currentPosition = m_endPosition;
   }
 
-  RefreshTSBufferFile();
+  //RefreshTSBufferFile(); // This one is used by mepo tsreader..
   return S_OK;
 }
 
@@ -189,7 +190,7 @@ long MultiFileReader::Read(unsigned char* pbData, unsigned long lDataLength, uns
 
   if (m_currentPosition < m_startPosition)
   {
-    XBMC->Log(LOG_DEBUG, "%s: current position adjusted from %d to %d.", __FUNCTION__, m_currentPosition, m_startPosition);
+    XBMC->Log(LOG_DEBUG, "%s: current position adjusted from %%I64dd to %%I64dd.", __FUNCTION__, m_currentPosition, m_startPosition);
     m_currentPosition = m_startPosition;
   }
 
@@ -356,7 +357,7 @@ long MultiFileReader::RefreshTSBufferFile()
       currentPosition = *((int64_t*)(readBuffer + 0));
 		  filesAdded = *((long*)(readBuffer + sizeof(int64_t)));
 		  filesRemoved = *((long*)(readBuffer + sizeof(int64_t) + sizeof(long)));
-      // XBMC->Log(LOG_DEBUG, "MultiFileReader::RefreshTSBufferFile() currentPosition %lli", currentPosition);
+      // XBMC->Log(LOG_DEBUG, "MultiFileReader::RefreshTSBufferFile() currentPosition %I64d", currentPosition);
     }
 
     delete[] readBuffer;

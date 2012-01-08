@@ -44,13 +44,13 @@ using namespace ADDON;
 int g_iTVServerXBMCBuild = 0;
 
 /* PVR client version (don't forget to update also the addon.xml and the Changelog.txt files) */
-#define PVRCLIENT_MEDIAPORTAL_VERSION_STRING    "1.2.1.109"
+#define PVRCLIENT_MEDIAPORTAL_VERSION_STRING    "1.2.2.110"
 
 /* TVServerXBMC plugin supported versions */
 #define TVSERVERXBMC_MIN_VERSION_STRING         "1.1.0.70"
 #define TVSERVERXBMC_MIN_VERSION_BUILD          70
-#define TVSERVERXBMC_RECOMMENDED_VERSION_STRING "1.1.x.109 or 1.2.1.109"
-#define TVSERVERXBMC_RECOMMENDED_VERSION_BUILD  109
+#define TVSERVERXBMC_RECOMMENDED_VERSION_STRING "1.1.x.110 or 1.2.2.110"
+#define TVSERVERXBMC_RECOMMENDED_VERSION_BUILD  110
 
 /************************************************************/
 /** Class interface */
@@ -1273,6 +1273,8 @@ bool cPVRClientMediaPortal::OpenLiveStream(const PVR_CHANNEL &channelinfo)
     //[1] = original (unresolved) rtsp url
     //[2] = timeshift buffer filename
     //[3] = card id (TVServerXBMC build >= 106)
+    //[4] = tsbuffer pos (TVServerXBMC build >= 110)
+    //[5] = tsbuffer file nr (TVServerXBMC build >= 110)
 
     m_PlaybackURL = timeshiftfields[0];
     XBMC->Log(LOG_INFO, "Channel stream URL: %s, timeshift buffer: %s", m_PlaybackURL.c_str(), timeshiftfields[2].c_str());
@@ -1302,7 +1304,10 @@ bool cPVRClientMediaPortal::OpenLiveStream(const PVR_CHANNEL &channelinfo)
         if(g_bDirectTSFileRead)
         {
           // Timeshift buffer
-          return m_tsreader->OnZap(timeshiftfields[2].c_str());
+          if (g_iTVServerXBMCBuild >=110 )
+            return m_tsreader->OnZap(timeshiftfields[2].c_str(), atoll(timeshiftfields[4].c_str()), atol(timeshiftfields[5].c_str()));
+          else
+            return m_tsreader->OnZap(timeshiftfields[2].c_str(), -1, -1);
         }
         else
 #endif //TARGET_WINDOWS
