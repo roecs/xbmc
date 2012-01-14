@@ -16,9 +16,10 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifdef TSREADER
 
+#ifdef LIVE555
 #include "RTSPClient.h"
+#endif //LIVE555
 #include "client.h"
 #include "FileReader.h"
 #include "MemoryBuffer.h"
@@ -70,4 +71,3 @@ private:
   string          m_basePath;         ///< The base path shared by all timeshift buffers (to be determined from the Card settings)
 
 };
-#endif //TSREADER

@@ -29,21 +29,22 @@ using namespace ADDON;
  * Default values are defined inside client.h
  * and exported to the other source files.
  */
-std::string g_szHostname           = DEFAULT_HOST;                  ///< The Host name or IP of the MediaPortal TV Server
-int         g_iPort                = DEFAULT_PORT;                  ///< The TVServerXBMC listening port (default: 9596)
-int         g_iConnectTimeout      = DEFAULT_TIMEOUT;               ///< The Socket connection timeout
-int         g_iSleepOnRTSPurl      = DEFAULT_SLEEP_RTSP_URL;        ///< An optional delay between tuning a channel and opening the corresponding RTSP stream in XBMC (default: 0)
-bool        g_bOnlyFTA             = DEFAULT_FTA_ONLY;              ///< Send only Free-To-Air Channels inside Channel list to XBMC
-bool        g_bRadioEnabled        = DEFAULT_RADIO;                 ///< Send also Radio channels list to XBMC
-bool        g_bHandleMessages      = DEFAULT_HANDLE_MSG;            ///< Send VDR's OSD status messages to XBMC OSD
-bool        g_bResolveRTSPHostname = DEFAULT_RESOLVE_RTSP_HOSTNAME; ///< Resolve the server hostname in the rtsp URLs to an IP at the TV Server side (default: false)
-bool        g_bReadGenre           = DEFAULT_READ_GENRE;            ///< Read the genre strings from MediaPortal and translate them into XBMC DVB genre id's (only English)
-bool        g_bUseRecordingsDir    = DEFAULT_USE_REC_DIR;           ///< Use a normal directory if true for recordings
-std::string g_szRecordingsDir      = DEFAULT_REC_DIR;               ///< The path to the recordings directory
-std::string g_szTimeshiftDir       = DEFAULT_TIMESHIFT_DIR;         ///< The path to the recordings directory
-std::string g_szTVGroup            = DEFAULT_TVGROUP;               ///< Import only TV channels from this TV Server TV group
-std::string g_szRadioGroup         = DEFAULT_RADIOGROUP;            ///< Import only radio channels from this TV Server radio group
-bool        g_bDirectTSFileRead    = DEFAULT_DIRECT_TS_FR;          ///< Open the Live-TV timeshift buffer directly (skip RTSP streaming)
+std::string      g_szHostname           = DEFAULT_HOST;                  ///< The Host name or IP of the MediaPortal TV Server
+int              g_iPort                = DEFAULT_PORT;                  ///< The TVServerXBMC listening port (default: 9596)
+int              g_iConnectTimeout      = DEFAULT_TIMEOUT;               ///< The Socket connection timeout
+int              g_iSleepOnRTSPurl      = DEFAULT_SLEEP_RTSP_URL;        ///< An optional delay between tuning a channel and opening the corresponding RTSP stream in XBMC (default: 0)
+bool             g_bOnlyFTA             = DEFAULT_FTA_ONLY;              ///< Send only Free-To-Air Channels inside Channel list to XBMC
+bool             g_bRadioEnabled        = DEFAULT_RADIO;                 ///< Send also Radio channels list to XBMC
+bool             g_bHandleMessages      = DEFAULT_HANDLE_MSG;            ///< Send VDR's OSD status messages to XBMC OSD
+bool             g_bResolveRTSPHostname = DEFAULT_RESOLVE_RTSP_HOSTNAME; ///< Resolve the server hostname in the rtsp URLs to an IP at the TV Server side (default: false)
+bool             g_bReadGenre           = DEFAULT_READ_GENRE;            ///< Read the genre strings from MediaPortal and translate them into XBMC DVB genre id's (only English)
+bool             g_bUseRecordingsDir    = DEFAULT_USE_REC_DIR;           ///< Use a normal directory if true for recordings
+std::string      g_szRecordingsDir      = DEFAULT_REC_DIR;               ///< The path to the recordings directory
+std::string      g_szTimeshiftDir       = DEFAULT_TIMESHIFT_DIR;         ///< The path to the recordings directory
+std::string      g_szTVGroup            = DEFAULT_TVGROUP;               ///< Import only TV channels from this TV Server TV group
+std::string      g_szRadioGroup         = DEFAULT_RADIOGROUP;            ///< Import only radio channels from this TV Server radio group
+bool             g_bDirectTSFileRead    = DEFAULT_DIRECT_TS_FR;          ///< Open the Live-TV timeshift buffer directly (skip RTSP streaming)
+eStreamingMethod g_eStreamingMethod     = TSReader;
 
 /* Client member variables */
 ADDON_STATUS           m_CurStatus    = ADDON_STATUS_UNKNOWN;
@@ -241,7 +242,13 @@ void ADDON_ReadSettings(void)
     g_szRadioGroup = buffer;
   }
 
-#ifndef TSREADER
+  if (!XBMC->GetSetting("streamingmethod", &g_eStreamingMethod))
+  {
+    /* If setting is unknown fallback to defaults */
+    XBMC->Log(LOG_ERROR, "Couldn't get 'streamingmethod' setting, falling back to 'tsreader' as default");
+    g_eStreamingMethod = TSReader;
+  }
+
   /* Read setting "resolvertsphostname" from settings.xml */
   if (!XBMC->GetSetting("resolvertsphostname", &g_bResolveRTSPHostname))
   {
@@ -249,7 +256,6 @@ void ADDON_ReadSettings(void)
     XBMC->Log(LOG_ERROR, "Couldn't get 'resolvertsphostname' setting, falling back to 'true' as default");
     g_bResolveRTSPHostname = DEFAULT_RESOLVE_RTSP_HOSTNAME;
   }
-#endif
 
   /* Read setting "readgenre" from settings.xml */
   if (!XBMC->GetSetting("readgenre", &g_bReadGenre))
