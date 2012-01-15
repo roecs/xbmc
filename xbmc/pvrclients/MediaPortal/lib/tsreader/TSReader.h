@@ -65,8 +65,8 @@ private:
   FileReader*     m_fileDuration;
 #ifdef LIVE555
   CRTSPClient     m_rtspClient;
-#endif
   CMemoryBuffer   m_buffer;
+#endif
   CCards*         m_cardSettings;     ///< Pointer to the MediaPortal card settings. Will be used to determine the base path of the timeshift buffer
   string          m_basePath;         ///< The base path shared by all timeshift buffers (to be determined from the Card settings)
 
