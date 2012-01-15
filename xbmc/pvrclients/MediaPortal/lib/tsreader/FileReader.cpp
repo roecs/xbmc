@@ -332,12 +332,12 @@ long FileReader::GetFileSize(int64_t *pStartPosition, int64_t *pLength)
   return S_OK;
 }
 
+#ifdef TARGET_WINDOWS
 long FileReader::GetInfoFileSize(int64_t *lpllsize)
 {
-#ifdef TARGET_WINDOWS
   //Do not get file size if static file or first time 
-  if (m_bReadOnly || !m_infoFileSize) {
-    
+  if (m_bReadOnly || !m_infoFileSize)
+  {
     DWORD dwSizeLow;
     DWORD dwSizeHigh;
 
@@ -353,12 +353,9 @@ long FileReader::GetInfoFileSize(int64_t *lpllsize)
     m_infoFileSize = li.QuadPart;
   }
   *lpllsize = m_infoFileSize;
-#elif defined TARGET_LINUX
-#else
-#error FIXME: Add a GetInfoFileSize() implementation for your OS
-#endif
   return S_OK;
 }
+#endif
 
 long FileReader::GetStartPosition(int64_t *lpllpos)
 {

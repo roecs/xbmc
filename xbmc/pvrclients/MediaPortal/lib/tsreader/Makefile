@@ -11,7 +11,7 @@ LIB=tsreader.a
 
 include ../../../Makefile.include
 
-INCLUDES+=-I. -I../../ 
+INCLUDES+=-I. -I../../ -I../../../../filesystem
 #-I../live555/liveMedia/include -I../live555/BasicUsageEnvironment/include -I../live555/UsageEnvironment/include -I../live555/groupsock/include
 #DEFINES+=-DLIVE555
 

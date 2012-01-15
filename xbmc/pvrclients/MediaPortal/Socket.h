@@ -43,6 +43,9 @@ namespace MPTV //Prevent name clash with Live555 Socket
     typedef unsigned short port_t;
   #endif
 #elif defined TARGET_LINUX || defined TARGET_DARWIN
+#ifdef SOCKADDR_IN
+#undef SOCKADDR_IN
+#endif
   #include <sys/types.h>     /* for socket,connect */
   #include <sys/socket.h>    /* for socket,connect */
   #include <sys/un.h>        /* for Unix socket */
