@@ -27,7 +27,7 @@
  *    http://forums.dvbowners.com/
  */
 
-#ifdef TSREADER
+#ifdef LIVE555
 
 #include "os-dependent.h"
 #include <string>
@@ -92,5 +92,4 @@ class CThread: public IRunnable
 	ThreadIdentifier m_ThreadId;
 	bool m_bAutoDelete;
 };
-
-#endif //TSREADER
+#endif //LIVE555

@@ -16,6 +16,8 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#ifdef LIVE555
+
 #include "os-dependent.h"
 #include "MemoryBuffer.h"
 #include "SingleLock.h"
@@ -182,3 +184,4 @@ void CMemoryBuffer::SetCallback(IMemoryCallback* callback)
 {
   m_pcallback=callback;
 }
+#endif //LIVE555

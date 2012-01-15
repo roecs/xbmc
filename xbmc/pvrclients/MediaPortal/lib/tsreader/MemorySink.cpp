@@ -16,11 +16,9 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#if defined TSREADER && defined LIVE555
+#if defined LIVE555
 
 #include "os-dependent.h"
-//#include <winsock2.h>
-//#include <ws2tcpip.h>
 #include "MemorySink.h"
 #include "GroupsockHelper.hh"
 #include "SingleLock.h"
@@ -96,4 +94,4 @@ void CMemorySink::afterGettingFrame1(unsigned frameSize,struct timeval presentat
 {
   addData(fBuffer, frameSize, presentationTime);
 }
-#endif //TSREADER
+#endif //LIVE555

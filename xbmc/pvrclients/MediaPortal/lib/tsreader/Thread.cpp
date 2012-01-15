@@ -28,7 +28,7 @@
 
 //TODO: code below is Windows specific. Make platform independent (use pthreads under Linux/OSX)
 
-#ifdef TSREADER
+#ifdef LIVE555
 
 #include "client.h"
 #include "Thread.h"
@@ -47,7 +47,7 @@ CThread::CThread(const char* ThreadName)
 #else
   m_ThreadOpaque.LwpId = 0;
 #endif
-  m_bThreadRunning=FALSE;
+  m_bThreadRunning=false;
 
   m_bStop = false;
 
@@ -166,4 +166,4 @@ bool CThread::IsAutoDelete() const
   return m_bAutoDelete;
 }
 
-#endif //TSREADER
+#endif //LIVE555

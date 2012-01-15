@@ -27,7 +27,7 @@
 #include "libXBMC_addon.h"
 #include "libXBMC_pvr.h"
 
-typedef enum eStreamingMethod
+enum eStreamingMethod
 {
   TSReader = 0,
   ffmpeg = 1

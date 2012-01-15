@@ -17,16 +17,16 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#if defined TSREADER && defined LIVE555
+#ifdef LIVE555
 
 //#include "os-dependent.h"
-#include "Thread.h"
+#include "lib/tsreader/Thread.h"
+#include "lib/tsreader/MemoryBuffer.h"
 
 #include "liveMedia.hh"
 #include "BasicUsageEnvironment.hh"
 #include "GroupsockHelper.hh"
 
-#include "MemoryBuffer.h"
 
 class CRTSPClient: public CThread
 {
@@ -99,4 +99,4 @@ public:
   bool m_bPaused;
   char m_outFileName[1000];
 };
-#endif //TSREADER
+#endif //LIVE555
