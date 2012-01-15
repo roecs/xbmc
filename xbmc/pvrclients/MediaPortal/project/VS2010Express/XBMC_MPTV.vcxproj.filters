@@ -178,6 +178,9 @@
     <ClInclude Include="..\..\lib\tsreader\WaitEvent.h">
       <Filter>Header Files\tsreader</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\windows\os_windows.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\..\README" />
