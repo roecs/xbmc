@@ -17,8 +17,6 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifdef TSREADER
-
 #include "os-dependent.h"
 
 class CWaitEvent
@@ -34,5 +32,3 @@ class CWaitEvent
   protected:
     wait_event_t m_waitevent;
 };
-
-#endif //TSREADER

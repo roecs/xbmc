@@ -26,8 +26,6 @@
  *    http://forums.dvbowners.com/
  */
 
-#if defined TSREADER
-
 #include "FileReader.h"
 #include "client.h" //for XBMC->Log
 #include "os-dependent.h"
@@ -700,4 +698,3 @@ int64_t FileReader::GetFileSize()
   //XBMC->Log(LOG_DEBUG, "%s: returns %d, GetLength(%d).", __FUNCTION__, pLength, m_hFile.GetLength());
   return pLength;
 }
-#endif //TSREADER

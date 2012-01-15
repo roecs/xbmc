@@ -1,5 +1,14 @@
+v1.2.2.110:
+- Fixed: crash on communication timeout
+- Merged: tsreader and ffmpeg addons are now combined into one addon
+- Fixed: move SingleLock implementation to header. It did not unlock under Linux.
+- Fixed: potential segfault on NULL pointer
+
 v1.2.2.109:
+- Fixed: rtsp client tread stop
 - Fixed: fix mimetype for tv channels
+- Fixed: fix channel switching for Live555 RTSP streaming
+- Fixed: cleanup the TSReader when it fails to open the stream
 - Fixed: make sure that OpenLiveStream does not return true due to m_iCurrentChannel when the TSReader fails in a later stage
 - Fixed: compilation IOS/OSX/Linux
 - Fixed: compile fixes for API move into ADDON namespace
@@ -7,6 +16,7 @@ v1.2.2.109:
 - Added: signal status support
 - Fixed: Don't return encrypted channels as group members when FTA only option is turned on
 - Added: add more debug log information about the addon settings and status
+- Fixed: check for a changed url/timeshift buffer on channel change.
 - Added: add support for direct recording playback from network shares (smb, Windows only)
 - Added: implement support for recording subdirectories
 - Fixed: don't return radio channels/channelgroup/channelgroup mappings when radio support is disabled
@@ -32,6 +42,7 @@ v1.1.3.103:
 - Fixed: use tuning details to retrieve the channel number from the backend
 - Added: support for TVServerXBMC v1.1.x.104
 - Changed: sources adapted for PVR API changes
+- Changed: move to end of the timeshift buffer on channel change to speed-up channnel switching
 
 v1.1.2.102:
 - Added: Channel group support
@@ -41,7 +52,9 @@ v1.1.2.102:
 
 v1.1.2.101:
 - Fixed: "Include radio" setting
+- Fixed: missing defaults for settings "sleeponrtspurl" and "resolvertsphostname"
 - Changed: cleanup unused settings
+- Changed: increase wait time on TS buffer underrun
 
 v1.1.0.100
 - Rewrite: timer code
@@ -71,6 +84,7 @@ v1.1.0.90
 - Decrease CPU uage when a buffer underrun occurs
 
 v1.1.0.75
+- First release of the TSReader version
 - PVR client should abort connection when the TVServerXBMC version is too old
 
 v1.1.0.60

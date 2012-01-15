@@ -16,8 +16,6 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifdef TSREADER
-
 // Code below is work in progress and not yet finished
 //
 // DONE:
@@ -58,10 +56,12 @@ CTsReader::CTsReader()
 
 CTsReader::~CTsReader(void)
 {
+#ifdef LIVE555
   if (m_buffer)
     delete m_buffer;
   if (m_rtspClient)
     delete m_rtspClient;
+#endif //LIVE555
 }
 
 std::string CTsReader::TranslatePath(const char*  pszFileName)
@@ -348,12 +348,14 @@ long CTsReader::Pause()
   if (m_State == State_Running)
   {
     m_lastPause = GetTickCount();
+#ifdef LIVE555
     // Are we using rtsp?
     if (m_bIsRTSP)
     {
         XBMC->Log(LOG_DEBUG, "CTsReader::Pause()  ->pause rtsp"); // at position: %f", (m_seekTime.Millisecs() / 1000.0f));
         m_rtspClient->Pause();
     }
+#endif //LIVE555
     m_State = State_Paused;
   }
 
@@ -361,4 +363,3 @@ long CTsReader::Pause()
   return S_OK;
 }
 
-#endif //TSREADER

@@ -26,8 +26,6 @@
  *    http://forums.dvbowners.com/
  */
 
-#ifdef TSREADER
-
 #include "MultiFileReader.h"
 #include "client.h" //for XBMC->Log
 #include <string>
@@ -723,4 +721,3 @@ void MultiFileReader::RefreshFileSize()
   }
   m_cachedFileSize= fileLength;
 }
-#endif //TSREADER

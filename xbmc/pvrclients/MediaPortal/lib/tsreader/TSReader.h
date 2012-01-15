@@ -16,7 +16,6 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifdef TSREADER
 
 #include "client.h"
 #include "FileReader.h"
@@ -27,6 +26,7 @@
 #ifdef LIVE555
 class CRTSPClient;
 #endif
+
 typedef enum _TsReaderState
 {
   State_Stopped = 0,
@@ -82,4 +82,3 @@ private:
   TsReaderState   m_State;            ///< The current state of the TsReader
   DWORD           m_lastPause;        ///< Last time instance at which the playback was paused
 };
-#endif //TSREADER

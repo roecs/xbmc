@@ -17,8 +17,6 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#if defined TSREADER
-
 #include "WaitEvent.h"
 #include "CriticalSection.h"
 #include <vector>
@@ -61,5 +59,3 @@ class CMemoryBuffer
     IMemoryCallback* m_pcallback;
     bool m_bRunning;
 };
-
-#endif //TSREADER

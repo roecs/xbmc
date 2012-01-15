@@ -117,14 +117,13 @@ private:
   CCards                  m_cCards;
   GenreMap                m_genremap;
   CCriticalSection        m_mutex;
-#ifdef TSREADER
   CTsReader*              m_tsreader;
 
   char                    m_noSignalStreamData[ 6 + 0xffff ];
   long                    m_noSignalStreamSize;
   long                    m_noSignalStreamReadPos;
   bool                    m_bPlayingNoSignal;
-#endif //TSREADER
+
   void Close();
 
   //Used for TV Server communication:
