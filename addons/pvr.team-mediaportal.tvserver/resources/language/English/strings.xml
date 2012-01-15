@@ -17,6 +17,8 @@
     <string id="30013">Direct playback from Timeshift buffer (no rtsp)</string>
     <string id="30014">Timeshift buffer directory</string>
     <string id="30015">Streaming method</string>
+    <string id="30016">Windows user account (SMB)</string>
+    <string id="30017">Windows password (SMB)</string>
 
     <!-- category labels -->
     <string id="30040">Connection</string>

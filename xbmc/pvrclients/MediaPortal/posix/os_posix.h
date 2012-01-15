@@ -96,15 +96,16 @@ inline unsigned long GetTickCount(void)
 //#include <sys/time.h>
 #define SUCCEEDED(hr) (((HRESULT)(hr)) >= 0)
 
-#if 0
-size_t wcslen(const wchar_t *str)
+using namespace XFILE;
+
+inline size_t WcsLen(const wchar_t *str)
 {
   const unsigned short *eos = (const unsigned short*)str;
   while( *eos++ ) ;
   return( (size_t)(eos - (const unsigned short*)str) -1);
-}
+};
 
-size_t wcstombs(char *s, const wchar_t *w, size_t n)
+inline size_t WcsToMbs(char *s, const wchar_t *w, size_t n)
 {
   size_t i = 0;
   const unsigned short *wc = (const unsigned short*) w;
@@ -116,6 +117,6 @@ size_t wcstombs(char *s, const wchar_t *w, size_t n)
   if (i < n) s[i] = '\0';
 
   return (i);
-}
-#endif 
+};
+
 #endif

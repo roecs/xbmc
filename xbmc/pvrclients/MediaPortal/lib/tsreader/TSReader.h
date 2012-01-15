@@ -80,5 +80,5 @@ private:
   CCards*         m_cardSettings;     ///< Pointer to the MediaPortal card settings. Will be used to determine the base path of the timeshift buffer
   string          m_basePath;         ///< The base path shared by all timeshift buffers (to be determined from the Card settings)
   TsReaderState   m_State;            ///< The current state of the TsReader
-  DWORD           m_lastPause;        ///< Last time instance at which the playback was paused
+  long            m_lastPause;        ///< Last time instance at which the playback was paused
 };

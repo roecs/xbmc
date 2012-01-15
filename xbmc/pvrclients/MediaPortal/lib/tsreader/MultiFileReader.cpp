@@ -94,10 +94,26 @@ long MultiFileReader::OpenFile()
   long hr = m_TSBufferFile.OpenFile();
 
   //For radio the buffer sometimes needs some time to become available, so wait try it more than once
+#if defined(TARGET_WINDOWS)
   unsigned long tc=GetTickCount();
+#elif defined(TARGET_LINUX) || defined(TARGET_OSX)
+  struct timeval tstart;
+  gettimeofday(&tstart, NULL);
+#else
+#error FIXME: Add some form of timeout handling for your OS
+#endif
   while (RefreshTSBufferFile()==S_FALSE)
   {
+#if defined(TARGET_WINDOWS)
     if (GetTickCount()-tc>MAX_BUFFER_TIMEOUT)
+#elif defined(TARGET_LINUX) || defined(TARGET_OSX)
+    struct timeval tnow, tdelta;
+    gettimeofday(&tnow, NULL);
+    timersub(&tnow, &tstart, &tdelta);
+    if ((tdelta.tv_sec * 1000) + (tdelta.tv_usec / 1000) > MAX_BUFFER_TIMEOUT)
+#else
+#error FIXME: Add some form of timeout handling for your OS
+#endif
     {
       XBMC->Log(LOG_ERROR, "MultiFileReader: timedout while waiting for buffer file to become available");
       XBMC->QueueNotification(QUEUE_ERROR, "Time out while waiting for buffer file");
@@ -327,8 +343,7 @@ long MultiFileReader::RefreshTSBufferFile()
     filesAdded2 = -2;
     filesRemoved2 = -2;
 
-    m_TSBufferFile.SetFilePointer(0, FILE_END);
-    int64_t fileLength = m_TSBufferFile.GetFilePointer();
+    int64_t fileLength = m_TSBufferFile.GetFileSize();
 
     // Min file length is Header ( int64_t + long + long ) + filelist ( > 0 ) + Footer ( long + long ) 
     if (fileLength <= (sizeof(int64_t) + sizeof(long) + sizeof(long) + sizeof(wchar_t) + sizeof(long) + sizeof(long)))
@@ -374,7 +389,13 @@ long MultiFileReader::RefreshTSBufferFile()
 
     result=m_TSBufferFile.Read((unsigned char*)pBuffer, (ULONG)remainingLength, &bytesRead);
     if (!SUCCEEDED(result)||  bytesRead != remainingLength) Error=0x20;
-	
+
+    //unsigned char* pb = (unsigned char*) pBuffer;
+    //for (unsigned long i = 0; i < bytesRead; i++)
+    //{
+    //  XBMC->Log(LOG_DEBUG, "%s: pBuffer byte[%d] == %x.", __FUNCTION__, i, pb[i]);
+    //}
+
     readLength = sizeof(filesAdded) + sizeof(filesRemoved);
 
     readBuffer = new unsigned char[readLength];
@@ -394,9 +415,10 @@ long MultiFileReader::RefreshTSBufferFile()
 
     if ((filesAdded2 != filesAdded) || (filesRemoved2 != filesRemoved))
     {
-      Error = 0x80;
+      Error |= 0x80;
 
-      XBMC->Log(LOG_DEBUG, "MultiFileReader has error 0x80 in Loop %d. Try to clear SMB Cache.", 10-Loop);
+      XBMC->Log(LOG_ERROR, "MultiFileReader has error 0x%x in Loop %d. Try to clear SMB Cache.", Error, 10-Loop);
+      XBMC->Log(LOG_DEBUG, "%s: filesAdded %d, filesAdded2 %d, filesRemoved %d, filesRemoved2 %d.", __FUNCTION__, filesAdded, filesAdded2, filesRemoved, filesRemoved2);
 
       // try to clear local / remote SMB file cache. This should happen when we close the filehandle
       m_TSBufferFile.CloseFile();
@@ -489,15 +511,25 @@ long MultiFileReader::RefreshTSBufferFile()
     std::vector<std::string> filenames;
 
     wchar_t* pwCurrFile = pBuffer;    //Get a pointer to the first wchar filename string in pBuffer
-    long length = wcslen(pwCurrFile); 
+    long length = WcsLen(pwCurrFile);
+
+    //XBMC->Log(LOG_DEBUG, "%s: WcsLen(%d), sizeof(wchar_t) == %d.", __FUNCTION__, length, sizeof(wchar_t));
 
     while (length > 0)
     {
       // Convert the current filename (wchar to normal char)
       char* wide2normal = new char[length + 1];
-      wcstombs( wide2normal, pwCurrFile, length );
+      WcsToMbs( wide2normal, pwCurrFile, length );
       wide2normal[length] = '\0';
+
+      //unsigned char* pb = (unsigned char*) wide2normal;
+      //for (unsigned long i = 0; i < rc; i++)
+      //{
+      //  XBMC->Log(LOG_DEBUG, "%s: pBuffer byte[%d] == %x.", __FUNCTION__, i, pb[i]);
+      //}
+
       std::string sCurrFile = wide2normal;
+      //XBMC->Log(LOG_DEBUG, "%s: filename %s (%s).", __FUNCTION__, wide2normal, sCurrFile.c_str());
       delete[] wide2normal;
 
       // Modify filename path here to include the real (local) path
@@ -515,8 +547,16 @@ long MultiFileReader::RefreshTSBufferFile()
       }
       
       // Move the wchar buffer pointer to the next wchar string
+#if defined(TARGET_WINDOWS)
       pwCurrFile += (length + 1);
-      length = wcslen(pwCurrFile);
+#elif defined(TARGET_LINUX) || defined(TARGET_OSX)
+      unsigned short *pus = (unsigned short *) pwCurrFile;
+      pus += (length + 1);
+      pwCurrFile = (wchar_t *) pus;
+#else
+#error Implement pointer adjustment for 16-bit wchars for your OS!
+#endif
+      length = WcsLen(pwCurrFile);
     }
 
     // Go through files
@@ -590,6 +630,10 @@ long MultiFileReader::RefreshTSBufferFile()
       int64_t curPos = m_currentPosition;
       XBMC->Log(LOG_DEBUG, "StartPosition %lli, EndPosition %lli, CurrentPosition %lli\n", stPos, endPos, curPos);
     }
+    // int64_t stPos = m_startPosition;
+    // int64_t endPos = m_endPosition;
+    // int64_t curPos = m_currentPosition;
+    // XBMC->Log(LOG_DEBUG, "StartPosition %lli, EndPosition %lli, CurrentPosition %lli\n", stPos, endPos, curPos);
   }
   else
   {
@@ -637,6 +681,26 @@ long MultiFileReader::GetFileLength(const char* pFilename, int64_t &length)
     return HRESULT_FROM_WIN32(dwErr);
   }
   return S_OK;
+#elif defined(TARGET_LINUX) || defined(TARGET_OSX)
+  //USES_CONVERSION;
+
+  length = 0;
+
+  // Try to open the file
+  CFile hFile;
+  struct stat64 filestatus;
+  if (hFile.Open(pFilename) && hFile.Stat(&filestatus) >= 0)
+  {
+    length = filestatus.st_size;
+    hFile.Close();
+  }
+  else
+  {
+    XBMC->Log(LOG_ERROR, "Failed to open file %s : 0x%x(%s)\n", pFilename, errno, strerror(errno));
+    XBMC->QueueNotification(QUEUE_ERROR, "Failed to open file %s", pFilename);
+    return S_FALSE;
+  }
+  return S_OK;
 #else
 #error FIXME: Add MultiFileReader::GetFileLenght implementation for your OS.
   return S_FALSE;
@@ -679,10 +743,9 @@ unsigned long MultiFileReader::setFilePointer(int64_t llDistanceToMove, unsigned
 
 int64_t MultiFileReader::getFilePointer()
 {
-  int64_t fileStart, fileEnd, fileLength;
+  int64_t fileStart, fileLength;
 
   GetFileSize(&fileStart, &fileLength);
-  fileEnd = fileLength + fileStart;
 
   return (int64_t)(GetFilePointer() - fileStart);
 }
@@ -720,4 +783,5 @@ void MultiFileReader::RefreshFileSize()
     fileLength+=file->length;
   }
   m_cachedFileSize= fileLength;
+  // XBMC->Log(LOG_DEBUG, "%s: m_cachedFileSize %d.", __FUNCTION__, m_cachedFileSize);
 }

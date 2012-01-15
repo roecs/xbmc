@@ -43,6 +43,9 @@ std::string      g_szRecordingsDir      = DEFAULT_REC_DIR;               ///< Th
 std::string      g_szTimeshiftDir       = DEFAULT_TIMESHIFT_DIR;         ///< The path to the recordings directory
 std::string      g_szTVGroup            = DEFAULT_TVGROUP;               ///< Import only TV channels from this TV Server TV group
 std::string      g_szRadioGroup         = DEFAULT_RADIOGROUP;            ///< Import only radio channels from this TV Server radio group
+std::string      g_szSMBusername        = DEFAULT_SMBUSERNAME;           ///< Windows user account used to access share
+std::string      g_szSMBpassword        = DEFAULT_SMBPASSWORD;           ///< Windows user password used to access share
+                                                                         ///< Leave empty to use current user when running on Windows
 bool             g_bDirectTSFileRead    = DEFAULT_DIRECT_TS_FR;          ///< Open the Live-TV timeshift buffer directly (skip RTSP streaming)
 eStreamingMethod g_eStreamingMethod     = TSReader;
 
@@ -90,11 +93,7 @@ ADDON_STATUS ADDON_Create(void* hdl, void* props)
     return ADDON_STATUS_UNKNOWN;
   }
 
-#ifdef TSREADER
-  XBMC->Log(LOG_INFO, "Creating MediaPortal PVR-Client (TSReader version)");
-#else
-  XBMC->Log(LOG_INFO, "Creating MediaPortal PVR-Client (ffmpeg rtsp version)");
-#endif
+  XBMC->Log(LOG_INFO, "Creating MediaPortal PVR-Client");
 
   m_CurStatus    = ADDON_STATUS_UNKNOWN;
   g_iClientID    = pvrprops->iClientId;
@@ -315,6 +314,24 @@ void ADDON_ReadSettings(void)
   g_szTimeshiftDir = DEFAULT_TIMESHIFT_DIR;
 #endif
 
+  /* read setting "user" from settings.xml */
+  if (!XBMC->GetSetting("smbusername", &buffer))
+  {
+    XBMC->Log(LOG_ERROR, "Couldn't get 'smbusername' setting, falling back to '%s' as default", DEFAULT_SMBUSERNAME);
+    g_szSMBusername = DEFAULT_SMBUSERNAME;
+  }
+  else
+    g_szSMBusername = buffer;
+
+  /* read setting "pass" from settings.xml */
+  if (XBMC->GetSetting("smbpassword", &buffer))
+  {
+    XBMC->Log(LOG_ERROR, "Couldn't get 'smbpassword' setting, falling back to '%s' as default", DEFAULT_SMBPASSWORD);
+    g_szSMBpassword = DEFAULT_SMBPASSWORD;
+  }
+  else
+    g_szSMBpassword = buffer;
+
   /* Log the current settings for debugging purposes */
   XBMC->Log(LOG_DEBUG, "settings: streamingmethod: %s", (( g_eStreamingMethod == TSReader) ? "TSReader" : "ffmpeg"));
   XBMC->Log(LOG_DEBUG, "settings: host='%s', port=%i, timeout=%i", g_szHostname.c_str(), g_iPort, g_iConnectTimeout);
@@ -323,6 +340,7 @@ void ADDON_ReadSettings(void)
   XBMC->Log(LOG_DEBUG, "settings: userecordingsdir=%i, recordingsdir='%s'", (int) g_bUseRecordingsDir, g_szRecordingsDir.c_str());
   XBMC->Log(LOG_DEBUG, "settings: resolvertsphostname=%i", (int) g_bResolveRTSPHostname);
   XBMC->Log(LOG_DEBUG, "settings: directsfileread=%i, timeshiftdir='%s'", (int) g_bDirectTSFileRead, g_szTimeshiftDir.c_str());
+  XBMC->Log(LOG_DEBUG, "settings: smb user='%s', pass='%s'", g_szSMBusername.c_str(), g_szSMBpassword.c_str());
 }
 
 //-- SetSetting ---------------------------------------------------------------
@@ -382,13 +400,11 @@ ADDON_STATUS ADDON_SetSetting(const char *settingName, const void *settingValue)
     XBMC->Log(LOG_INFO, "Changed setting 'radiogroup' from %s to %s", g_szRadioGroup.c_str(), (const char*) settingValue);
     g_szRadioGroup = (const char*) settingValue;
   }
-#ifndef TSREADER
   else if (str == "resolvertsphostname")
   {
     XBMC->Log(LOG_INFO, "Changed setting 'resolvertsphostname' from %u to %u", g_bResolveRTSPHostname, *(bool*) settingValue);
     g_bResolveRTSPHostname = *(bool*) settingValue;
   }
-#endif
   else if (str == "readgenre")
   {
     XBMC->Log(LOG_INFO, "Changed setting 'readgenre' from %u to %u", g_bReadGenre, *(bool*) settingValue);
@@ -409,7 +425,6 @@ ADDON_STATUS ADDON_SetSetting(const char *settingName, const void *settingValue)
     XBMC->Log(LOG_INFO, "Changed setting 'recordingsdir' from %s to %s", g_szRecordingsDir.c_str(), (const char*) settingValue);
     g_szRecordingsDir = (const char*) settingValue;
   }
-#ifdef TSREADER
   else if (str == "directtsfileread")
   {
     XBMC->Log(LOG_INFO, "Changed setting 'directtsfileread' from %u to %u", g_bDirectTSFileRead, *(bool*) settingValue);
@@ -420,7 +435,16 @@ ADDON_STATUS ADDON_SetSetting(const char *settingName, const void *settingValue)
     XBMC->Log(LOG_INFO, "Changed setting 'timeshiftdir' from %u to %u", g_szTimeshiftDir.c_str(), *(bool*) settingValue);
     g_szTimeshiftDir = *(bool*) settingValue;
   }
-#endif
+  else if (str == "smbusername")
+  {
+    XBMC->Log(LOG_INFO, "Changed setting 'smbusername' from %u to %u", g_szSMBusername.c_str(), *(bool*) settingValue);
+    g_szTimeshiftDir = *(bool*) settingValue;
+  }
+  else if (str == "smbpassword")
+  {
+    XBMC->Log(LOG_INFO, "Changed setting 'smbpassword' from %u to %u", g_szSMBpassword.c_str(), *(bool*) settingValue);
+    g_szTimeshiftDir = *(bool*) settingValue;
+  }
   return ADDON_STATUS_OK;
 }
 

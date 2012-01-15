@@ -16,6 +16,8 @@
     <string id="30012">Mediaportal directory met opnames</string>
     <string id="30013">Direct afspelen uit Timeshift buffer (niet streamen)</string>
     <string id="30014">Timeshift buffer directory</string>
+    <string id="30016">Windows gebruikersnaam (SMB)</string>
+    <string id="30017">Windows wachtwoord (SMB)</string>
 
     <!-- category labels -->
     <string id="30040">Verbinding</string>

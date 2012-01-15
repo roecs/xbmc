@@ -39,4 +39,7 @@ typedef DWORD tThreadId;
 /* Platform dependent path separator */
 #define PATH_SEPARATOR_CHAR '\\'
 
+#define WcsLen wcslen
+#define WcsToMbs wcstombs
+
 #endif //TARGET_WINDOWS

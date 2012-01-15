@@ -45,6 +45,7 @@
 #include <string.h>
 //#define strnicmp(X,Y,N) strncasecmp(X,Y,N)
 #define _strcmpi strcasecmp
+using namespace XFILE;
 
 inline size_t WcsLen(const wchar_t *str)
 {

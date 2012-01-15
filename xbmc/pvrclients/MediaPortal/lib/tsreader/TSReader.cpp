@@ -310,6 +310,7 @@ bool CTsReader::OnZap(const char* pszFileName, int64_t timeShiftBufferPos, long 
     return S_FALSE;
   }
 #else
+  m_fileReader->SetFilePointer(0LL, FILE_END);
   return S_OK;
 #endif
 }
