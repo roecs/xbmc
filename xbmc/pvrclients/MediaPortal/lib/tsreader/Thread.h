@@ -27,8 +27,6 @@
  *    http://forums.dvbowners.com/
  */
 
-#ifdef TSREADER
-
 #include "os-dependent.h"
 #include <string>
 
@@ -72,5 +70,3 @@ class CThread: public IRunnable
     THREADHANDLE m_ThreadHandle;
     std::string m_ThreadName;
 };
-
-#endif //TSREADER

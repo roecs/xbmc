@@ -28,7 +28,7 @@
 
 //TODO: code below is Windows specific. Make platform independent (use pthreads under Linux/OSX)
 
-#ifdef TSREADER
+#ifdef LIVE555
 
 #include "Thread.h"
 
@@ -37,7 +37,7 @@ CThread::CThread(const char* ThreadName)
   m_hStopEvent = CreateEvent(NULL, TRUE, TRUE, NULL);
   m_hDoneEvent = CreateEvent(NULL, TRUE, TRUE, NULL);
   m_ThreadHandle = INVALID_HANDLE_VALUE;
-  m_bThreadRunning=FALSE;
+  m_bThreadRunning=false;
 
   if (ThreadName)
     m_ThreadName = ThreadName;
@@ -72,7 +72,7 @@ long CThread::StopThread(unsigned long dwTimeoutMilliseconds)
   SetEvent(m_hStopEvent);
   long result = WaitForSingleObject(m_hDoneEvent, dwTimeoutMilliseconds);
 
-  if ((result == WAIT_TIMEOUT) && (m_ThreadHandle != INVALID_HANDLE_VALUE))
+  if ((result == WAIT_TIMEOUT) && (m_ThreadHandle != INVALID_HANDLE_VALUE &&  m_bThreadRunning==true))
   {
     TerminateThread(m_ThreadHandle, -1);
     CloseHandle(m_ThreadHandle);
@@ -98,7 +98,7 @@ bool CThread::ThreadIsStopping(unsigned long dwTimeoutMilliseconds)
 void CThread::Process()
 {
   ResetEvent(m_hDoneEvent);
-  m_bThreadRunning=TRUE;
+  m_bThreadRunning=true;
   try
   {
     Run();
@@ -108,7 +108,7 @@ void CThread::Process()
     pStr = NULL;
   }
   SetEvent(m_hDoneEvent);
-  m_bThreadRunning=FALSE;
+  m_bThreadRunning=false;
 }
 
 THREADFUNC CThread::staticThread(void* data)
@@ -148,4 +148,4 @@ bool CThread::SetPriority(const int iPriority)
   return(rtn);
 }
 
-#endif //TSREADER
+#endif //LIVE555
