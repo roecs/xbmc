@@ -31,9 +31,6 @@
 #include "FileReader.h"
 #include "client.h" //for XBMC->Log
 #include "os-dependent.h"
-#if !defined(TARGET_WINDOWS)
-using namespace XFILE;
-#endif
 
 using namespace ADDON;
 
@@ -41,7 +38,7 @@ FileReader::FileReader() :
 #if defined(TARGET_WINDOWS)
   m_hFile(INVALID_HANDLE_VALUE),
 #elif defined(TARGET_LINUX) || defined(TARGET_OSX)
-m_hFile(),
+  m_hFile(),
 #else
 #error Implement initialisation of file for your OS
 #endif
@@ -104,7 +101,6 @@ long FileReader::OpenFile()
   int Tmo=25 ; //5 in MediaPortal
   // Is the file already opened
   if (!IsFileInvalid())
-
   {
     XBMC->Log(LOG_NOTICE, "FileReader::OpenFile() file already open");
     return NOERROR;
@@ -292,8 +288,9 @@ long FileReader::GetFileSize(int64_t *pStartPosition, int64_t *pLength)
 
 long FileReader::GetStartPosition(int64_t *lpllpos)
 {
-  //Do not get file size if static file unless first time 
-  if (m_bReadOnly || !m_fileStartPos) {
+  // Do not get file size if static file unless first time
+  if (m_bReadOnly || !m_fileStartPos)
+  {
     m_fileStartPos = 0;
   }
   *lpllpos = m_fileStartPos;

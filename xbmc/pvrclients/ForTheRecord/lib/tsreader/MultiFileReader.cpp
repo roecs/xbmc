@@ -33,9 +33,6 @@
 #include <string>
 #include "utils.h"
 #include <wchar.h>
-#if !defined(TARGET_WINDOWS)
-using namespace XFILE;
-#endif
 
 using namespace ADDON;
 
@@ -180,7 +177,8 @@ unsigned long MultiFileReader::SetFilePointer(int64_t llDistanceToMove, unsigned
   if (m_currentPosition < m_startPosition)
     m_currentPosition = m_startPosition;
 
-  if (m_currentPosition > m_endPosition) {
+  if (m_currentPosition > m_endPosition)
+  {
     XBMC->Log(LOG_ERROR, "Seeking beyond the end position: %I64d > %I64d", m_currentPosition, m_endPosition);
     m_currentPosition = m_endPosition;
   }
@@ -208,7 +206,7 @@ long MultiFileReader::Read(unsigned char* pbData, unsigned long lDataLength, uns
 
   if (m_currentPosition < m_startPosition)
   {
-    XBMC->Log(LOG_INFO, "%s: current position adjusted from %d to %d.", __FUNCTION__, m_currentPosition, m_startPosition);
+    XBMC->Log(LOG_DEBUG, "%s: current position adjusted from %%I64dd to %%I64dd.", __FUNCTION__, m_currentPosition, m_startPosition);
     m_currentPosition = m_startPosition;
   }
 
@@ -374,7 +372,7 @@ long MultiFileReader::RefreshTSBufferFile()
       currentPosition = *((int64_t*)(readBuffer + 0));
 		  filesAdded = *((long*)(readBuffer + sizeof(int64_t)));
 		  filesRemoved = *((long*)(readBuffer + sizeof(int64_t) + sizeof(long)));
-      // XBMC->Log(LOG_DEBUG, "MultiFileReader::RefreshTSBufferFile() currentPosition %lli", currentPosition);
+      // XBMC->Log(LOG_DEBUG, "MultiFileReader::RefreshTSBufferFile() currentPosition %I64d", currentPosition);
     }
 
     delete[] readBuffer;
@@ -519,11 +517,11 @@ long MultiFileReader::RefreshTSBufferFile()
 
     //XBMC->Log(LOG_DEBUG, "%s: WcsLen(%d), sizeof(wchar_t) == %d.", __FUNCTION__, length, sizeof(wchar_t));
 
-    while(length > 0)
+    while (length > 0)
     {
       // Convert the current filename (wchar to normal char)
       char* wide2normal = new char[length + 1];
-      WcsToMbs( wide2normal, pwCurrFile, length);
+      WcsToMbs( wide2normal, pwCurrFile, length );
       wide2normal[length] = '\0';
 
       //unsigned char* pb = (unsigned char*) wide2normal;
@@ -535,7 +533,6 @@ long MultiFileReader::RefreshTSBufferFile()
       std::string sCurrFile = wide2normal;
       //XBMC->Log(LOG_DEBUG, "%s: filename %s (%s).", __FUNCTION__, wide2normal, sCurrFile.c_str());
       delete[] wide2normal;
-
 
       // Modify filename path here to include the real (local) path
       pos = sCurrFile.find_last_of(92);

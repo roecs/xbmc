@@ -50,6 +50,6 @@ extern std::string  g_szPass;
 extern std::string  g_szBaseURL;
 
 extern ADDON::CHelper_libXBMC_addon *XBMC;
-extern CHelper_libXBMC_pvr   *PVR;
+extern CHelper_libXBMC_pvr          *PVR;
 
 #endif /* CLIENT_H */

@@ -32,20 +32,22 @@ using namespace ADDON;
 
 CTsReader::CTsReader()
 {
-  m_fileReader=NULL;
-  m_bLiveTv = false;
+  m_fileReader    = NULL;
+  m_bLiveTv       = false;
   m_bTimeShifting = false;
 }
 
-long CTsReader::Open(const char* pszFileName)//, const AM_MEDIA_TYPE *pmt)
+long CTsReader::Open(const char* pszFileName)
 {
   XBMC->Log(LOG_DEBUG, "CTsReader::Open(%s)", pszFileName);
 
   m_fileName = pszFileName;
   char url[MAX_PATH];
   strncpy(url, m_fileName.c_str(), MAX_PATH);
+
   //check file type
   int length = strlen(url);
+
   if ((length < 9) || (_strcmpi(&url[length-9], ".tsbuffer") != 0))
   {
     //local .ts file
@@ -61,7 +63,7 @@ long CTsReader::Open(const char* pszFileName)//, const AM_MEDIA_TYPE *pmt)
     m_fileReader = new MultiFileReader();
   }
 
-  //open file
+  // open file
   m_fileReader->SetFileName(m_fileName.c_str());
   m_fileReader->OpenFile();
   m_fileReader->SetFilePointer(0LL, FILE_BEGIN);
@@ -71,18 +73,18 @@ long CTsReader::Open(const char* pszFileName)//, const AM_MEDIA_TYPE *pmt)
 
 long CTsReader::Read(unsigned char* pbData, unsigned long lDataLength, unsigned long *dwReadBytes)
 {
-  if(m_fileReader)
+  if (m_fileReader)
   {
     return m_fileReader->Read(pbData, lDataLength, dwReadBytes);
   }
 
   dwReadBytes = 0;
-  return 1;
+  return S_FALSE;
 }
 
 void CTsReader::Close()
 {
-  if(m_fileReader)
+  if (m_fileReader)
   {
     m_fileReader->CloseFile();
     SAFE_DELETE(m_fileReader);
