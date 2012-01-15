@@ -1,3 +1,9 @@
+v1.2.2.110:
+- Fixed: crash on communication timeout
+- Merged: tsreader and ffmpeg addons are now combined into one addon
+- Fixed: move SingleLock implementation to header. It did not unlock under Linux.
+- Fixed: potential segfault on NULL pointer
+
 v1.2.2.109:
 - Fixed: rtsp client tread stop
 - Fixed: fix mimetype for tv channels
