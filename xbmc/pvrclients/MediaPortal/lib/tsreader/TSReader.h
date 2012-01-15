@@ -16,24 +16,33 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifdef TSREADER
 
-#include "RTSPClient.h"
 #include "client.h"
 #include "FileReader.h"
 #include "MemoryBuffer.h"
 #include "utils/StdString.h"
 #include "Cards.h"
 
+#ifdef LIVE555
+class CRTSPClient;
+#endif
+
+typedef enum _TsReaderState
+{
+  State_Stopped = 0,
+  State_Paused = 1,
+  State_Running = 2
+} TsReaderState;
+
 class CTsReader
 {
 public:
   CTsReader();
-  ~CTsReader(void) {};
+  ~CTsReader(void);
   long Open(const char* pszFileName);
   long Read(unsigned char* pbData, unsigned long lDataLength, unsigned long *dwReadBytes);
   void Close();
-  bool OnZap(const char* pszFileName);
+  bool OnZap(const char* pszFileName, int64_t timeShiftBufferPos, long timeshiftBufferID);
 
   /**
    * \brief Pass a pointer to the MediaPortal card settings to this class
@@ -46,6 +55,8 @@ public:
    * \param the new search directory
    */
   void SetDirectory( string& directory );
+  bool IsTimeShifting();
+  long Pause();
 
 private:
 
@@ -63,11 +74,11 @@ private:
   FileReader*     m_fileReader;
   FileReader*     m_fileDuration;
 #ifdef LIVE555
-  CRTSPClient     m_rtspClient;
+  CRTSPClient*    m_rtspClient;
+  CMemoryBuffer*  m_buffer;
 #endif
-  CMemoryBuffer   m_buffer;
   CCards*         m_cardSettings;     ///< Pointer to the MediaPortal card settings. Will be used to determine the base path of the timeshift buffer
   string          m_basePath;         ///< The base path shared by all timeshift buffers (to be determined from the Card settings)
-
+  TsReaderState   m_State;            ///< The current state of the TsReader
+  DWORD           m_lastPause;        ///< Last time instance at which the playback was paused
 };
-#endif //TSREADER

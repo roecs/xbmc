@@ -16,8 +16,6 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifdef TSREADER
-
 // Code below is work in progress and not yet finished
 //
 // DONE:
@@ -35,6 +33,7 @@
 #include "MultiFileReader.h"
 #include "utils.h"
 #include "MemoryReader.h"
+#include "RTSPClient.h"
 
 using namespace ADDON;
 
@@ -46,10 +45,23 @@ CTsReader::CTsReader()
   m_bTimeShifting   = false;
   m_bIsRTSP         = false;
   m_cardSettings    = NULL;
+  m_State           = State_Stopped;
+  m_lastPause       = 0;
 
 #ifdef LIVE555
-  m_rtspClient.Initialize(&m_buffer);
+  m_rtspClient      = NULL;
+  m_buffer          = NULL;
 #endif
+}
+
+CTsReader::~CTsReader(void)
+{
+#ifdef LIVE555
+  if (m_buffer)
+    delete m_buffer;
+  if (m_rtspClient)
+    delete m_rtspClient;
+#endif //LIVE555
 }
 
 std::string CTsReader::TranslatePath(const char*  pszFileName)
@@ -99,8 +111,19 @@ long CTsReader::Open(const char* pszFileName)
     XBMC->Log(LOG_DEBUG, "open rtsp: %s", url);
 #ifdef LIVE555
     //strcpy(m_rtspClient.m_outFileName, "e:\\temp\\rtsptest.ts");
-    if ( !m_rtspClient.OpenStream(url))
+    if (m_buffer)
+      delete m_buffer;
+    if (m_rtspClient)
+      delete m_rtspClient;
+    m_buffer = new CMemoryBuffer();
+    m_rtspClient = new CRTSPClient();
+    m_rtspClient->Initialize(m_buffer);
+
+    if ( !m_rtspClient->OpenStream(url))
+    {
+      SAFE_DELETE(m_rtspClient);
       return E_FAIL;
+    }
 
     m_bIsRTSP = true;
     m_bTimeShifting = true;
@@ -115,17 +138,17 @@ long CTsReader::Open(const char* pszFileName)
     }
 
     // play
-    m_buffer.Clear();
-    m_buffer.Run(true);
-    m_rtspClient.Play(0.0,0.0);
-    m_fileReader = new CMemoryReader(m_buffer);
+    //m_buffer->Clear();
+    //m_buffer->Run(true);
+    m_rtspClient->Play(0.0,0.0);
+    m_fileReader = new CMemoryReader(*m_buffer);
+    m_State = State_Running;
 #else
     XBMC->Log(LOG_ERROR, "Failed to open %s. PVR client is compiled without LIVE555 RTSP support.", url);
     XBMC->QueueNotification(QUEUE_ERROR, "PVR client has no RTSP support: %s", url);
     return E_FAIL;
 #endif //LIVE555
   }
-#ifdef TARGET_WINDOWS
   else if ((length > 5) && (strnicmp(&url[length-4], ".tsp", 4) == 0))
   {
     // .tsp file
@@ -135,7 +158,7 @@ long CTsReader::Open(const char* pszFileName)
     FILE* fd = fopen(url, "rb");
     if (fd == NULL)
       return E_FAIL;
-    fread(url, 1, 100, fd);
+    //int bytesRead = fread(url, 1, 100, fd);
     int bytesRead = fread(url, 1, sizeof(url), fd);
     if (bytesRead >= 0)
       url[bytesRead] = 0;
@@ -143,19 +166,34 @@ long CTsReader::Open(const char* pszFileName)
 
     XBMC->Log(LOG_NOTICE, "open %s", url);
 #ifdef LIVE555
-    if ( !m_rtspClient.OpenStream(url))
+    if (m_buffer)
+      delete m_buffer;
+    if (m_rtspClient)
+      delete m_rtspClient;
+    m_buffer = new CMemoryBuffer();
+    m_rtspClient = new CRTSPClient();
+    m_rtspClient->Initialize(m_buffer);
+
+    if ( !m_rtspClient->OpenStream(url))
+    {
+      SAFE_DELETE(m_rtspClient);
       return E_FAIL;
+    }
 
     m_bIsRTSP = true;
-    m_buffer.Clear();
-    m_buffer.Run(true);
-    m_rtspClient.Play(0.0,0.0);
-    m_fileReader = new CMemoryReader(m_buffer);
+    //m_buffer->Clear();
+    //m_buffer->Run(true);
+    m_rtspClient->Play(0.0,0.0);
+    m_fileReader = new CMemoryReader(*m_buffer);
+    m_State = State_Running;
+    XBMC->Log(LOG_DEBUG, "RTSP duration %li", m_rtspClient->Duration());
+
 #else
     XBMC->Log(LOG_DEBUG, "Failed to open %s. PVR client is compiled without LIVE555 RTSP support.", url);
     return E_FAIL;
 #endif //LIVE555
   }
+#ifdef TARGET_WINDOWS
   else
   {
     if ((length < 9) || (strnicmp(&url[length-9], ".tsbuffer", 9) != 0))
@@ -177,6 +215,7 @@ long CTsReader::Open(const char* pszFileName)
 
     // open file
     m_fileReader->SetFileName(m_fileName.c_str());
+    //m_fileReader->SetDebugOutput(true);
     long retval = m_fileReader->OpenFile();
     if (retval != S_OK)
     {
@@ -185,6 +224,7 @@ long CTsReader::Open(const char* pszFileName)
     }
 
     m_fileReader->SetFilePointer(0LL, FILE_BEGIN);
+    m_State = State_Running;
   }
 #else
   else
@@ -204,7 +244,7 @@ long CTsReader::Read(unsigned char* pbData, unsigned long lDataLength, unsigned 
   }
 
   dwReadBytes = 0;
-  return 1;
+  return S_FALSE;
 }
 
 void CTsReader::Close()
@@ -214,7 +254,9 @@ void CTsReader::Close()
     if (m_bIsRTSP)
     {
 #ifdef LIVE555
-      m_rtspClient.Stop();
+      m_rtspClient->Stop();
+      SAFE_DELETE(m_rtspClient);
+      SAFE_DELETE(m_buffer);
 #endif
     }
 #ifdef TARGET_WINDOWS
@@ -224,10 +266,11 @@ void CTsReader::Close()
     }
 #endif //TARGET_WINDOWS
     SAFE_DELETE(m_fileReader);
+    m_State = State_Stopped;
   }
 }
 
-bool CTsReader::OnZap(const char* pszFileName)
+bool CTsReader::OnZap(const char* pszFileName, int64_t timeShiftBufferPos, long timeshiftBufferID)
 {
 #ifdef TARGET_WINDOWS
   string newFileName;
@@ -248,7 +291,19 @@ bool CTsReader::OnZap(const char* pszFileName)
   {
     if (m_fileReader)
     {
+      int64_t pos_before, pos_after;
+      pos_before = m_fileReader->GetFilePointer();
       result = m_fileReader->SetFilePointer(0LL, FILE_END);
+      pos_after = m_fileReader->GetFilePointer();
+
+      if ((timeShiftBufferPos > 0) && (pos_after > timeShiftBufferPos))
+      {
+        /* Move backward */
+        result = m_fileReader->SetFilePointer((timeShiftBufferPos-pos_after), FILE_CURRENT);
+        pos_after = m_fileReader->GetFilePointer();
+      }
+
+      XBMC->Log(LOG_DEBUG,"OnZap: move from %I64d to %I64d tsbufpos  %I64d", pos_before, pos_after, timeShiftBufferPos);
       usleep(100000);
       return (result == S_OK);
     }
@@ -281,4 +336,30 @@ void CTsReader::SetDirectory( string& directory )
   m_basePath = tmp;
 }
 
-#endif //TSREADER
+bool CTsReader::IsTimeShifting()
+{
+  return m_bTimeShifting;
+}
+
+long CTsReader::Pause()
+{
+  XBMC->Log(LOG_DEBUG, "CTsReader::Pause() - IsTimeShifting = %d - state = %d", IsTimeShifting(), m_State);
+
+  if (m_State == State_Running)
+  {
+    m_lastPause = GetTickCount();
+#ifdef LIVE555
+    // Are we using rtsp?
+    if (m_bIsRTSP)
+    {
+        XBMC->Log(LOG_DEBUG, "CTsReader::Pause()  ->pause rtsp"); // at position: %f", (m_seekTime.Millisecs() / 1000.0f));
+        m_rtspClient->Pause();
+    }
+#endif //LIVE555
+    m_State = State_Paused;
+  }
+
+  XBMC->Log(LOG_DEBUG, "CTsReader::Pause() - END - state = %d", m_State);
+  return S_OK;
+}
+

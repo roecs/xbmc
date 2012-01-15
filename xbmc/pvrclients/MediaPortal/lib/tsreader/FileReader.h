@@ -27,8 +27,6 @@
  *    http://forums.dvbowners.com/
  */
 
-#if defined TSREADER
-
 #include "os-dependent.h"
 
 class FileReader
@@ -63,7 +61,7 @@ class FileReader
 
     virtual int64_t GetFileSize();
     virtual bool IsBuffer(){return false;};
-    virtual bool HasMoreData(){return false;};
+    virtual bool HasMoreData(int bytes){return false;};
     virtual int HasData(){return 0; } ;
 
   protected:
@@ -84,5 +82,3 @@ class FileReader
 
     bool     m_bDebugOutput;
 };
-
-#endif //_WIN32 && TSREADER

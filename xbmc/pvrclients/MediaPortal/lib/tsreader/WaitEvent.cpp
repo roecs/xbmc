@@ -16,8 +16,6 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifdef TSREADER
-
 #include "WaitEvent.h"
 #include "client.h"
 
@@ -140,4 +138,3 @@ bool CWaitEvent::Wait(unsigned long dwTimeoutMilliseconds)
 #else
 #error FIXME: Add a WaitEvent implementation for your OS
 #endif //WIN32
-#endif //TSREADER
