@@ -1390,9 +1390,9 @@ int cPVRClientMediaPortal::ReadLiveStream(unsigned char *pBuffer, unsigned int i
 
     if ( read_done < (unsigned long) iBufferSize )
     {
-      if (read_timeouts > 25)
+      if (read_timeouts > 50)
       {
-        XBMC->Log(LOG_INFO, "No data in 1 second");
+        XBMC->Log(LOG_INFO, "No data in 2 seconds");
         read_timeouts = 0;
         m_bPlayingNoSignal = true;
         return read_done; //writeNoSignalStream(bufptr, read_wanted);

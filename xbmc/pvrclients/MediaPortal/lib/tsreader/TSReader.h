@@ -20,6 +20,7 @@
 #include "client.h"
 #include "FileReader.h"
 #include "MemoryBuffer.h"
+#include "DeMultiplexer.h"
 #include "utils/StdString.h"
 #include "Cards.h"
 
@@ -56,7 +57,10 @@ public:
    */
   void SetDirectory( string& directory );
   bool IsTimeShifting();
+  bool IsSeeking();
   long Pause();
+
+  TsReaderState State() {return m_State;};
 
 private:
 
@@ -73,6 +77,8 @@ private:
   CStdString      m_fileName;
   FileReader*     m_fileReader;
   FileReader*     m_fileDuration;
+  //CTsDuration     m_duration;
+  CDeMultiplexer  m_demultiplexer;
 #ifdef LIVE555
   CRTSPClient*    m_rtspClient;
   CMemoryBuffer*  m_buffer;
@@ -81,4 +87,5 @@ private:
   string          m_basePath;         ///< The base path shared by all timeshift buffers (to be determined from the Card settings)
   TsReaderState   m_State;            ///< The current state of the TsReader
   long            m_lastPause;        ///< Last time instance at which the playback was paused
+  int             m_WaitForSeekToEof;
 };

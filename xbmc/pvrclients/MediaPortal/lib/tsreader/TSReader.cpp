@@ -35,9 +35,14 @@
 #include "MemoryReader.h"
 #include "RTSPClient.h"
 
+#ifdef TARGET_WINDOWS
+#pragma warning(disable:4355)
+#endif
+
 using namespace ADDON;
 
-CTsReader::CTsReader()
+CTsReader::CTsReader():
+m_demultiplexer( *this )
 {
   m_fileReader      = NULL;
   m_fileDuration    = NULL;
@@ -47,6 +52,7 @@ CTsReader::CTsReader()
   m_cardSettings    = NULL;
   m_State           = State_Stopped;
   m_lastPause       = 0;
+  m_WaitForSeekToEof = 0;
 
 #ifdef LIVE555
   m_rtspClient      = NULL;
@@ -56,6 +62,10 @@ CTsReader::CTsReader()
 
 CTsReader::~CTsReader(void)
 {
+  if (m_fileReader)
+    delete m_fileReader;
+  if (m_fileDuration)
+    delete m_fileDuration;
 #ifdef LIVE555
   if (m_buffer)
     delete m_buffer;
@@ -185,6 +195,7 @@ long CTsReader::Open(const char* pszFileName)
       m_bLiveTv = false;
       m_bIsRTSP = false;
       m_fileReader = new FileReader();
+      m_fileDuration = new FileReader();
     }
     else
     {
@@ -193,6 +204,7 @@ long CTsReader::Open(const char* pszFileName)
       m_bLiveTv = true;
       m_bIsRTSP = false;
       m_fileReader = new MultiFileReader();
+      m_fileDuration = new MultiFileReader();
     }
 
     // Translate path (e.g. Local filepath to smb://user:pass@share)
@@ -207,6 +219,17 @@ long CTsReader::Open(const char* pszFileName)
       XBMC->Log(LOG_ERROR, "Failed to open file '%s' as '%s'", url, m_fileName.c_str());
       return retval;
     }
+    //m_fileDuration->SetFileName(m_fileName);
+    //m_fileDuration->OpenFile();
+
+    // detect audio/video pids
+    m_demultiplexer.SetFileReader(m_fileReader);
+    m_demultiplexer.Start();
+
+    //get file duration
+    //m_duration.SetFileReader(m_fileDuration);
+    //m_duration.UpdateDuration();
+
 
     m_fileReader->SetFilePointer(0LL, FILE_BEGIN);
     m_State = State_Running;
@@ -244,6 +267,8 @@ void CTsReader::Close()
     }
 #endif //TARGET_WINDOWS
     SAFE_DELETE(m_fileReader);
+    if (m_fileDuration)
+      SAFE_DELETE(m_fileDuration);
     m_State = State_Stopped;
   }
 }
@@ -269,6 +294,8 @@ bool CTsReader::OnZap(const char* pszFileName, int64_t timeShiftBufferPos, long 
   {
     if (m_fileReader)
     {
+      XBMC->Log(LOG_DEBUG,"OnZap: request new PAT");
+
       int64_t pos_before, pos_after;
       pos_before = m_fileReader->GetFilePointer();
       result = m_fileReader->SetFilePointer(0LL, FILE_END);
@@ -280,10 +307,12 @@ bool CTsReader::OnZap(const char* pszFileName, int64_t timeShiftBufferPos, long 
         result = m_fileReader->SetFilePointer((timeShiftBufferPos-pos_after), FILE_CURRENT);
         pos_after = m_fileReader->GetFilePointer();
       }
+      m_demultiplexer.RequestNewPat();
 
       XBMC->Log(LOG_DEBUG,"OnZap: move from %I64d to %I64d tsbufpos  %I64d", pos_before, pos_after, timeShiftBufferPos);
-      usleep(100000);
+      usleep(1000);
       return (result == S_OK);
+      //return S_OK;
     }
     return S_FALSE;
   }
@@ -337,8 +366,22 @@ long CTsReader::Pause()
 #endif //LIVE555
     m_State = State_Paused;
   }
+  else if (m_State == State_Paused)
+  {
+    // Are we using rtsp?
+    if (m_bIsRTSP)
+    {
+        XBMC->Log(LOG_DEBUG, "CTsReader::Pause() is paused, continue rtsp"); // at position: %f", (m_seekTime.Millisecs() / 1000.0f));
+        m_rtspClient->Continue();
+        XBMC->Log(LOG_DEBUG, "CTsReader::Pause() rtsp running"); // at position: %f", (m_seekTime.Millisecs() / 1000.0f));
+    }
+  }
 
   XBMC->Log(LOG_DEBUG, "CTsReader::Pause() - END - state = %d", m_State);
   return S_OK;
 }
 
+bool CTsReader::IsSeeking()
+{
+  return (m_WaitForSeekToEof > 0);
+}
