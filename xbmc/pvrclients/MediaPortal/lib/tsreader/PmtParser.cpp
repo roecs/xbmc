@@ -6,24 +6,26 @@
 *  it under the terms of the GNU General Public License as published by
 *  the Free Software Foundation; either version 2, or (at your option)
 *  any later version.
-*   
+*
 *  This Program is distributed in the hope that it will be useful,
 *  but WITHOUT ANY WARRANTY; without even the implied warranty of
 *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 *  GNU General Public License for more details.
-*   
+*
 *  You should have received a copy of the GNU General Public License
 *  along with GNU Make; see the file COPYING.  If not, write to
 *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA. 
 *  http://www.gnu.org/copyleft/gpl.html
 *
 */
+#ifdef TARGET_WINDOWS
 #pragma warning(disable:4996)
 #pragma warning(disable:4995)
+#endif
 
 #include "client.h" // XBMC->Log
 #include "PmtParser.h"
-#include "channelinfo.h"
+#include "ChannelInfo.h"
 #include <cassert>
 
 using namespace ADDON;
@@ -49,15 +51,15 @@ bool CPmtParser::IsReady()
 }
 
 void CPmtParser::OnNewSection(CSection& section)
-{   
+{
   if (section.table_id!=2)
   {
     return;
   }
 
   try
-	{
-		bool lpcm_audio_found=false;
+  {
+    bool lpcm_audio_found=false;
     int program_number = section.table_id_extension;
     int pcr_pid=((section.Data[8]& 0x1F)<<8)+section.Data[9];
     int program_info_length = ((section.Data[10] & 0xF)<<8)+section.Data[11];
@@ -78,7 +80,7 @@ void CPmtParser::OnNewSection(CSection& section)
     // loop 1
     while (len2 > 0)
     {
-      int indicator=section.Data[pointer];
+      //int indicator=section.Data[pointer];
       int descriptorLen=section.Data[pointer+1];
       len2 -= (descriptorLen+2);
       pointer += (descriptorLen+2);
@@ -87,7 +89,7 @@ void CPmtParser::OnNewSection(CSection& section)
     int stream_type=0;
     int elementary_PID=0;
     int ES_info_length=0;
-    vector<TempPid> tempPids;    
+    vector<TempPid> tempPids;
 
     m_pidInfo.Reset();
     m_pidInfo.PmtPid=GetPid();
@@ -126,9 +128,9 @@ void CPmtParser::OnNewSection(CSection& section)
       pointer += 5;
       len1 -= 5;
       len2 = ES_info_length;
-  		
-	    while (len2 > 0)
-	    {
+
+      while (len2 > 0)
+      {
         if (pointer+1>=section.section_length) 
         {
           XBMC->Log(LOG_DEBUG, "pmt parser check1");
@@ -138,14 +140,14 @@ void CPmtParser::OnNewSection(CSection& section)
 
         int indicator=section.Data[pointer];
         x = section.Data[pointer + 1] + 2;
-  						
+
         if(indicator==DESCRIPTOR_DVB_AC3 || indicator==DESCRIPTOR_DVB_E_AC3)
-        {								
+        {
           AudioPid pid;
           pid.Pid=elementary_PID;
           pid.AudioServiceType=(indicator==DESCRIPTOR_DVB_AC3) ? SERVICE_TYPE_AUDIO_AC3 : SERVICE_TYPE_AUDIO_DD_PLUS;
-          
-          for(int i(0); i<tempPids.size(); i++)
+
+          for(unsigned int i(0); i < tempPids.size(); i++)
           {
             if(tempPids[i].Pid==elementary_PID)
             {
@@ -162,12 +164,12 @@ void CPmtParser::OnNewSection(CSection& section)
 
           m_pidInfo.audioPids.push_back(pid);
         }
-  			
-		    // audio and subtitle languages
+
+        // audio and subtitle languages
         if(indicator==DESCRIPTOR_MPEG_ISO639_Lang)
-		    {					
-			    if (pointer+4>=section.section_length) 
-			    {
+        {
+          if (pointer+4>=section.section_length) 
+          {
             XBMC->Log(LOG_DEBUG, "pmt parser check2");
             return ;
           }
@@ -184,9 +186,9 @@ void CPmtParser::OnNewSection(CSection& section)
 
               m_pidInfo.audioPids[i].Lang[0]=section.Data[pointer+2];
               m_pidInfo.audioPids[i].Lang[1]=section.Data[pointer+3];
-              m_pidInfo.audioPids[i].Lang[2]=section.Data[pointer+4];	
+              m_pidInfo.audioPids[i].Lang[2]=section.Data[pointer+4];
               m_pidInfo.audioPids[i].Lang[3]=0;
-			  
+
               // Get the additional language descriptor data (NORSWE etc.)
               if( descriptorLen == 8 )
               {
@@ -211,7 +213,7 @@ void CPmtParser::OnNewSection(CSection& section)
               pidFound=true;
             }
           }
-            
+
           if(!pidFound)
           {
             int descriptorLen = section.Data[pointer+1];
@@ -259,17 +261,17 @@ void CPmtParser::OnNewSection(CSection& section)
           //LogDebug("Descriptor length %i, N= %i", descriptorLen, N);
           for(int j = 0; j < N; j++)
           {
-            BYTE ISO_639_language_code[3];
-            ISO_639_language_code[0] = section.Data[pointer + varBytes*j + 2];
-            ISO_639_language_code[1] = section.Data[pointer + varBytes*j + 3];
-            ISO_639_language_code[2] = section.Data[pointer + varBytes*j + 4];
+            //BYTE ISO_639_language_code[3];
+            //ISO_639_language_code[0] = section.Data[pointer + varBytes*j + 2];
+            //ISO_639_language_code[1] = section.Data[pointer + varBytes*j + 3];
+            //ISO_639_language_code[2] = section.Data[pointer + varBytes*j + 4];
 
             BYTE b3 = section.Data[pointer + varBytes*j + 5];
             BYTE teletext_type = (b3 & 0xF8) >> 3; // 5 first(msb) bits
 
             assert(teletext_type <= 0x05); // 0x06 and upwards reserved for future use and shouldnt appear
             //for(int i = 0; i < 8; i++){
-            //	if( ((b3 << i) & 128) != 0) LogDebug("1");	
+            //	if( ((b3 << i) & 128) != 0) LogDebug("1");
             //	else LogDebug("0");
             //}
 
@@ -305,7 +307,7 @@ void CPmtParser::OnNewSection(CSection& section)
               XBMC->Log(LOG_DEBUG, "Teletext SI: Page %i Type %X",real_page,teletext_type);
             }
           }
-		    }
+        }
         if(indicator==DESCRIPTOR_DVB_SUBTITLING )
         {
           if (stream_type==SERVICE_TYPE_DVB_SUBTITLES2)
@@ -363,5 +365,5 @@ void CPmtParser::OnNewSection(CSection& section)
 
 CPidTable& CPmtParser::GetPidInfo()
 {
-	return m_pidInfo;
+  return m_pidInfo;
 }

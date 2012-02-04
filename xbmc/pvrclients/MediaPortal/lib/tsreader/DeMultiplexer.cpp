@@ -86,7 +86,7 @@ int CDeMultiplexer::ReadFromFile(bool isAudio, bool isVideo)
 
   byte buffer[READ_SIZE];
   unsigned long dwReadBytes = 0;
-  bool result=false;
+  //bool result=false;
 
   // if we are playing a RTSP stream
   if (m_reader->IsBuffer())
@@ -94,7 +94,7 @@ int CDeMultiplexer::ReadFromFile(bool isAudio, bool isVideo)
     // and, the current buffer holds data
     int nBytesToRead = m_reader->HasData();
 
-    if (nBytesToRead > sizeof(buffer))
+    if (nBytesToRead > (int) sizeof(buffer))
     {
         nBytesToRead = sizeof(buffer);
     }
@@ -107,11 +107,11 @@ int CDeMultiplexer::ReadFromFile(bool isAudio, bool isVideo)
     if (nBytesToRead)
     {
       // then read raw data from the buffer
-      m_reader->Read(buffer, nBytesToRead, (DWORD*)&dwReadBytes);
+      m_reader->Read(buffer, nBytesToRead, (unsigned long*)&dwReadBytes);
       if (dwReadBytes > 0)
       {
         // yes, then process the raw data
-        result=true;
+        //result=true;
         OnRawData(buffer,(int)dwReadBytes);
         m_LastDataFromRtsp = GetTickCount();
       }
@@ -165,7 +165,6 @@ int CDeMultiplexer::ReadFromFile(bool isAudio, bool isVideo)
     }
     else
     {
-      int x = 123;
       XBMC->Log(LOG_DEBUG, "%s: Read failed...", __FUNCTION__);
     }
   }

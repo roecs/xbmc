@@ -18,7 +18,10 @@
  *  http://www.gnu.org/copyleft/gpl.html
  *
  */
+
+#ifdef TARGET_WINDOWS
 #pragma warning(disable : 4995)
+#endif
 
 #include "PacketSync.h"
 

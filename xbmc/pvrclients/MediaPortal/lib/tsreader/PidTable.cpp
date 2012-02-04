@@ -6,19 +6,21 @@
  *  it under the terms of the GNU General Public License as published by
  *  the Free Software Foundation; either version 2, or (at your option)
  *  any later version.
- *   
+ *
  *  This Program is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  *  GNU General Public License for more details.
- *   
+ *
  *  You should have received a copy of the GNU General Public License
  *  along with GNU Make; see the file COPYING.  If not, write to
  *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA. 
  *  http://www.gnu.org/copyleft/gpl.html
  *
  */
+#ifdef TARGET_WINDOWS
 #pragma warning(disable : 4995)
+#endif
 
 #include "PidTable.h"
 #include "client.h" //XBMC->Log
@@ -63,11 +65,11 @@ bool CPidTable::operator ==(const CPidTable& other) const
 
 void CPidTable::Reset()
 {
-	//LogDebug("Pid table reset");
+  //LogDebug("Pid table reset");
   PcrPid=0;
   PmtPid=0;
   ServiceId=-1;
-  
+
   videoPids.clear();
   audioPids.clear();
   subtitlePids.clear();
@@ -137,75 +139,75 @@ void CPidTable::LogPIDs()
   // Log all audio streams
   for(unsigned int i(0) ; i < audioPids.size() ; i++)
   {
-	  XBMC->Log(LOG_DEBUG, " audio    pid: %4x language: %3s type: %s",
-      audioPids[i].Pid, 
-      audioPids[i].Lang,
-      StreamFormatAsString(audioPids[i].AudioServiceType));
+    XBMC->Log(LOG_DEBUG, " audio    pid: %4x language: %3s type: %s",
+    audioPids[i].Pid, 
+    audioPids[i].Lang,
+    StreamFormatAsString(audioPids[i].AudioServiceType));
   }
-  
+
   // Log all subtitle streams
   for(unsigned int i(0) ; i < subtitlePids.size() ; i++)
   {
-	  XBMC->Log(LOG_DEBUG, " Subtitle pid: %4x language: %3s type: %s",
+    XBMC->Log(LOG_DEBUG, " Subtitle pid: %4x language: %3s type: %s",
       subtitlePids[i].Pid, 
       subtitlePids[i].Lang,
       StreamFormatAsString(subtitlePids[i].SubtitleServiceType));  
-  }  
+  }
 }
 
 
-LPCTSTR CPidTable::StreamFormatAsString(int streamType)
+const char* CPidTable::StreamFormatAsString(int streamType)
 {
-	switch (streamType)
-	{
-	case 0x01:
-		return _T("MPEG1");
-	case 0x02:
-		return _T("MPEG2");
-	case 0x03:
-		return _T("MPEG1 - audio");
-	case 0x04:
-		return _T("MPEG2 - audio");
-	case 0x05:
-		return _T("DVB subtitle 1");
-	case 0x06:
-		return _T("DVB subtitle 2");
-	case 0x10:
-		return _T("MPEG4");
-	case 0x1B:
-		return _T("H264");
-	case 0xEA:
-		return _T("VC1");
-	case 0x80:
-		return _T("LPCM");
-	case 0x81:
-		return _T("AC3");
-	case 0x82:
-		return _T("DTS");
-	case 0x83:
-		return _T("MLP");
-	case 0x84:
-		return _T("DD+");
-	case 0x85:
-		return _T("DTS-HD");
-	case 0x86:
-		return _T("DTS-HD Master Audio");
-  case 0x0f:
-		return _T("AAC");
-	case 0x11:
-		return _T("LATM AAC");
-  case 0xA1:
-		return _T("DD+");
-	case 0xA2:
-		return _T("DTS-HD");
-	case 0x90:
-		return _T("PGS");
-	case 0x91:
-		return _T("IG");
-	case 0x92:
-		return _T("Text");
-	default:
-		return _T("Unknown");
-	}
+  switch (streamType)
+  {
+    case 0x01:
+      return "MPEG1";
+    case 0x02:
+      return "MPEG2";
+    case 0x03:
+      return "MPEG1 - audio";
+    case 0x04:
+      return "MPEG2 - audio";
+    case 0x05:
+      return "DVB subtitle 1";
+    case 0x06:
+      return "DVB subtitle 2";
+    case 0x10:
+      return "MPEG4";
+    case 0x1B:
+      return "H264";
+    case 0xEA:
+      return "VC1";
+    case 0x80:
+      return "LPCM";
+    case 0x81:
+      return "AC3";
+    case 0x82:
+      return "DTS";
+    case 0x83:
+      return "MLP";
+    case 0x84:
+      return "DD+";
+    case 0x85:
+      return "DTS-HD";
+    case 0x86:
+      return "DTS-HD Master Audio";
+    case 0x0f:
+      return "AAC";
+    case 0x11:
+      return "LATM AAC";
+    case 0xA1:
+      return "DD+";
+    case 0xA2:
+      return "DTS-HD";
+    case 0x90:
+      return "PGS";
+    case 0x91:
+      return "IG";
+    case 0x92:
+      return "Text";
+    default:
+      return "Unknown";
+  }
 }
 

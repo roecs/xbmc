@@ -23,7 +23,7 @@
 #include "ISectionCallback.h"
 #include "DvbUtil.h"
 #include "Section.h"
-#include "TsHeader.h"
+#include "TSHeader.h"
 
 #define MAX_SECTIONS 256
 

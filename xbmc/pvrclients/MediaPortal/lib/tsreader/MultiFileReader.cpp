@@ -733,12 +733,13 @@ unsigned long MultiFileReader::setFilePointer(int64_t llDistanceToMove, unsigned
   fileEnd = (int64_t)(fileLength + fileStart);
   if (dwMoveMethod == FILE_BEGIN)
   {
-    return SetFilePointer((int64_t)min(fileEnd,(int64_t)(llDistanceToMove + fileStart)), FILE_BEGIN);
+    return SetFilePointer((int64_t)::min(fileEnd,(int64_t)(llDistanceToMove + fileStart)), FILE_BEGIN);
   }
   else
   {
-    return SetFilePointer((int64_t)max((int64_t)-fileLength, llDistanceToMove), FILE_END);
+    return SetFilePointer((int64_t)::max((int64_t)-fileLength, llDistanceToMove), FILE_END);
   }
+  return 0; //to keep g++ happy
 }
 
 int64_t MultiFileReader::getFilePointer()

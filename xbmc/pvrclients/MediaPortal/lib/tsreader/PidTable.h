@@ -34,7 +34,7 @@ public:
     SubtitleServiceType=-1; 
     Lang[0]='U'; Lang[1]='N'; Lang[2]='K'; Lang[3]=0;
   }
-  
+
   bool operator ==(const SubtitlePid& other) const
   {
     if(Pid != other.Pid
@@ -50,9 +50,9 @@ public:
       return true;
     }
   }
-  WORD Pid;
-  WORD SubtitleServiceType;
-  BYTE Lang[4];
+  unsigned short Pid;
+  unsigned short SubtitleServiceType;
+  byte Lang[4];
 };
 
 // This class used to store audio stream specific information
@@ -84,9 +84,9 @@ public:
       return true;
     }
   }
-  WORD Pid;
-  BYTE Lang[7];
-  WORD AudioServiceType;
+  unsigned short Pid;
+  byte Lang[7];
+  unsigned short AudioServiceType;
 };
 
 // This class used to store video stream specific information
@@ -111,7 +111,7 @@ public:
     }
   }
 
-  WORD Pid;
+  unsigned short Pid;
   int VideoServiceType;
 };
 
@@ -124,8 +124,8 @@ public:
   Pid=-1; 
   Lang[0]='U'; Lang[1]='N'; Lang[2]='K'; Lang[3]=0; Lang[4]=0; Lang[5]=0; Lang[6]=0;
   }
-  WORD Pid;
-  BYTE Lang[7];
+  unsigned short Pid;
+  byte Lang[7];
 };
 
 class CPidTable
@@ -138,7 +138,7 @@ public:
   void Reset();
 
   void LogPIDs();
-  LPCTSTR StreamFormatAsString(int streamType);
+  const char* StreamFormatAsString(int streamType);
 
   bool HasTeletextPageInfo(int page); // do we have a TeletextServiceInfo entry for that page
 
@@ -147,9 +147,9 @@ public:
 
   void Copy(const CPidTable &pids);
 
-  ULONG PcrPid;
-  ULONG PmtPid;
-  WORD TeletextPid; // which PID contains the teletext data
+  unsigned long PcrPid;
+  unsigned long PmtPid;
+  unsigned short TeletextPid; // which PID contains the teletext data
   //std::vector<TeletextServiceInfo> TeletextInfo;
 
   int  ServiceId;

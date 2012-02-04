@@ -368,6 +368,7 @@ long CTsReader::Pause()
   }
   else if (m_State == State_Paused)
   {
+#ifdef LIVE555
     // Are we using rtsp?
     if (m_bIsRTSP)
     {
@@ -375,6 +376,7 @@ long CTsReader::Pause()
         m_rtspClient->Continue();
         XBMC->Log(LOG_DEBUG, "CTsReader::Pause() rtsp running"); // at position: %f", (m_seekTime.Millisecs() / 1000.0f));
     }
+#endif //LIVE555
   }
 
   XBMC->Log(LOG_DEBUG, "CTsReader::Pause() - END - state = %d", m_State);

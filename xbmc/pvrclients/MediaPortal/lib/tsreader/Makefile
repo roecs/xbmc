@@ -1,11 +1,21 @@
-SRCS=FileReader.cpp \
-    MultiFileReader.cpp \
-    TSReader.cpp \
-    RTSPClient.cpp \
+SRCS=ChannelInfo.cpp \
+    DeMultiplexer.cpp \
+    DvbUtil.cpp \
+    FileReader.cpp \
     MemoryBuffer.cpp \
     MemoryReader.cpp \
     MemorySink.cpp \
+    MultiFileReader.cpp \
+    PacketSync.cpp \
+    PatParser.cpp \
+    PidTable.cpp \
+    PmtParser.cpp \
+    RTSPClient.cpp \
+    Section.cpp \
+    SectionDecoder.cpp \
     Thread.cpp \
+    TSHeader.cpp \
+    TSReader.cpp \
     WaitEvent.cpp
 LIB=tsreader.a
 
