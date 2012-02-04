@@ -29,6 +29,7 @@
 #include "FileReader.h"
 #include "client.h" //for XBMC->Log
 #include "os-dependent.h"
+#include <algorithm> //std::min, std::max
 
 using namespace ADDON;
 
@@ -546,6 +547,8 @@ int64_t FileReader::GetFilePointer()
 
 long FileReader::Read(unsigned char* pbData, unsigned long lDataLength, unsigned long *dwReadBytes)
 {
+  int64_t zeropos = 0;
+
   // If the file has already been closed, don't continue
   if (IsFileInvalid())
   {
@@ -582,7 +585,7 @@ long FileReader::Read(unsigned char* pbData, unsigned long lDataLength, unsigned
 
       if (length < (int64_t)(m_filecurrent + (int64_t)lDataLength) && m_filecurrent > startPos)
       {
-        hr = ::ReadFile(m_hFile, (void*)pbData, (DWORD)max(0,(length - m_filecurrent)), dwReadBytes, NULL);
+        hr = ::ReadFile(m_hFile, (void*)pbData, (DWORD) std::max( zeropos, (length - m_filecurrent)), dwReadBytes, NULL);
         if (!hr)
           return E_FAIL;
 
@@ -598,8 +601,8 @@ long FileReader::Read(unsigned char* pbData, unsigned long lDataLength, unsigned
         unsigned long dwRead = 0;
 
         hr = ::ReadFile(m_hFile,
-          (void*)(pbData + (DWORD)max(0,(length - m_filecurrent))),
-          (DWORD)max(0,((int64_t)lDataLength -(int64_t)(length - m_filecurrent))),
+          (void*)(pbData + (DWORD) std::max( zeropos, (length - m_filecurrent))),
+          (DWORD) std::max( zeropos,((int64_t)lDataLength -(int64_t)(length - m_filecurrent))),
           &dwRead,
           NULL);
 
@@ -607,7 +610,7 @@ long FileReader::Read(unsigned char* pbData, unsigned long lDataLength, unsigned
 
       }
       else if (startPos < (int64_t)(m_filecurrent + (int64_t)lDataLength) && m_filecurrent < startPos)
-        hr = ::ReadFile(m_hFile, (void*)pbData, (DWORD)max(0,(startPos - m_filecurrent)), dwReadBytes, NULL);
+        hr = ::ReadFile(m_hFile, (void*)pbData, (DWORD) std::max( zeropos,(startPos - m_filecurrent)), dwReadBytes, NULL);
 
       else
         hr = ::ReadFile(m_hFile, (void*)pbData, (DWORD)lDataLength, dwReadBytes, NULL);
@@ -627,7 +630,7 @@ long FileReader::Read(unsigned char* pbData, unsigned long lDataLength, unsigned
     int64_t length = 0;
     GetFileSize(&start, &length);
     if (length < (int64_t)(m_filecurrent + (int64_t)lDataLength))
-      hr = ::ReadFile(m_hFile, (void*)pbData, (DWORD)max(0,(length - m_filecurrent)), dwReadBytes, NULL);
+      hr = ::ReadFile(m_hFile, (void*)pbData, (DWORD) std::max( zeropos,(length - m_filecurrent)), dwReadBytes, NULL);
     else
       hr = ::ReadFile(m_hFile, (void*)pbData, (DWORD)lDataLength, dwReadBytes, NULL);
   }
@@ -710,9 +713,9 @@ unsigned long FileReader::setFilePointer(int64_t llDistanceToMove, unsigned long
   GetFileSize(&fileStart, &fileLength);
   fileEnd = fileLength;
   if (dwMoveMethod == FILE_BEGIN)
-    return SetFilePointer((int64_t)min(fileEnd, llDistanceToMove), FILE_BEGIN);
+    return SetFilePointer((int64_t) std::min(fileEnd, llDistanceToMove), FILE_BEGIN);
   else
-    return SetFilePointer((int64_t)max((int64_t)-fileLength, llDistanceToMove), FILE_END);
+    return SetFilePointer((int64_t) std::max((int64_t)-fileLength, llDistanceToMove), FILE_END);
 }
 
 int64_t FileReader::getFilePointer()
