@@ -68,9 +68,6 @@
     <ClCompile Include="..\..\lib\tinyxml\tinyxmlparser.cpp">
       <Filter>Source Files\tinyXML</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\windows\CriticalSection.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\lib\tsreader\FileReader.cpp">
       <Filter>Source Files\tsreader</Filter>
     </ClCompile>
@@ -127,6 +124,12 @@
     </ClCompile>
     <ClCompile Include="..\..\lib\tsreader\DvbUtil.cpp">
       <Filter>Source Files\tsreader</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\windows\FileUtils.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\windows\CriticalSection.cpp">
+      <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -240,6 +243,9 @@
     </ClInclude>
     <ClInclude Include="..\..\lib\tsreader\PidTable.h">
       <Filter>Header Files\tsreader</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\FileUtils.h">
+      <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
