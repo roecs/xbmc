@@ -633,7 +633,10 @@ PVR_ERROR cPVRClientMediaPortal::GetChannels(PVR_HANDLE handle, bool bRadio)
     else
     {
       /* Windows XP */
-      strThumbPath = "C:\\Documents and Settings\\All Users\\Application Data\\Team MediaPortal\\MediaPortal\\thumbs\\";
+      if (OS::GetEnvironmentVariable("ALLUSERSPROFILE", strProgramData) == true)
+        strThumbPath = strProgramData + "\\Application Data\\Team MediaPortal\\MediaPortal\\thumbs\\";
+      else
+        strThumbPath = "C:\\Documents and Settings\\All Users\\Application Data\\Team MediaPortal\\MediaPortal\\thumbs\\";
     }
   }
 
@@ -1519,9 +1522,9 @@ int cPVRClientMediaPortal::GetCurrentClientChannel()
 
 PVR_ERROR cPVRClientMediaPortal::SignalStatus(PVR_SIGNAL_STATUS &signalStatus)
 {
-  if (g_iTVServerXBMCBuild < 108)
+  if (g_iTVServerXBMCBuild < 108 || (m_iCurrentChannel == -1))
   {
-    // Not yet supported
+    // Not yet supported or playing webstream
     return PVR_ERROR_NO_ERROR;
   }
 
