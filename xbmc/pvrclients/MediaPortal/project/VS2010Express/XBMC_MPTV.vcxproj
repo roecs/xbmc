@@ -199,9 +199,6 @@
     <None Include="..\..\README" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\..\..\..\lib\libTcpSocket\project\libTcpSocket_2010.vcxproj">
-      <Project>{0f78aaf3-a188-4491-8ba6-203dc0b8d7f5}</Project>
-    </ProjectReference>
     <ProjectReference Include="..\..\lib\live555\LiveMedia555.vcxproj">
       <Project>{3c398bd4-5714-4802-ab86-d43add15b3c0}</Project>
     </ProjectReference>

@@ -34,6 +34,7 @@
 #include "utils.h"
 #include "MemoryReader.h"
 #include "RTSPClient.h"
+#include "platform/util/timeutils.h"
 
 #ifdef TARGET_WINDOWS
 #pragma warning(disable:4355)

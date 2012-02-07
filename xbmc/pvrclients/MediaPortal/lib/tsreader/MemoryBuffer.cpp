@@ -19,6 +19,7 @@
 #ifdef LIVE555
 
 #include "os-dependent.h"
+#include "platform/util/timeutils.h"
 #include "MemoryBuffer.h"
 #include "SingleLock.h"
 #include "client.h"

@@ -55,7 +55,7 @@ typedef SOCKET tcp_socket_t;
 typedef HANDLE serial_socket_t;
 #define INVALID_SERIAL_SOCKET_VALUE INVALID_HANDLE_VALUE
 
-typedef __int8    int8_t;
+//typedef signed __int8    int8_t;
 typedef __int16   int16_t;
 typedef __int32   int32_t;
 typedef __int64   int64_t;
