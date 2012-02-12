@@ -1,4 +1,3 @@
-#pragma once
 /*
  *      Copyright (C) 2005-2011 Team XBMC
  *      http://www.xbmc.org
@@ -19,11 +18,37 @@
 
 #include "CriticalSection.h"
 
-class CAutoLock
+CCriticalSection::CCriticalSection(void): locked(0)
 {
-  public:
-    CAutoLock(CCriticalSection* pCritSec);
-    ~CAutoLock();
-  protected:
-    CCriticalSection* m_pAutoLock;
-};
+  Initialize();
+}
+
+void CCriticalSection::Initialize(void)
+{
+  InitializeCriticalSection(&m_CriticalSection);
+  locked = 0;
+}
+
+CCriticalSection::~CCriticalSection(void)
+{
+  DeleteCriticalSection(&m_CriticalSection);
+}
+
+void CCriticalSection::lock(void)
+{
+  EnterCriticalSection(&m_CriticalSection);
+  locked++;
+}
+
+void CCriticalSection::unlock(void)
+{
+  if (!--locked)
+  {
+    LeaveCriticalSection(&m_CriticalSection);
+  }
+}
+
+bool CCriticalSection::try_lock()
+{
+  return TryEnterCriticalSection(&m_CriticalSection) ?  locked++, true : false;
+}

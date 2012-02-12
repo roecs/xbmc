@@ -1,3 +1,4 @@
+#pragma once
 /*
  *      Copyright (C) 2005-2011 Team XBMC
  *      http://www.xbmc.org
@@ -16,19 +17,27 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "AutoLock.h"
+#include "CriticalSection.h"
+#include "NonCopyable.h"
+#include "client.h"
 
-/*
- * \brief CAutoLock constructor
- * \param pCritSec
- */
-CAutoLock::CAutoLock(CCriticalSection* pCritSec)
-{
-  m_pAutoLock = pCritSec;
-  m_pAutoLock->Lock();
-}
+using namespace ADDON;
 
-CAutoLock::~CAutoLock()
+class CSingleLock: public NonCopyable
 {
-  m_pAutoLock->Unlock();
-}
+  public:
+    CSingleLock(CCriticalSection& cs): m_CriticalSection(cs)
+    {
+      //XBMC->Log(LOG_DEBUG, "%s: lock %p", __FUNCTION__, &m_CriticalSection);
+      m_CriticalSection.lock();
+    };
+
+    ~CSingleLock(void)
+    {
+      //XBMC->Log(LOG_DEBUG, "%s: unlock %p", __FUNCTION__, &m_CriticalSection);
+      m_CriticalSection.unlock();
+    };
+
+  private:
+    CCriticalSection& m_CriticalSection;
+};
