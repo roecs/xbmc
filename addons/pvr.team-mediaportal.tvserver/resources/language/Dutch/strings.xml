@@ -5,7 +5,7 @@
     <string id="30001">Mediaportal XBMC plugin poort</string>
     <string id="30002">Toon alleen vrij te ontvangen kanalen</string>
     <string id="30003">Toon radio</string>
-
+    <string id="30004">Snel zappen (timeshift niet stoppen)</string>
     <string id="30005">Verbindingstimeout (s)</string>
     <string id="30006">Importeer alleen TV kanalen uit groep</string>
     <string id="30007">Importeer alleen radio kanalen uit groep</string>

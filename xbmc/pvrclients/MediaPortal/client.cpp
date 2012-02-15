@@ -48,6 +48,7 @@ std::string      g_szSMBpassword        = DEFAULT_SMBPASSWORD;           ///< Wi
                                                                          ///< Leave empty to use current user when running on Windows
 bool             g_bDirectTSFileRead    = DEFAULT_DIRECT_TS_FR;          ///< Open the Live-TV timeshift buffer directly (skip RTSP streaming)
 eStreamingMethod g_eStreamingMethod     = TSReader;
+bool             g_bFastChannelSwitch   = true;                          ///< Don't stop an existing timeshift on a channel switch
 
 /* Client member variables */
 ADDON_STATUS           m_CurStatus    = ADDON_STATUS_UNKNOWN;
@@ -307,12 +308,21 @@ void ADDON_ReadSettings(void)
   } else {
     g_szTimeshiftDir = buffer;
   }
-#else
+
+  /* Read setting "fastchannelswitch" from settings.xml */
+  if (!XBMC->GetSetting("fastchannelswitch", &g_bFastChannelSwitch))
+  {
+    /* If setting is unknown fallback to defaults */
+    XBMC->Log(LOG_ERROR, "Couldn't get 'fastchannelswitch' setting, falling back to 'false' as default");
+    g_bFastChannelSwitch = false;
+  }
+
+#else //! TSREADER
   /* "directtsfileread" is not yet supported on non-Windows targets */
   XBMC->Log(LOG_INFO, "Setting 'directtsfileread' to 'false' for non-Windows targets");
   g_bDirectTSFileRead = false;
   g_szTimeshiftDir = DEFAULT_TIMESHIFT_DIR;
-#endif
+#endif //TSREADER
 
   /* read setting "user" from settings.xml */
   if (!XBMC->GetSetting("smbusername", &buffer))
@@ -339,7 +349,7 @@ void ADDON_ReadSettings(void)
   XBMC->Log(LOG_DEBUG, "settings: readgenre=%i, sleeponrtspurl=%i", (int) g_bReadGenre, g_iSleepOnRTSPurl);
   XBMC->Log(LOG_DEBUG, "settings: userecordingsdir=%i, recordingsdir='%s'", (int) g_bUseRecordingsDir, g_szRecordingsDir.c_str());
   XBMC->Log(LOG_DEBUG, "settings: resolvertsphostname=%i", (int) g_bResolveRTSPHostname);
-  XBMC->Log(LOG_DEBUG, "settings: directsfileread=%i, timeshiftdir='%s'", (int) g_bDirectTSFileRead, g_szTimeshiftDir.c_str());
+  XBMC->Log(LOG_DEBUG, "settings: directsfileread=%i, timeshiftdir='%s' fastchannelswitch=%i", (int) g_bDirectTSFileRead, g_szTimeshiftDir.c_str(), (int) g_bFastChannelSwitch);
   XBMC->Log(LOG_DEBUG, "settings: smb user='%s', pass='%s'", g_szSMBusername.c_str(), g_szSMBpassword.c_str());
 }
 
@@ -445,6 +455,12 @@ ADDON_STATUS ADDON_SetSetting(const char *settingName, const void *settingValue)
     XBMC->Log(LOG_INFO, "Changed setting 'smbpassword' from %u to %u", g_szSMBpassword.c_str(), *(bool*) settingValue);
     g_szTimeshiftDir = *(bool*) settingValue;
   }
+  else if (str == "fastchannelswitch")
+  {
+    XBMC->Log(LOG_INFO, "Changed setting 'fastchannelswitch' from %u to %u", g_bFastChannelSwitch, *(bool*) settingValue);
+    g_bFastChannelSwitch = *(bool*) settingValue;
+  }
+
   return ADDON_STATUS_OK;
 }
 

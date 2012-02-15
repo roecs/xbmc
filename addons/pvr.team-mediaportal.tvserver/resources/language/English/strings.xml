@@ -5,7 +5,7 @@
     <string id="30001">Mediaportal XBMC plugin Port</string>
     <string id="30002">Free-to-air only</string>
     <string id="30003">Include Radio</string>
-
+    <string id="30004">Fast channel switching (don't stop timeshift)</string>
     <string id="30005">Connect timeout (s)</string>
     <string id="30006">Import only TV Channels from group</string>
     <string id="30007">Import only Radio Channels from group</string>

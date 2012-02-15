@@ -186,7 +186,6 @@
     <ClInclude Include="..\..\lib\tsreader\WaitEvent.h" />
     <ClInclude Include="..\..\NonCopyable.h" />
     <ClInclude Include="..\..\os-dependent.h" />
-    <ClInclude Include="..\..\windows\os_windows.h" />
     <ClInclude Include="..\..\pvrclient-mediaportal.h" />
     <ClInclude Include="..\..\recordings.h" />
     <ClInclude Include="..\..\SingleLock.h" />
@@ -194,6 +193,8 @@
     <ClInclude Include="..\..\timers.h" />
     <ClInclude Include="..\..\uri.h" />
     <ClInclude Include="..\..\utils.h" />
+    <ClInclude Include="..\..\windows\os_windows.h" />
+    <ClInclude Include="..\..\windows\WindowsUtils.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\..\README" />

@@ -72,6 +72,7 @@ extern bool             g_bResolveRTSPHostname;
 extern bool             g_bReadGenre;
 extern bool             g_bUseRecordingsDir;
 extern bool             g_bDirectTSFileRead;
+extern bool             g_bFastChannelSwitch;
 extern std::string      g_szRecordingsDir;
 extern std::string      g_szTimeshiftDir;
 extern std::string      g_szTVGroup;
