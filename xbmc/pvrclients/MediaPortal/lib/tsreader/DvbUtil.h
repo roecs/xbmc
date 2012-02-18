@@ -1,6 +1,6 @@
 /* 
- *	Copyright (C) 2006-2008 Team MediaPortal
- *	http://www.team-mediaportal.com
+ *  Copyright (C) 2006-2008 Team MediaPortal
+ *  http://www.team-mediaportal.com
  *
  *  This Program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -20,13 +20,15 @@
  */
 #pragma once
 
-DWORD crc32 (char *data, int len);
+#include "os-dependent.h"
+
+uint32_t crc32 (char *data, int len);
 
 class CDvbUtil
 {
 public:
-	CDvbUtil(void);
-  void getString468A(BYTE *buf, int bufLen, char *text, int textLen);
+  CDvbUtil(void);
+  void getString468A(byte *buf, int bufLen, char *text, int textLen);
 public:
-	virtual ~CDvbUtil(void);
+  virtual ~CDvbUtil(void);
 };

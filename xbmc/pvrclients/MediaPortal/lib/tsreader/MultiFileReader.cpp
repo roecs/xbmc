@@ -57,21 +57,6 @@ MultiFileReader::MultiFileReader():
 
 MultiFileReader::~MultiFileReader()
 {
-  //CloseFile called by ~FileReader
-/*  USES_CONVERSION;
-
-  std::vector<MultiFileReaderFile *>::iterator it = m_tsFiles.begin();
-  for ( ; it < m_tsFiles.end() ; it++ )
-  {
-    if((*it)->filename)
-    {
-      DeleteFile(W2T((*it)->filename));
-      delete[] (*it)->filename;
-    }
-
-    delete *it;
-  };
-*/
 }
 
 
@@ -96,17 +81,17 @@ long MultiFileReader::OpenFile()
 
   //For radio the buffer sometimes needs some time to become available, so wait try it more than once
 #if defined(TARGET_WINDOWS)
-  unsigned long tc=GetTickCount();
+  unsigned long tc = GetTickCount();
 #elif defined(TARGET_LINUX) || defined(TARGET_OSX)
   struct timeval tstart;
   gettimeofday(&tstart, NULL);
 #else
 #error FIXME: Add some form of timeout handling for your OS
 #endif
-  while (RefreshTSBufferFile()==S_FALSE)
+  while (RefreshTSBufferFile() == S_FALSE)
   {
 #if defined(TARGET_WINDOWS)
-    if (GetTickCount()-tc>MAX_BUFFER_TIMEOUT)
+    if (GetTickCount()-tc > MAX_BUFFER_TIMEOUT)
 #elif defined(TARGET_LINUX) || defined(TARGET_OSX)
     struct timeval tnow, tdelta;
     gettimeofday(&tnow, NULL);
@@ -212,7 +197,7 @@ long MultiFileReader::Read(unsigned char* pbData, unsigned long lDataLength, uns
   // Find out which file the currentPosition is in.
   MultiFileReaderFile *file = NULL;
   std::vector<MultiFileReaderFile *>::iterator it = m_tsFiles.begin();
-  for ( ; it < m_tsFiles.end() ; it++ )
+  for ( ; it < m_tsFiles.end(); it++ )
   {
     file = *it;
     if (m_currentPosition < (file->startPosition + file->length))
@@ -220,7 +205,6 @@ long MultiFileReader::Read(unsigned char* pbData, unsigned long lDataLength, uns
   };
 
   // XBMC->Log(LOG_DEBUG, "%s: reading %ld bytes. File %s, start %d, current %d, end %d.", __FUNCTION__, lDataLength, file->filename.c_str(), m_startPosition, m_currentPosition, m_endPosition);
-
 
   if(!file)
   {
@@ -330,9 +314,8 @@ long MultiFileReader::RefreshTSBufferFile()
   long filesAdded, filesRemoved;
   long filesAdded2, filesRemoved2;
   long Error;
-  long Loop=10;
+  long Loop = 10;
 
-  //char* pBuffer;
   wchar_t* pBuffer = NULL;
 
   do
@@ -366,11 +349,11 @@ long MultiFileReader::RefreshTSBufferFile()
     if (!SUCCEEDED(result) || bytesRead!=readLength)
       Error |= 0x02;
 
-    if(Error == 0)
+    if (Error == 0)
     {
       currentPosition = *((int64_t*)(readBuffer + 0));
-		  filesAdded = *((long*)(readBuffer + sizeof(int64_t)));
-		  filesRemoved = *((long*)(readBuffer + sizeof(int64_t) + sizeof(long)));
+      filesAdded = *((long*)(readBuffer + sizeof(int64_t)));
+      filesRemoved = *((long*)(readBuffer + sizeof(int64_t) + sizeof(long)));
       // XBMC->Log(LOG_DEBUG, "MultiFileReader::RefreshTSBufferFile() currentPosition %I64d", currentPosition);
     }
 
@@ -384,12 +367,13 @@ long MultiFileReader::RefreshTSBufferFile()
 
     // Above 100kb seems stupid and figure out a problem !!!
     if (remainingLength > 100000)
-      Error=0x10;;
+      Error = 0x10;;
   
     pBuffer = (wchar_t*) new char[(unsigned int)remainingLength];
 
     result=m_TSBufferFile.Read((unsigned char*)pBuffer, (ULONG)remainingLength, &bytesRead);
-    if (!SUCCEEDED(result)||  bytesRead != remainingLength) Error=0x20;
+    if (!SUCCEEDED(result) ||  bytesRead != remainingLength)
+      Error=0x20;
 
     //unsigned char* pb = (unsigned char*) pBuffer;
     //for (unsigned long i = 0; i < bytesRead; i++)
@@ -406,11 +390,11 @@ long MultiFileReader::RefreshTSBufferFile()
     if (!SUCCEEDED(result) || bytesRead != readLength) 
       Error |= 0x40;
 
-    if(Error == 0)
-	  {
-		  filesAdded2 = *((long*)(readBuffer + 0));
-		  filesRemoved2 = *((long*)(readBuffer + sizeof(long)));
-	  }
+    if (Error == 0)
+    {
+      filesAdded2 = *((long*)(readBuffer + 0));
+      filesRemoved2 = *((long*)(readBuffer + sizeof(long)));
+    }
 
     delete[] readBuffer;
 
@@ -427,19 +411,20 @@ long MultiFileReader::RefreshTSBufferFile()
       Sleep(5);
     }
 
-    if (Error) delete[] pBuffer;
+    if (Error)
+      delete[] pBuffer;
 
-    Loop-- ;
+    Loop--;
   } while ( Error && Loop ) ; // If Error is set, try again...until Loop reaches 0.
  
   if (Loop < 8)
   {
     XBMC->Log(LOG_DEBUG, "MultiFileReader has waited %d times for TSbuffer integrity.", 10-Loop) ;
 
-    if(Error)
+    if (Error)
     {
       XBMC->Log(LOG_ERROR, "MultiFileReader has failed for TSbuffer integrity. Error : %x", Error) ;
-      return E_FAIL ;
+      return E_FAIL;
     }
   }
 
@@ -506,7 +491,6 @@ long MultiFileReader::RefreshTSBufferFile()
     sFilename = filename;
     pos = sFilename.find_last_of(PATH_SEPARATOR_CHAR);
     path = sFilename.substr(0, pos+1);
-    //name3 = filename1.substr(pos+1);
 
     // Create a list of files in the .tsbuffer file.
     std::vector<std::string> filenames;
@@ -562,7 +546,6 @@ long MultiFileReader::RefreshTSBufferFile()
 
     // Go through files
     std::vector<MultiFileReaderFile *>::iterator itFiles = m_tsFiles.begin();
-    //std::vector<char*>::iterator itFilenames = filenames.begin();
     std::vector<std::string>::iterator itFilenames = filenames.begin();
 
     while (itFiles < m_tsFiles.end())
@@ -631,10 +614,6 @@ long MultiFileReader::RefreshTSBufferFile()
       int64_t curPos = m_currentPosition;
       XBMC->Log(LOG_DEBUG, "StartPosition %lli, EndPosition %lli, CurrentPosition %lli\n", stPos, endPos, curPos);
     }
-    // int64_t stPos = m_startPosition;
-    // int64_t endPos = m_endPosition;
-    // int64_t curPos = m_currentPosition;
-    // XBMC->Log(LOG_DEBUG, "StartPosition %lli, EndPosition %lli, CurrentPosition %lli\n", stPos, endPos, curPos);
   }
   else
   {
@@ -767,23 +746,17 @@ int64_t MultiFileReader::GetFileSize()
 {
   RefreshTSBufferFile();
   return m_endPosition - m_startPosition;
-  //if (m_cachedFileSize==0)
-  //{
-  //  RefreshTSBufferFile();
-  //  RefreshFileSize();
-  //}
-  //return m_cachedFileSize;
 }
 
 void MultiFileReader::RefreshFileSize()
 {
   int64_t fileLength = 0;
   std::vector<MultiFileReaderFile *>::iterator it = m_tsFiles.begin();
-  for ( ; it < m_tsFiles.end() ; it++ )
+  for ( ; it < m_tsFiles.end(); it++ )
   {
-    MultiFileReaderFile *file =*it;
+    MultiFileReaderFile *file = *it;
     fileLength+=file->length;
   }
-  m_cachedFileSize= fileLength;
+  m_cachedFileSize = fileLength;
   // XBMC->Log(LOG_DEBUG, "%s: m_cachedFileSize %d.", __FUNCTION__, m_cachedFileSize);
 }

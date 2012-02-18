@@ -25,15 +25,15 @@ class CTsReader;
 //class Packet : public CAtlArray<BYTE>
 //{
 //public:
-////	DWORD TrackNumber;
-//	BOOL bDiscontinuity; //, bSyncPoint, bAppendable;
-//	static const REFERENCE_TIME INVALID_TIME = _I64_MIN;
-//	REFERENCE_TIME rtStart; //, rtStop;
-////	AM_MEDIA_TYPE* pmt;
-//	Packet() {/*pmt = NULL;*/ bDiscontinuity /*= bAppendable*/ = FALSE;}
-//	virtual ~Packet() {/*if(pmt) DeleteMediaType(pmt);*/}
-//	virtual int GetDataSize() {return GetCount();}
-//	void SetData(const void* ptr, DWORD len) {SetCount(len); memcpy(GetData(), ptr, len);}
+////  DWORD TrackNumber;
+//  BOOL bDiscontinuity; //, bSyncPoint, bAppendable;
+//  static const REFERENCE_TIME INVALID_TIME = _I64_MIN;
+//  REFERENCE_TIME rtStart; //, rtStop;
+////  AM_MEDIA_TYPE* pmt;
+//  Packet() {/*pmt = NULL;*/ bDiscontinuity /*= bAppendable*/ = FALSE;}
+//  virtual ~Packet() {/*if(pmt) DeleteMediaType(pmt);*/}
+//  virtual int GetDataSize() {return GetCount();}
+//  void SetData(const void* ptr, DWORD len) {SetCount(len); memcpy(GetData(), ptr, len);}
 //};
 
 class CDeMultiplexer : public CPacketSync, public IPatParserCallback

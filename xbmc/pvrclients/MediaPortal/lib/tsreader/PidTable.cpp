@@ -1,6 +1,6 @@
 /* 
- *	Copyright (C) 2006-2009 Team MediaPortal
- *	http://www.team-mediaportal.com
+ *  Copyright (C) 2006-2009 Team MediaPortal
+ *  http://www.team-mediaportal.com
  *
  *  This Program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -18,9 +18,6 @@
  *  http://www.gnu.org/copyleft/gpl.html
  *
  */
-#ifdef TARGET_WINDOWS
-#pragma warning(disable : 4995)
-#endif
 
 #include "PidTable.h"
 #include "client.h" //XBMC->Log
@@ -65,7 +62,7 @@ bool CPidTable::operator ==(const CPidTable& other) const
 
 void CPidTable::Reset()
 {
-  //LogDebug("Pid table reset");
+  //XBMC->Log(LOG_DEBUG, "Pid table reset");
   PcrPid=0;
   PmtPid=0;
   ServiceId=-1;
@@ -81,7 +78,7 @@ void CPidTable::Reset()
 
 CPidTable& CPidTable::operator = (const CPidTable &pids)
 {
-  if (&pids==this)
+  if (&pids == this)
   {
     return *this;
   }
@@ -92,17 +89,17 @@ CPidTable& CPidTable::operator = (const CPidTable &pids)
 
 void CPidTable::Copy(const CPidTable &pids)
 {
-  //LogDebug("Pid table copy");
-  ServiceId=pids.ServiceId;
+  //XBMC->Log(LOG_DEBUG, "Pid table copy");
+  ServiceId = pids.ServiceId;
 
-  PcrPid=pids.PcrPid;
-  PmtPid=pids.PmtPid;
+  PcrPid = pids.PcrPid;
+  PmtPid = pids.PmtPid;
 
-  videoPids=pids.videoPids;
-  audioPids=pids.audioPids;
-  subtitlePids=pids.subtitlePids;
+  videoPids = pids.videoPids;
+  audioPids = pids.audioPids;
+  subtitlePids = pids.subtitlePids;
 
-  TeletextPid=pids.TeletextPid;
+  TeletextPid = pids.TeletextPid;
   //TeletextInfo=pids.TeletextInfo;
 }
 
@@ -129,7 +126,7 @@ void CPidTable::LogPIDs()
   XBMC->Log(LOG_DEBUG, " pmt      pid: %4x ",PmtPid);
 
   // Log all video streams (Blu-ray can have multiple video streams)
-  for(unsigned int i(0) ; i < videoPids.size() ; i++)
+  for (unsigned int i(0); i < videoPids.size(); i++)
   {
     XBMC->Log(LOG_DEBUG, " video    pid: %4x type: %s",
       videoPids[i].Pid, 
@@ -137,7 +134,7 @@ void CPidTable::LogPIDs()
   }
 
   // Log all audio streams
-  for(unsigned int i(0) ; i < audioPids.size() ; i++)
+  for (unsigned int i(0); i < audioPids.size(); i++)
   {
     XBMC->Log(LOG_DEBUG, " audio    pid: %4x language: %3s type: %s",
     audioPids[i].Pid, 
@@ -146,7 +143,7 @@ void CPidTable::LogPIDs()
   }
 
   // Log all subtitle streams
-  for(unsigned int i(0) ; i < subtitlePids.size() ; i++)
+  for (unsigned int i(0); i < subtitlePids.size(); i++)
   {
     XBMC->Log(LOG_DEBUG, " Subtitle pid: %4x language: %3s type: %s",
       subtitlePids[i].Pid, 

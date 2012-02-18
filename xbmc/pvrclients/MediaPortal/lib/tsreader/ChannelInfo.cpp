@@ -1,6 +1,6 @@
 /* 
- *	Copyright (C) 2006 Team MediaPortal
- *	http://www.team-mediaportal.com
+ *  Copyright (C) 2006 Team MediaPortal
+ *  http://www.team-mediaportal.com
  *
  *  This Program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -33,7 +33,7 @@ CChannelInfo::~CChannelInfo(void)
 void CChannelInfo::Reset()
 {
   PatVersion=-1;
-	LCN=10000;
+  LCN=10000;
   NetworkId=0;
   TransportId=0;
   ServiceId=0;

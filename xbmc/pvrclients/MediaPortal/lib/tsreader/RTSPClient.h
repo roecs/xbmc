@@ -19,7 +19,6 @@
 
 #ifdef LIVE555
 
-//#include "os-dependent.h"
 #include "lib/tsreader/Thread.h"
 #include "lib/tsreader/MemoryBuffer.h"
 

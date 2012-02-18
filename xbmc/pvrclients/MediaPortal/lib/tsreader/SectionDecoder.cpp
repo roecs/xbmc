@@ -1,6 +1,6 @@
 /* 
- *	Copyright (C) 2006-2008 Team MediaPortal
- *	http://www.team-mediaportal.com
+ *  Copyright (C) 2006-2008 Team MediaPortal
+ *  http://www.team-mediaportal.com
  *
  *  This Program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -18,9 +18,6 @@
  *  http://www.gnu.org/copyleft/gpl.html
  *
  */
-#ifdef TARGET_WINDOWS
-#pragma warning(disable : 4995)
-#endif
 #include "os-dependent.h"
 #include "client.h" //XBMC->Log
 
@@ -33,12 +30,12 @@ using namespace ADDON;
 
 CSectionDecoder::CSectionDecoder(void)
 {
-  m_pid=-1;
-  m_iContinuityCounter=0;
+  m_pid = -1;
+  m_iContinuityCounter = 0;
   m_section.Reset();
-  m_pCallback=NULL;
-  m_bLog=false;
-  m_bCrcCheck=true;
+  m_pCallback = NULL;
+  m_bLog = false;
+  m_bCrcCheck = true;
 }
 
 CSectionDecoder::~CSectionDecoder(void)
@@ -47,16 +44,16 @@ CSectionDecoder::~CSectionDecoder(void)
 
 void CSectionDecoder::EnableLogging(bool onOff)
 {
-  m_bLog=onOff;
+  m_bLog = onOff;
 }
 void CSectionDecoder::SetCallBack(ISectionCallback* callback)
 {
-  m_pCallback=callback;
+  m_pCallback = callback;
 }
 
 void CSectionDecoder::SetPid(int pid)
 {
-  m_pid=pid;
+  m_pid = pid;
 }
 
 int CSectionDecoder::GetPid()
@@ -71,22 +68,25 @@ void CSectionDecoder::Reset()
 
 void CSectionDecoder::EnableCrcCheck(bool onOff)
 {
-  m_bCrcCheck=onOff;
+  m_bCrcCheck = onOff;
 }
 
 void CSectionDecoder::OnTsPacket(byte* tsPacket)
 {
-  if (m_pid < 0) return;
-  if (tsPacket==NULL) return;
+  if (m_pid < 0)
+    return;
+  if (tsPacket == NULL)
+    return;
 
   m_header.Decode(tsPacket);
   OnTsPacket(m_header,tsPacket);
 }
 
-int CSectionDecoder::StartNewSection(byte* tsPacket,int index,int sectionLen)
+int CSectionDecoder::StartNewSection(byte* tsPacket, int index, int sectionLen)
 {
-  int newstart=-1;
-  int len=-1;
+  int newstart = -1;
+  int len = -1;
+
   if (sectionLen > -1)
   {
     if (index + sectionLen < 185)
@@ -114,19 +114,21 @@ int CSectionDecoder::StartNewSection(byte* tsPacket,int index,int sectionLen)
 
 int CSectionDecoder::AppendSection(byte* tsPacket, int index, int sectionLen)
 {
-  int newstart=-1;
-  int len=-1;
+  int newstart = -1;
+  int len = -1;
+
   if (index+sectionLen < 185)
   {
-   len=sectionLen+3;
-    newstart = index+sectionLen+3;
+    len = sectionLen + 3;
+    newstart = index+sectionLen + 3;
   }
   else
   {
     newstart = 188;
-    len=188-index;
+    len = 188 - index;
   }
-  memcpy(&m_section.Data[m_section.BufferPos],&tsPacket[index],len);
+
+  memcpy(&m_section.Data[m_section.BufferPos], &tsPacket[index], len);
   m_section.BufferPos += len;
   return newstart;
 }
@@ -152,7 +154,7 @@ void CSectionDecoder::OnTsPacket(CTsHeader& header,byte* tsPacket)
     if (!header.HasPayload) return;
 
     int start = header.PayLoadStart;
-    int pointer_field=0;
+    int pointer_field = 0;
 
     if (header.PayloadUnitStart)
     {
@@ -165,7 +167,8 @@ void CSectionDecoder::OnTsPacket(CTsHeader& header,byte* tsPacket)
       else
         start++;
     }
-    int numloops=0;
+
+    int numloops = 0;
     while (start < 188)
     {
       numloops++;
@@ -180,7 +183,7 @@ void CSectionDecoder::OnTsPacket(CTsHeader& header,byte* tsPacket)
       {
         if (m_section.section_length == -1)
           m_section.CalcSectionLength(tsPacket, start);
-        if (m_section.section_length==0)
+        if (m_section.section_length == 0)
         {
           if (m_bLog)
             XBMC->Log(LOG_DEBUG, "!!! CSectionDecoder::OnTsPacket got a section with section length: 0 on pid: 0x%X tableid: 0x%X bufferpos: %d start: %d - Discarding whole packet.",header.Pid,m_section.Data[0],m_section.BufferPos,start);
@@ -201,18 +204,18 @@ void CSectionDecoder::OnTsPacket(CTsHeader& header,byte* tsPacket)
       }
       if (m_section.SectionComplete() && m_section.section_length > 0)
       {
-        DWORD crc=0;
+        uint32_t crc = 0;
 
         // Only long syntax (section_syntax_indicator == 1) has a CRC
         // Short syntax may have CRC e.g. TOT, but that is part of the specific section
         if (m_section.section_syntax_indicator == 1)
-          crc=crc32((char*)m_section.Data,m_section.section_length+3);
+          crc = crc32( (char*) m_section.Data, m_section.section_length + 3);
 
-        if (crc==0 || (m_bCrcCheck==false))
+        if (crc == 0 || (m_bCrcCheck == false))
         {
           OnNewSection(m_section);
-          if (m_pCallback!=NULL)
-            m_pCallback->OnNewSection(header.Pid,m_section.table_id,m_section);
+          if (m_pCallback != NULL)
+            m_pCallback->OnNewSection(header.Pid, m_section.table_id, m_section);
         }
         else
         {
@@ -223,10 +226,11 @@ void CSectionDecoder::OnTsPacket(CTsHeader& header,byte* tsPacket)
 
         m_section.Reset();
       }
-      pointer_field=0;
-      if (numloops>100)
+      pointer_field = 0;
+      if (numloops > 100)
       {
-        XBMC->Log(LOG_DEBUG, "!!! CSectionDecoder::OnTsPacket Entered infinite loop. pid: %X start: %d BufferPos: %d SectionLength: %d - Discarding section and moving to next packet",header.Pid,start,m_section.BufferPos,m_section.section_length);
+        XBMC->Log(LOG_DEBUG, "!!! CSectionDecoder::OnTsPacket Entered infinite loop. pid: %X start: %d BufferPos: %d SectionLength: %d - Discarding section and moving to next packet",
+          header.Pid, start, m_section.BufferPos, m_section.section_length);
         m_section.Reset();
         return;
       }
@@ -241,5 +245,4 @@ void CSectionDecoder::OnTsPacket(CTsHeader& header,byte* tsPacket)
 void CSectionDecoder::OnNewSection(CSection& section)
 {
 }
-
 

@@ -1,6 +1,6 @@
 /* 
- *	Copyright (C) 2006 Team MediaPortal
- *	http://www.team-mediaportal.com
+ *  Copyright (C) 2006 Team MediaPortal
+ *  http://www.team-mediaportal.com
  *
  *  This Program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -29,33 +29,33 @@ using namespace std;
 class IPatParserCallback
 {
 public:
-	virtual void OnNewChannel(CChannelInfo& info)=0;
+  virtual void OnNewChannel(CChannelInfo& info)=0;
 };
 
 class CPatParser : public CSectionDecoder
 {
 public:
-	enum PatState
-	{
-		Idle,
-		Parsing,
-	};
+  enum PatState
+  {
+    Idle,
+    Parsing,
+  };
   CPatParser(void);
   virtual ~CPatParser(void);
   void        SkipPacketsAtStart(__int64 packets);
-	void	      OnTsPacket(byte* tsPacket);
+  void        OnTsPacket(byte* tsPacket);
   void        Reset();
-	void        OnNewSection(CSection& section);
+  void        OnNewSection(CSection& section);
   int         Count();
   bool        GetChannel(int index, CChannelInfo& info);
   void        Dump();
-	void        SetCallBack(IPatParserCallback* callback);
+  void        SetCallBack(IPatParserCallback* callback);
 private:
   void        CleanUp();
-	IPatParserCallback* m_pCallback;
+  IPatParserCallback* m_pCallback;
   vector<CPmtParser*> m_pmtParsers;
   __int64     m_packetsReceived;
   __int64     m_packetsToSkip;
-	int					m_iPatTableVersion;
-	PatState		m_iState;
+  int          m_iPatTableVersion;
+  PatState    m_iState;
 };

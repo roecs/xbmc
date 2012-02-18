@@ -1,6 +1,6 @@
 /* 
- *	Copyright (C) 2006 Team MediaPortal
- *	http://www.team-mediaportal.com
+ *  Copyright (C) 2006 Team MediaPortal
+ *  http://www.team-mediaportal.com
  *
  *  This Program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -18,19 +18,10 @@
  *  http://www.gnu.org/copyleft/gpl.html
  *
  */
-#ifdef TARGET_WINDOWS
-#pragma warning(disable:4996)
-#pragma warning(disable:4995)
-#endif
 
 #include "os-dependent.h"
 #include "client.h" //XBMC->Log
-//#include <commdlg.h>
-//#include <bdatypes.h>
 #include <time.h>
-//#include <streams.h>
-//#include <initguid.h>
-
 #include "PatParser.h"
 #include "TSHeader.h"
 
@@ -60,17 +51,17 @@ void CPatParser::CleanUp()
 {
   for (int i=0; i < (int) m_pmtParsers.size(); ++i)
   {
-    CPmtParser* parser=m_pmtParsers[i];
+    CPmtParser* parser = m_pmtParsers[i];
     delete parser;
   }
   m_pmtParsers.clear();
-  m_iPatTableVersion=-1;
+  m_iPatTableVersion = -1;
 }
 
 void  CPatParser::Reset()
 {
-// Dump();
-//LogDebug("PatParser:Reset()");
+  // Dump();
+  XBMC->Log(LOG_DEBUG, "PatParser:Reset()");
   CSectionDecoder::Reset();
   CleanUp();
   m_packetsReceived = 0;
@@ -89,7 +80,7 @@ int CPatParser::Count()
   for (int i=0; i < (int)m_pmtParsers.size(); ++i)
   {
     CPmtParser* parser = m_pmtParsers[i];
-    if (true == parser->IsReady()) 
+    if (true == parser->IsReady())
     {
       return count;
     }
@@ -130,9 +121,9 @@ void CPatParser::OnTsPacket(byte* tsPacket)
 
   if (m_packetsReceived > m_packetsToSkip)
   {
-    for (int i=0; i < (int)m_pmtParsers.size();++i)
+    for (int i=0; i < (int)m_pmtParsers.size(); ++i)
     {
-      CPmtParser* parser=m_pmtParsers[i];
+      CPmtParser* parser = m_pmtParsers[i];
       parser->OnTsPacket(tsPacket);
     }
     CSectionDecoder::OnTsPacket(tsPacket);
@@ -140,20 +131,20 @@ void CPatParser::OnTsPacket(byte* tsPacket)
 
   if (m_iState==Parsing && m_pCallback!=NULL)
   {
-    for (int i=0; i < (int)m_pmtParsers.size();++i)
+    for (int i=0; i < (int)m_pmtParsers.size(); ++i)
     {
-      CPmtParser* parser=m_pmtParsers[i];
-      if (true==parser->IsReady()) 
+      CPmtParser* parser = m_pmtParsers[i];
+      if (true == parser->IsReady()) 
       {
         CChannelInfo info;
         if (GetChannel(i, info))
         {
           m_iState=Idle;
 
-          info.PatVersion=m_iPatTableVersion;
+          info.PatVersion = m_iPatTableVersion;
           m_pCallback->OnNewChannel(info);
-          m_iState=Parsing;
-          return ;
+          m_iState = Parsing;
+          return;
         }
       }
     }
@@ -162,7 +153,7 @@ void CPatParser::OnTsPacket(byte* tsPacket)
 
 void CPatParser::OnNewSection(CSection& section)
 {
-  if (section.table_id!=0)
+  if (section.table_id != 0)
     return;
 
   try
@@ -170,18 +161,18 @@ void CPatParser::OnNewSection(CSection& section)
     //int section_syntax_indicator = (section.Data[1]>>7) & 1;
     //int transport_stream_id = section.table_id_extension;
 
-    if (section.version_number!=m_iPatTableVersion)
+    if (section.version_number != m_iPatTableVersion)
     {
       XBMC->Log(LOG_DEBUG, "PatParser: new pat table %d->%d", m_iPatTableVersion, section.version_number); //was commented out
       CleanUp();
-      m_iPatTableVersion=section.version_number;
-      m_iState=Parsing;
+      m_iPatTableVersion = section.version_number;
+      m_iState = Parsing;
     }
     //XBMC->Log(LOG_DEBUG, "DecodePat  %d section:%d lastsection:%d sectionlen:%d",
-    //					  version_number,section_number,last_section_number,section_length);
+    //            version_number,section_number,last_section_number,section_length);
 
     //int pmtcount=0;
-    int loop =(section.section_length - 9) / 4;
+    int loop = (section.section_length - 9) / 4;
     //bool newPmtsAdded=false;
     for(int i=0; i < loop; i++)
     {
@@ -223,18 +214,18 @@ void CPatParser::OnNewSection(CSection& section)
 
 void CPatParser::Dump()
 {
-  for (int i=0; i < Count();++i)
+  for (int i=0; i < Count(); ++i)
   {
     CChannelInfo info;
     if (GetChannel( i, info))
     {
       XBMC->Log(LOG_DEBUG, "%d) onid:%x tsid:%x sid:%x major:%d minor:%x freq:%x type:%d provider:%s service:%s",i,
-            info.NetworkId,info.TransportId,info.ServiceId,info.MajorChannel,info.MinorChannel,info.Frequency,info.ServiceType,info.ProviderName,info.ServiceName);
+            info.NetworkId, info.TransportId, info.ServiceId, info.MajorChannel, info.MinorChannel, info.Frequency, info.ServiceType, info.ProviderName, info.ServiceName);
       info.PidTable.LogPIDs();
     }
     else
     {
-      XBMC->Log(LOG_DEBUG, "%d) not found",i);
+      XBMC->Log(LOG_DEBUG, "%d) not found", i);
     }
   }
 }

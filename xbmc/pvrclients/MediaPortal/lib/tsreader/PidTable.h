@@ -1,6 +1,6 @@
 /*
- *	Copyright (C) 2006-2008 Team MediaPortal
- *	http://www.team-mediaportal.com
+ *  Copyright (C) 2006-2008 Team MediaPortal
+ *  http://www.team-mediaportal.com
  *
  *  This Program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -30,14 +30,17 @@ public:
 
   SubtitlePid()
   {
-    Pid=-1; 
-    SubtitleServiceType=-1; 
-    Lang[0]='U'; Lang[1]='N'; Lang[2]='K'; Lang[3]=0;
+    Pid = -1;
+    SubtitleServiceType = -1;
+    Lang[0] = 'U';
+    Lang[1] = 'N';
+    Lang[2] = 'K';
+    Lang[3] = 0;
   }
 
-  bool operator ==(const SubtitlePid& other) const
+  bool operator == (const SubtitlePid& other) const
   {
-    if(Pid != other.Pid
+    if (Pid != other.Pid
       || Lang[0] != other.Lang[0]
       || Lang[1] != other.Lang[1]
       || Lang[2] != other.Lang[2]
@@ -50,6 +53,7 @@ public:
       return true;
     }
   }
+
   unsigned short Pid;
   unsigned short SubtitleServiceType;
   byte Lang[4];
@@ -61,13 +65,20 @@ class AudioPid
 public:
   AudioPid()
   {
-    Pid=-1; 
-    AudioServiceType=-1; 
-    Lang[0]='U'; Lang[1]='N'; Lang[2]='K'; Lang[3]=0; Lang[4]=0; Lang[5]=0; Lang[6]=0;
+    Pid = -1;
+    AudioServiceType = -1;
+    Lang[0] = 'U';
+    Lang[1] = 'N';
+    Lang[2] = 'K';
+    Lang[3] = 0;
+    Lang[4] = 0;
+    Lang[5] = 0;
+    Lang[6] = 0;
   }
-  bool operator ==(const AudioPid& other) const
+
+  bool operator == (const AudioPid& other) const
   {
-    if(Pid != other.Pid
+    if (Pid != other.Pid
       || Lang[0] != other.Lang[0]
       || Lang[1] != other.Lang[1]
       || Lang[2] != other.Lang[2]
@@ -84,6 +95,7 @@ public:
       return true;
     }
   }
+
   unsigned short Pid;
   byte Lang[7];
   unsigned short AudioServiceType;
@@ -95,12 +107,13 @@ class VideoPid
 public:
   VideoPid()
   {
-    Pid=-1; VideoServiceType=-1; 
+    Pid = -1;
+    VideoServiceType = -1;
   }
 
-  bool operator ==(const VideoPid& other) const
+  bool operator == (const VideoPid& other) const
   {
-    if(Pid != other.Pid 
+    if (Pid != other.Pid
       || VideoServiceType != other.VideoServiceType)
     {
       return false;
@@ -121,9 +134,16 @@ public:
 
   TempPid()
   {
-  Pid=-1; 
-  Lang[0]='U'; Lang[1]='N'; Lang[2]='K'; Lang[3]=0; Lang[4]=0; Lang[5]=0; Lang[6]=0;
+    Pid = -1;
+    Lang[0] = 'U';
+    Lang[1] = 'N';
+    Lang[2] = 'K';
+    Lang[3] = 0;
+    Lang[4] = 0;
+    Lang[5] = 0;
+    Lang[6] = 0;
   }
+
   unsigned short Pid;
   byte Lang[7];
 };

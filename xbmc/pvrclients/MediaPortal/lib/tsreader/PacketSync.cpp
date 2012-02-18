@@ -19,16 +19,11 @@
  *
  */
 
-#ifdef TARGET_WINDOWS
-#pragma warning(disable : 4995)
-#endif
-
 #include "PacketSync.h"
-
 
 CPacketSync::CPacketSync(void)
 {
-  m_tempBufferPos=-1;
+  m_tempBufferPos = -1;
 }
 
 CPacketSync::~CPacketSync(void)
@@ -37,20 +32,21 @@ CPacketSync::~CPacketSync(void)
 
 void CPacketSync::Reset(void)
 {
-  m_tempBufferPos=-1;
+  m_tempBufferPos = -1;
 }
 
 // Ambass : Now, need to have 2 consecutive TS_PACKET_SYNC to try avoiding bad synchronisation.  
 //          In case of data flow change ( Seek, tv Zap .... ) Reset() should be called first to flush buffer.
 void CPacketSync::OnRawData(byte* pData, int nDataLen)
 {
-  int syncOffset=0;
+  int syncOffset = 0;
   if (m_tempBufferPos > 0 )
   {
-    if (pData[TS_PACKET_LEN - m_tempBufferPos]==TS_PACKET_SYNC)
+    if (pData[TS_PACKET_LEN - m_tempBufferPos] == TS_PACKET_SYNC)
     {
       syncOffset = TS_PACKET_LEN - m_tempBufferPos;
-      if (syncOffset) memcpy(&m_tempBuffer[m_tempBufferPos], pData, syncOffset);
+      if (syncOffset)
+        memcpy(&m_tempBuffer[m_tempBufferPos], pData, syncOffset);
       OnTsPacket(m_tempBuffer);
     }
     m_tempBufferPos = 0;
@@ -59,7 +55,7 @@ void CPacketSync::OnRawData(byte* pData, int nDataLen)
   while (syncOffset + TS_PACKET_LEN < nDataLen)
   {
     if ((pData[syncOffset] == TS_PACKET_SYNC) &&
-        (pData[syncOffset + TS_PACKET_LEN]==TS_PACKET_SYNC))
+        (pData[syncOffset + TS_PACKET_LEN] == TS_PACKET_SYNC))
     {
       OnTsPacket( &pData[syncOffset] );
       syncOffset += TS_PACKET_LEN;
@@ -73,15 +69,15 @@ void CPacketSync::OnRawData(byte* pData, int nDataLen)
   {
     if (pData[syncOffset] == TS_PACKET_SYNC)
     {
-      m_tempBufferPos= nDataLen - syncOffset;
+      m_tempBufferPos = nDataLen - syncOffset;
       memcpy( m_tempBuffer, &pData[syncOffset], m_tempBufferPos );
-      return ;
+      return;
     }
     else
       syncOffset++;
   }
 
-  m_tempBufferPos=0 ;
+  m_tempBufferPos = 0 ;
 }
 
 void CPacketSync::OnTsPacket(byte* tsPacket)
