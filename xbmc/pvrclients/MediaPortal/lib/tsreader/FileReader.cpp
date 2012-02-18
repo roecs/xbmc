@@ -255,7 +255,7 @@ long FileReader::CloseFile()
   return NOERROR;
 } // CloseFile
 
-bool FileReader::IsFileInvalid()
+inline bool FileReader::IsFileInvalid()
 {
 #if defined(TARGET_WINDOWS)
   return (m_hFile == INVALID_HANDLE_VALUE);
@@ -271,8 +271,6 @@ long FileReader::GetFileSize(int64_t *pStartPosition, int64_t *pLength)
   //CheckPointer(pStartPosition,E_POINTER);
   //CheckPointer(pLength,E_POINTER);
   
-//  BoostThread Boost;
-
   GetStartPosition(pStartPosition);
 
 #if defined(TARGET_WINDOWS)
@@ -555,7 +553,6 @@ long FileReader::Read(unsigned char* pbData, unsigned long lDataLength, unsigned
     XBMC->Log(LOG_ERROR, "FileReader::Read() no open file");
     return E_FAIL;
   }
-//  BoostThread Boost;
 
 #ifdef TARGET_WINDOWS
   long hr;

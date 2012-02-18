@@ -7,6 +7,8 @@
 #define READ_SIZE (1316*30)
 #define INITIAL_READ_SIZE (READ_SIZE * 1024)
 
+using namespace ADDON;
+
 CDeMultiplexer::CDeMultiplexer(CTsReader& filter)
 :m_filter(filter)
 {
@@ -80,7 +82,7 @@ int CDeMultiplexer::ReadFromFile(bool isAudio, bool isVideo)
   if (m_filter.IsSeeking())
     return 0;       // Ambass : to check
 
-  CSingleLock lock (m_sectionRead);
+  PLATFORM::CLockObject lock (m_sectionRead);
   if (NULL == m_reader)
     return false;
 

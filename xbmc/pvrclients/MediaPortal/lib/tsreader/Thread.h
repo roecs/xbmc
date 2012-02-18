@@ -32,9 +32,8 @@
 #include "os-dependent.h"
 #include <string>
 
+#include "platform/threads/mutex.h"
 #include "threads/ThreadImpl.h"
-#include "SingleLock.h"
-#include "CriticalSection.h"
 #include "WaitEvent.h"
 
 class IRunnable
@@ -81,7 +80,7 @@ class CThread: public IRunnable
 
   private:
     ThreadOpaque m_ThreadOpaque;
-    CCriticalSection m_CriticalSection;
+    PLATFORM::CMutex m_CriticalSection;
     bool   m_bThreadRunning;
     IRunnable* m_pRunnable;
     static THREADFUNC staticThread(void *data);
@@ -89,7 +88,7 @@ class CThread: public IRunnable
     //THREADHANDLE m_ThreadHandle;
     std::string m_ThreadName;
     void SetThreadInfo();
-	ThreadIdentifier m_ThreadId;
-	bool m_bAutoDelete;
+	  ThreadIdentifier m_ThreadId;
+	  bool m_bAutoDelete;
 };
 #endif //LIVE555

@@ -5,8 +5,6 @@
 //#include "tsDuration.h"
 //#include "pcrdecoder.h"
 #include "PacketSync.h"
-#include "CriticalSection.h"
-#include "SingleLock.h"
 //#include "pidtable.h"
 #include "TSHeader.h"
 #include "PatParser.h"
@@ -18,6 +16,7 @@
 //#include <map>
 //#include <dvdmedia.h>
 //#include "MpegPesParser.h"
+#include "platform/threads/mutex.h"
 
 using namespace std;
 class CTsReader;
@@ -136,7 +135,7 @@ public:
 //  CCritSec m_sectionAudio;
 //  CCritSec m_sectionVideo;
 //  CCritSec m_sectionSubtitle;
-  CCriticalSection m_sectionRead;
+  PLATFORM::CMutex m_sectionRead;
 //  CCritSec m_sectionAudioChanging;
 //  CCritSec m_sectionMediaChanging;
   FileReader* m_reader;

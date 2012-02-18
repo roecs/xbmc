@@ -31,7 +31,6 @@
 #include "epg.h"
 #include "utils.h"
 #include "pvrclient-mediaportal.h"
-#include "SingleLock.h"
 #include "lib/tinyxml/tinyxml.h"
 #include "lib/tsreader/TSReader.h"
 #ifdef TARGET_WINDOWS
@@ -71,9 +70,6 @@ cPVRClientMediaPortal::cPVRClientMediaPortal()
   m_noSignalStreamReadPos  = 0;
   m_bPlayingNoSignal       = false;
   m_tsreader               = NULL;
-#ifndef TARGET_WINDOWS
-  m_mutex.Initialize(); //workaround for pthread mutex crash.
-#endif
 }
 
 cPVRClientMediaPortal::~cPVRClientMediaPortal()
@@ -88,7 +84,7 @@ string cPVRClientMediaPortal::SendCommand(string command)
 {
   int code;
   vector<string> lines;
-  CSingleLock critsec(m_mutex);
+  PLATFORM::CLockObject critsec(m_mutex);
 
   if ( !m_tcpclient->send(command) )
   {
@@ -118,7 +114,7 @@ string cPVRClientMediaPortal::SendCommand(string command)
 
 bool cPVRClientMediaPortal::SendCommand2(string command, int& code, vector<string>& lines)
 {
-  CSingleLock critsec(m_mutex);
+  PLATFORM::CLockObject critsec(m_mutex);
 
   if ( !m_tcpclient->send(command) )
   {

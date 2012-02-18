@@ -20,6 +20,7 @@
  */
 
 #include <windows.h>
+#include "platform/threads/mutex.h"
 
 using namespace ADDON;
 
@@ -110,7 +111,7 @@ bool CThread::SetPriority(const int iPriority)
 {
   bool bReturn = false;
 
-  CSingleLock lock(m_CriticalSection);
+  PLATFORM::CLockObject lock(m_CriticalSection);
   if (m_ThreadOpaque.handle)
   {
     bReturn = SetThreadPriority(m_ThreadOpaque.handle, iPriority) == TRUE;
@@ -121,7 +122,7 @@ bool CThread::SetPriority(const int iPriority)
 
 int CThread::GetPriority()
 {
-  CSingleLock lock(m_CriticalSection);
+  PLATFORM::CLockObject lock(m_CriticalSection);
 
   int iReturn = THREAD_PRIORITY_NORMAL;
   if (m_ThreadOpaque.handle)
