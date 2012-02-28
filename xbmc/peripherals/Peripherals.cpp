@@ -438,6 +438,8 @@ bool CPeripherals::LoadMappings(void)
 void CPeripherals::GetSettingsFromMappingsFile(TiXmlElement *xmlNode, map<CStdString, CSetting *> &m_settings)
 {
   TiXmlElement *currentNode = xmlNode->FirstChildElement("setting");
+  int iMaxOrder(0);
+
   while (currentNode)
   {
     CSetting *setting = NULL;
@@ -483,9 +485,31 @@ void CPeripherals::GetSettingsFromMappingsFile(TiXmlElement *xmlNode, map<CStdSt
     }
 
     //TODO add more types if needed
+
+    /* set the visibility */
     setting->SetVisible(bConfigurable);
+
+    /* set the order */
+    int iOrder(0);
+    if (currentNode->Attribute("order"))
+      iOrder = atoi(currentNode->Attribute("order"));
+    if (iOrder < 0)
+      iOrder = 0;
+    setting->SetOrder(iOrder);
+    if (iOrder > iMaxOrder)
+      iMaxOrder = iOrder;
+
+    /* and add this new setting */
     m_settings[strKey] = setting;
+
     currentNode = currentNode->NextSiblingElement("setting");
+  }
+
+  /* add the settings without an order attribute set at the end */
+  for (map<CStdString, CSetting *>::iterator it = m_settings.begin(); it != m_settings.end(); it++)
+  {
+    if (it->second->GetOrder() == 0)
+      it->second->SetOrder(++iMaxOrder);
   }
 }
 
